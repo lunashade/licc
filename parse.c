@@ -1,15 +1,17 @@
 #include "lcc.h"
 
 // stmt = expr ";" | "return" expr ";"
-// expr = equality
+// expr = assign
+// assign = equality ("=" assign)
 // equality = relational ( "==" relational | "!=" relational )*
 // relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
 // unary = ( "+" | "-" ) unary | primary
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | num | ident
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
+static Node *assign(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
@@ -66,6 +68,12 @@ static Node *new_number_node(long val) {
   return node;
 }
 
+static Node *new_var_node(char name) {
+  Node *node = new_node(ND_VAR);
+  node->name = name;
+  return node;
+}
+
 //
 // Parser
 //
@@ -91,8 +99,21 @@ static Node *stmt(Token **rest, Token *tok) {
   return node;
 }
 
-// expr = equality
-static Node *expr(Token **rest, Token *tok) { return equality(rest, tok); }
+// expr = assign
+static Node *expr(Token **rest, Token *tok) { return assign(rest, tok); }
+
+// assign = equality ( "=" assign )*
+static Node *assign(Token **rest, Token *tok) {
+  Node *node = equality(&tok, tok);
+  for (;;) {
+    if (equal(tok, "=")) {
+      Node *rhs = assign(&tok, tok->next);
+      node = new_binary_node(ND_ASSIGN, node, rhs);
+    }
+    *rest = tok;
+    return node;
+  }
+}
 
 // equality = relational ( "==" relational | "!=" relational )*
 static Node *equality(Token **rest, Token *tok) {
@@ -191,11 +212,16 @@ static Node *unary(Token **rest, Token *tok) {
   return primary(rest, tok);
 }
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | num | ident
 static Node *primary(Token **rest, Token *tok) {
   if (equal(tok, "(")) {
     Node *node = expr(&tok, tok->next);
     *rest = skip(tok, ")");
+    return node;
+  }
+  if (tok->kind == TK_IDENT) {
+    Node *node = new_var_node(*tok->loc);
+    *rest = tok->next;
     return node;
   }
   Node *node = new_number_node(get_number(tok));

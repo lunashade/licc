@@ -33,5 +33,6 @@ assert 1 'return 1 <= 2;'
 assert 0 'return 1 > 2;'
 assert 3 '1;2; return 3;'
 assert 3 '1; return 3; 2;'
+assert 42 'a = 6; b = (3+4); return a*b; b;'
 
 echo OK

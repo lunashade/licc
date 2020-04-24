@@ -13,20 +13,56 @@ static char *reg(int idx) {
 }
 
 static int top;
+static char *reg_push() { return reg(top++); }
+static char *reg_pop() { return reg(--top); }
+
+static void gen_addr(Node *node) {
+  if (node->kind == ND_VAR) {
+    int offset = (node->name - 'a' + 1) * 8;
+    offset += 32; // for 4 callee-saved registers
+    printf("\tlea %s, [rbp-%d]\n", reg_push(), offset);
+    return;
+  }
+  error("not an lvalue");
+}
+
+static void load(void) {
+  char *rd = reg_pop();
+  printf("\tmov %s, [%s]\n", reg_push(), rd);
+  return;
+}
+static void store(void) {
+  char *addr = reg_pop();
+  char *val = reg_pop();
+  printf("\tmov [%s], %s\n", addr, val);
+  reg_push();  // address to top
+  return;
+}
 
 static void gen_expr(Node *node) {
   if (node->kind == ND_NUM) {
-    printf("\tmov %s, %ld\n", reg(top), node->val);
-    top++;
+    printf("\tmov %s, %ld\n", reg_push(), node->val);
     return;
   }
+  if (node->kind == ND_VAR) {
+    gen_addr(node);
+    load();
+    return;
+  }
+  if (node->kind == ND_ASSIGN) {
+    gen_expr(node->rhs);
+    gen_addr(node->lhs);
+    store();
+    return;
+  }
+
+  // binary node
   gen_expr(node->lhs);
   gen_expr(node->rhs);
 
-  // binary node
-  char *rd = reg(top - 2);
-  char *rs = reg(top - 1);
-  top--; // 2-pop, 1-push
+  char *rs = reg_pop();
+  char *rd = reg_pop();
+  reg_push();
 
   if (node->kind == ND_ADD) {
     printf("\tadd %s, %s\n", rd, rs);
@@ -81,14 +117,13 @@ static void gen_expr(Node *node) {
 static void gen_stmt(Node *node) {
   if (node->kind == ND_RETURN) {
     gen_expr(node->lhs);
-    top--;
-    printf("\tmov rax, %s\n", reg(top));
+    printf("\tmov rax, %s\n", reg_pop());
     printf("\tjmp .L.return\n");
     return;
   }
   if (node->kind == ND_EXPR_STMT) {
     gen_expr(node->lhs);
-    top--;
+    reg_pop();
     return;
   }
   error("invalid statement");
@@ -100,22 +135,31 @@ void codegen(Node *node) {
 
   printf("main:\n");
 
+  // prologue
+  // save stack pointer
+  printf("\tpush rbp\n");
+  printf("\tmov rbp, rsp\n");
+  printf("\tsub rsp, 240\n");  // 8 * 26(a-z) + 8 * 4(callee-saved)
   // save callee-saved registers
-  printf("\tpush r12\n");
-  printf("\tpush r13\n");
-  printf("\tpush r14\n");
-  printf("\tpush r15\n");
+  printf("\tmov [rbp-8], r12\n");
+  printf("\tmov [rbp-16], r13\n");
+  printf("\tmov [rbp-24], r14\n");
+  printf("\tmov [rbp-32], r15\n");
 
   for (Node *n = node; n; n = n->next) {
     gen_stmt(n);
     assert(top == 0);
   }
 
+  // Epilogue
   // recover callee-saved registers
   printf(".L.return:\n");
-  printf("\tpop r15\n");
-  printf("\tpop r14\n");
-  printf("\tpop r13\n");
-  printf("\tpop r12\n");
+  printf("\tmov r12, [rbp-8]\n");
+  printf("\tmov r13, [rbp-16]\n");
+  printf("\tmov r14, [rbp-24]\n");
+  printf("\tmov r15, [rbp-32]\n");
+  // recover stack pointer
+  printf("\tmov rsp, rbp\n");
+  printf("\tpop rbp\n");
   printf("\tret\n");
 }

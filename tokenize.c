@@ -68,6 +68,11 @@ Token *tokenize(char *p) {
       p++;
       continue;
     }
+    if (isalpha(*p)) {
+      cur = new_token(cur, TK_IDENT, p, 1);
+      p++;
+      continue;
+    }
     if (isdigit(*p)) {
       cur = new_token(cur, TK_NUM, p, 0);
       char *q = p;
