@@ -20,15 +20,17 @@ static Node *primary(Token **rest, Token *tok);
 //
 // Token utility
 //
-static long number(Token *tok) {
+static long get_number(Token *tok) {
   if (tok->kind != TK_NUM) {
     error_tok(tok, "expected a number token");
   }
   return tok->val;
 }
+
 static bool equal(Token *tok, char *s) {
   return strlen(s) == tok->len && !strncmp(tok->loc, s, tok->len);
 }
+
 Token *skip(Token *tok, char *s) {
   if (!equal(tok, s)) {
     error_tok(tok, "expected token %s", s);
@@ -196,7 +198,7 @@ static Node *primary(Token **rest, Token *tok) {
     *rest = skip(tok, ")");
     return node;
   }
-  Node *node = new_number_node(number(tok));
+  Node *node = new_number_node(get_number(tok));
   *rest = tok->next;
   return node;
 }
