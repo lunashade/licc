@@ -61,7 +61,12 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   cur->next = tok;
   return tok;
 }
-const char *punctuator = "+-()/*";
+const char *punctuator = "+-()/*<>=!";
+const char *operator[] = {"<=", ">=", "==", "!="};
+
+static bool startswith(char *p, char *q) {
+  return strncmp(p, q, strlen(q)) == 0;
+}
 
 static Token *tokenize(char *p) {
   Token head = {};
@@ -73,8 +78,15 @@ static Token *tokenize(char *p) {
       p++;
       continue;
     }
-    if (strchr(punctuator, *p) != NULL) {
-      cur = new_token(cur, TK_RESERVED, p++, 1);
+    if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||
+        startswith(p, "!=")) {
+      cur = new_token(cur, TK_RESERVED, p, 2);
+      p += 2;
+      continue;
+    }
+    if (ispunct(*p)) {
+      cur = new_token(cur, TK_RESERVED, p, 1);
+      p++;
       continue;
     }
     if (isdigit(*p)) {
@@ -112,9 +124,13 @@ static Token *skip(Token *tok, char *s) {
 
 typedef enum {
   ND_ADD, // +
-  ND_SUB, // +
-  ND_MUL, // +
-  ND_DIV, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_EQ,  // ==
+  ND_NE,  // !=
+  ND_LT,  // <
+  ND_LE,  // <=
   ND_NUM,
 } NodeKind;
 
@@ -145,17 +161,74 @@ static Node *new_number_node(long val) {
   return node;
 }
 
-// expr = mul ( "+" mul | "-" mul )*
-static Node *expr(Token **rest, Token *tok);
+// expr = equality
+// equality = relational ( "==" relational | "!=" relational )*
+// relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
+// add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
-static Node *mul(Token **rest, Token *tok);
 // unary = ( "+" | "-" ) unary | primary
-static Node *unary(Token **rest, Token *tok);
 // primary = "(" expr ")" | num
+static Node *expr(Token **rest, Token *tok);
+static Node *equality(Token **rest, Token *tok);
+static Node *relational(Token **rest, Token *tok);
+static Node *add(Token **rest, Token *tok);
+static Node *mul(Token **rest, Token *tok);
+static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
-// expr = mul ( "+" mul | "-" mul )*
-static Node *expr(Token **rest, Token *tok) {
+// expr = equality
+static Node *expr(Token **rest, Token *tok) { return equality(rest, tok); }
+
+// equality = relational ( "==" relational | "!=" relational )*
+static Node *equality(Token **rest, Token *tok) {
+  Node *node = relational(&tok, tok);
+  for (;;) {
+    if (equal(tok, "==")) {
+      Node *rhs = relational(&tok, tok->next);
+      node = new_binary_node(ND_EQ, node, rhs);
+      continue;
+    }
+    if (equal(tok, "!=")) {
+      Node *rhs = relational(&tok, tok->next);
+      node = new_binary_node(ND_NE, node, rhs);
+      continue;
+    }
+    *rest = tok;
+    return node;
+  }
+}
+
+// relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
+static Node *relational(Token **rest, Token *tok) {
+  Node *node = add(&tok, tok);
+  for (;;) {
+    if (equal(tok, "<")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary_node(ND_LT, node, rhs);
+      continue;
+    }
+    if (equal(tok, "<=")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary_node(ND_LE, node, rhs);
+      continue;
+    }
+    if (equal(tok, ">")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary_node(ND_LT, rhs, node);
+      continue;
+    }
+    if (equal(tok, ">=")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary_node(ND_LE, rhs, node);
+      continue;
+    }
+    *rest = tok;
+    return node;
+  }
+}
+
+// add = mul ( "+" mul | "-" mul )*
+static Node *add(Token **rest, Token *tok) {
   Node *node = mul(&tok, tok);
   for (;;) {
     if (equal(tok, "+")) {
@@ -238,9 +311,10 @@ static void gen_expr(Node *node) {
   gen_expr(node->lhs);
   gen_expr(node->rhs);
 
+  // binary node
   char *rd = reg(top - 2);
   char *rs = reg(top - 1);
-  top--;
+  top--;  // 2-pop, 1-push
 
   if (node->kind == ND_ADD) {
     printf("\tadd %s, %s\n", rd, rs);
@@ -258,6 +332,34 @@ static void gen_expr(Node *node) {
     printf("\tmov rax, %s\n", rd);
     printf("\tcqo\n");
     printf("\tidiv %s\n", rs);
+    printf("\tmov %s, rax\n", rd);
+    return;
+  }
+  if (node->kind == ND_EQ) {
+    printf("\tcmp %s, %s\n", rd, rs);
+    printf("\tsete al\n");
+    printf("\tmovzb rax, al\n");
+    printf("\tmov %s, rax\n", rd);
+    return;
+  }
+  if (node->kind == ND_NE) {
+    printf("\tcmp %s, %s\n", rd, rs);
+    printf("\tsetne al\n");
+    printf("\tmovzb rax, al\n");
+    printf("\tmov %s, rax\n", rd);
+    return;
+  }
+  if (node->kind == ND_LT) {
+    printf("\tcmp %s, %s\n", rd, rs);
+    printf("\tsetl al\n");
+    printf("\tmovzb rax, al\n");
+    printf("\tmov %s, rax\n", rd);
+    return;
+  }
+  if (node->kind == ND_LE) {
+    printf("\tcmp %s, %s\n", rd, rs);
+    printf("\tsetle al\n");
+    printf("\tmovzb rax, al\n");
     printf("\tmov %s, rax\n", rd);
     return;
   }

@@ -25,5 +25,11 @@ assert 42 "50 - 10  + 2"
 assert 42 "(2+4)*7"
 assert 5 "300 / 60"
 assert 15 "-+ -5 * - -3"
+assert 1 "3+2 == 5"
+assert 0 "3+2 != 5*--1"
+assert 1 "1 < 2"
+assert 0 "1 >= 2"
+assert 1 "1 <= 2"
+assert 0 "1 > 2"
 
 echo OK
