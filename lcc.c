@@ -20,6 +20,36 @@ struct Token {
   int len;
 };
 
+// error report
+static char *current_input;
+static void error(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  exit(1);
+}
+static void verror_at(char *loc, char *fmt, va_list ap) {
+  int pos = loc - current_input;
+  fprintf(stderr, "%s\n", current_input);
+  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+static void error_at(char *loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(loc, fmt, ap);
+}
+
+static void error_tok(Token *tok, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(tok->loc, fmt, ap);
+}
+
+// Token
 static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
@@ -29,16 +59,9 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   return tok;
 }
 
-// error report
-static void error(char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  exit(1);
-}
-
 static Token *tokenize(char *p) {
   Token head = {};
+  current_input = p;
   Token *cur = &head;
 
   while (*p) {
@@ -57,7 +80,7 @@ static Token *tokenize(char *p) {
       cur->len = p - q;
       continue;
     }
-    error("invalid token: %c\n", *p);
+    error_at(p, "invalid token character");
   }
   new_token(cur, TK_EOF, p, 0);
   return head.next;
@@ -65,7 +88,7 @@ static Token *tokenize(char *p) {
 
 static long number(Token *tok) {
   if (tok->kind != TK_NUM) {
-    error("expected a number token");
+    error_tok(tok, "expected a number token");
   }
   return tok->val;
 }
@@ -100,7 +123,7 @@ int main(int argc, char **argv) {
       tok = tok->next;
       continue;
     }
-    error("something wrong in tokenize");
+    error_tok(tok, "something wrong in tokenize");
   }
 
   printf("\tret\n");
