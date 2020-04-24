@@ -49,7 +49,10 @@ static void error_tok(Token *tok, char *fmt, ...) {
   verror_at(tok->loc, fmt, ap);
 }
 
-// Token
+//
+// Tokenizer
+//
+
 static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
@@ -58,6 +61,7 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   cur->next = tok;
   return tok;
 }
+const char *punctuator = "+-()/*";
 
 static Token *tokenize(char *p) {
   Token head = {};
@@ -69,7 +73,7 @@ static Token *tokenize(char *p) {
       p++;
       continue;
     }
-    if (*p == '+' || *p == '-') {
+    if (strchr(punctuator, *p) != NULL) {
       cur = new_token(cur, TK_RESERVED, p++, 1);
       continue;
     }
@@ -95,6 +99,157 @@ static long number(Token *tok) {
 static bool equal(Token *tok, char *s) {
   return strlen(s) == tok->len && !strncmp(tok->loc, s, tok->len);
 }
+static Token *skip(Token *tok, char *s) {
+  if (!equal(tok, s)) {
+    error_tok(tok, "expected token %s", s);
+  }
+  return tok->next;
+}
+
+//
+// Parser
+//
+
+typedef enum {
+  ND_ADD, // +
+  ND_SUB, // +
+  ND_MUL, // +
+  ND_DIV, // +
+  ND_NUM,
+} NodeKind;
+
+typedef struct Node Node;
+struct Node {
+  NodeKind kind;
+  Node *lhs;
+  Node *rhs;
+  long val;
+};
+
+static Node *new_node(NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  return node;
+}
+
+static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+static Node *new_number_node(long val) {
+  Node *node = new_node(ND_NUM);
+  node->val = val;
+  return node;
+}
+
+// expr = mul ( "+" mul | "-" mul )*
+static Node *expr(Token **rest, Token *tok);
+// mul = primary ( "*" primary | "/" primary )*
+static Node *mul(Token **rest, Token *tok);
+// primary = "(" expr ")" | num
+static Node *primary(Token **rest, Token *tok);
+
+// expr = mul ( "+" mul | "-" mul )*
+static Node *expr(Token **rest, Token *tok) {
+  Node *node = mul(&tok, tok);
+  for (;;) {
+    if (equal(tok, "+")) {
+      Node *rhs = mul(&tok, tok->next);
+      node = new_binary_node(ND_ADD, node, rhs);
+      continue;
+    }
+    if (equal(tok, "-")) {
+      Node *rhs = mul(&tok, tok->next);
+      node = new_binary_node(ND_SUB, node, rhs);
+      continue;
+    }
+    *rest = tok;
+    return node;
+  }
+}
+
+// mul = primary ( "*" primary | "/" primary )*
+static Node *mul(Token **rest, Token *tok) {
+  Node *node = primary(&tok, tok);
+  for (;;) {
+    if (equal(tok, "*")) {
+      Node *rhs = primary(&tok, tok->next);
+      node = new_binary_node(ND_MUL, node, rhs);
+      continue;
+    }
+    if (equal(tok, "/")) {
+      Node *rhs = primary(&tok, tok->next);
+      node = new_binary_node(ND_DIV, node, rhs);
+      continue;
+    }
+    *rest = tok;
+    return node;
+  }
+}
+
+// primary = "(" expr ")" | num
+static Node *primary(Token **rest, Token *tok) {
+  if (equal(tok, "(")) {
+    Node *node = expr(&tok, tok->next);
+    *rest = skip(tok, ")");
+    return node;
+  }
+  Node *node = new_number_node(number(tok));
+  *rest = tok->next;
+  return node;
+}
+
+//
+// Codegen
+//
+
+static char *reg(int idx) {
+  static char *r[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
+
+  if (idx < 0 || sizeof(r) / sizeof(*r) <= idx)
+    error("registor out of range: %d", idx);
+  return r[idx];
+}
+
+static int top;
+
+static void gen_expr(Node *node) {
+  if (node->kind == ND_NUM) {
+    printf("\tmov %s, %ld\n", reg(top), node->val);
+    top++;
+    return;
+  }
+  gen_expr(node->lhs);
+  gen_expr(node->rhs);
+
+  char *rd = reg(top - 2);
+  char *rs = reg(top - 1);
+  top--;
+
+  if (node->kind == ND_ADD) {
+    printf("\tadd %s, %s\n", rd, rs);
+    return;
+  }
+  if (node->kind == ND_SUB) {
+    printf("\tsub %s, %s\n", rd, rs);
+    return;
+  }
+  if (node->kind == ND_MUL) {
+    printf("\timul %s, %s\n", rd, rs);
+    return;
+  }
+  if (node->kind == ND_DIV) {
+    printf("\tmov rax, %s\n", rd);
+    printf("\tcqo\n");
+    printf("\tidiv %s\n", rs);
+    printf("\tmov %s, rax\n", rd);
+    return;
+  }
+  error("invalid expression");
+}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -102,30 +257,30 @@ int main(int argc, char **argv) {
   }
 
   Token *tok = tokenize(argv[1]);
+  Node *node = expr(&tok, tok);
+  if (tok->kind != TK_EOF) {
+    error_tok(tok, "extra token");
+  }
 
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
 
   printf("main:\n");
 
-  printf("\tmov rax, %ld\n", number(tok));
-  tok = tok->next;
-  while (tok->kind != TK_EOF) {
-    if (equal(tok, "+")) {
-      tok = tok->next;
-      printf("\tadd rax, %ld\n", number(tok));
-      tok = tok->next;
-      continue;
-    }
-    if (equal(tok, "-")) {
-      tok = tok->next;
-      printf("\tsub rax, %ld\n", number(tok));
-      tok = tok->next;
-      continue;
-    }
-    error_tok(tok, "something wrong in tokenize");
-  }
+  // save callee-saved registers
+  printf("\tpush r12\n");
+  printf("\tpush r13\n");
+  printf("\tpush r14\n");
+  printf("\tpush r15\n");
 
+  gen_expr(node);
+  printf("\tmov rax, %s\n", reg(top - 1));
+
+  // recover callee-saved registers
+  printf("\tpop r15\n");
+  printf("\tpop r14\n");
+  printf("\tpop r13\n");
+  printf("\tpop r12\n");
   printf("\tret\n");
   return 0;
 }

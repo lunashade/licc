@@ -22,4 +22,6 @@ assert 0 0
 assert 42 42
 assert 42 "50-10+2"
 assert 42 "50 - 10  + 2"
+assert 42 "(2+4)*7"
+assert 5 "300 / 60"
 echo OK
