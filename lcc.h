@@ -46,6 +46,7 @@ typedef enum {
   ND_LT,        // <
   ND_LE,        // <=
   ND_EXPR_STMT, // Expession Statement
+  ND_RETURN,    // return statement
   ND_NUM,       // Integer
 } NodeKind;
 

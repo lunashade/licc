@@ -79,10 +79,16 @@ static void gen_expr(Node *node) {
 }
 
 static void gen_stmt(Node *node) {
-  if (node->kind == ND_EXPR_STMT) {
+  if (node->kind == ND_RETURN) {
     gen_expr(node->lhs);
     top--;
     printf("\tmov rax, %s\n", reg(top));
+    printf("\tjmp .L.return\n");
+    return;
+  }
+  if (node->kind == ND_EXPR_STMT) {
+    gen_expr(node->lhs);
+    top--;
     return;
   }
   error("invalid statement");
@@ -106,6 +112,7 @@ void codegen(Node *node) {
   }
 
   // recover callee-saved registers
+  printf(".L.return:\n");
   printf("\tpop r15\n");
   printf("\tpop r14\n");
   printf("\tpop r13\n");

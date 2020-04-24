@@ -42,7 +42,6 @@ Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   return tok;
 }
 
-
 Token *tokenize(char *p) {
   Token head = {};
   current_input = p;
@@ -51,6 +50,11 @@ Token *tokenize(char *p) {
   while (*p) {
     if (isspace(*p)) {
       p++;
+      continue;
+    }
+    if (startswith(p, "return")) {
+      cur = new_token(cur, TK_RESERVED, p, 6);
+      p += 6;
       continue;
     }
     if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||

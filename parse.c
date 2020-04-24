@@ -1,6 +1,6 @@
 #include "lcc.h"
 
-// stmt = expr ";"
+// stmt = expr ";" | "return" expr ";"
 // expr = equality
 // equality = relational ( "==" relational | "!=" relational )*
 // relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
@@ -77,7 +77,13 @@ Node *parse(Token *tok) {
   return head.next;
 }
 
+// stmt = expr ";" | "return" expr ";"
 static Node *stmt(Token **rest, Token *tok) {
+  if (equal(tok, "return")) {
+    Node *node = new_unary_node(ND_RETURN, expr(&tok, tok->next));
+    *rest = skip(tok, ";");
+    return node;
+  }
   Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
   *rest = skip(tok, ";");
   return node;
