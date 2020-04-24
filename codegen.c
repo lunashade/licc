@@ -18,9 +18,7 @@ static char *reg_pop() { return reg(--top); }
 
 static void gen_addr(Node *node) {
   if (node->kind == ND_VAR) {
-    int offset = (node->name - 'a' + 1) * 8;
-    offset += 32; // for 4 callee-saved registers
-    printf("\tlea %s, [rbp-%d]\n", reg_push(), offset);
+    printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
     return;
   }
   error("not an lvalue");
@@ -129,7 +127,7 @@ static void gen_stmt(Node *node) {
   error("invalid statement");
 }
 
-void codegen(Node *node) {
+void codegen(Function *prog) {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
 
@@ -139,14 +137,14 @@ void codegen(Node *node) {
   // save stack pointer
   printf("\tpush rbp\n");
   printf("\tmov rbp, rsp\n");
-  printf("\tsub rsp, 240\n");  // 8 * 26(a-z) + 8 * 4(callee-saved)
+  printf("\tsub rsp, %d\n", prog->stacksize);
   // save callee-saved registers
   printf("\tmov [rbp-8], r12\n");
   printf("\tmov [rbp-16], r13\n");
   printf("\tmov [rbp-24], r14\n");
   printf("\tmov [rbp-32], r15\n");
 
-  for (Node *n = node; n; n = n->next) {
+  for (Node *n = prog->node; n; n = n->next) {
     gen_stmt(n);
     assert(top == 0);
   }

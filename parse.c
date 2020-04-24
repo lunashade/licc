@@ -68,23 +68,48 @@ static Node *new_number_node(long val) {
   return node;
 }
 
-static Node *new_var_node(char name) {
+static Node *new_var_node(LVar *var) {
   Node *node = new_node(ND_VAR);
-  node->name = name;
+  node->var = var;
   return node;
+}
+
+//
+// LVar utility
+//
+
+LVar *locals;
+
+static LVar *find_lvar(Token *tok) {
+  for (LVar *lv = locals; lv; lv = lv->next)
+    if (strlen(lv->name) == tok->len && !strncmp(tok->loc, lv->name, tok->len))
+      return lv;
+
+  return NULL;
+}
+
+static LVar *new_lvar(char *name) {
+  LVar *lvar = calloc(1, sizeof(LVar));
+  lvar->next = locals;
+  lvar->name = name;
+  locals = lvar;
+  return lvar;
 }
 
 //
 // Parser
 //
 
-Node *parse(Token *tok) {
+Function *parse(Token *tok) {
   Node head = {};
   Node *cur = &head;
   while (tok->kind != TK_EOF) {
     cur = cur->next = stmt(&tok, tok);
   }
-  return head.next;
+  Function *prog = calloc(1, sizeof(Function));
+  prog->node = head.next;
+  prog->locals = locals;
+  return prog;
 }
 
 // stmt = expr ";" | "return" expr ";"
@@ -220,9 +245,12 @@ static Node *primary(Token **rest, Token *tok) {
     return node;
   }
   if (tok->kind == TK_IDENT) {
-    Node *node = new_var_node(*tok->loc);
+    LVar *lvar = find_lvar(tok);
+    if (!lvar) {
+      lvar = new_lvar(strndup(tok->loc, tok->len));
+    }
     *rest = tok->next;
-    return node;
+    return new_var_node(lvar);
   }
   Node *node = new_number_node(get_number(tok));
   *rest = tok->next;

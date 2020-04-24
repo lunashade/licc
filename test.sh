@@ -33,6 +33,12 @@ assert 1 'return 1 <= 2;'
 assert 0 'return 1 > 2;'
 assert 3 '1;2; return 3;'
 assert 3 '1; return 3; 2;'
+assert 1 'a=1;return a;'
+assert 9 'a=1;z=8;return a+z;'
 assert 42 'a = 6; b = (3+4); return a*b; b;'
+assert 16 'a=c=4; return a*c;'
+assert 3 'foo=3; return foo;'
+assert 8 'foo=3; bar=21; return (foo+bar)/foo;'
+assert 8 'foo123=3; bar=21; return (foo123+bar)/foo123;'
 
 echo OK

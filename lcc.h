@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -37,6 +38,13 @@ void error_tok(Token *tok, char *fmt, ...);
 // Parser
 //
 
+typedef struct LVar LVar;
+struct LVar {
+  LVar *next; // next LVar
+  char *name; // name string
+  int offset; // offset from rbp
+};
+
 typedef enum {
   ND_ADD,       // +
   ND_SUB,       // -
@@ -56,17 +64,24 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
-  Node *next;
-  Node *lhs;
-  Node *rhs;
-  char name;
-  long val;
+  Node *next; // next statement
+  Node *lhs;  // binary node left-hand side
+  Node *rhs;  // binary node right-hand side
+  LVar *var;  // ND_VAR, local variable
+  long val;   // ND_NUM, value
 };
 
-Node *parse(Token *tok);
+typedef struct Function Function;
+struct Function {
+  Node *node;
+  LVar *locals;  // linked list of locals
+  int stacksize; // local variable stack size
+};
+
+Function *parse(Token *tok);
 
 //
 // Codegen
 //
 
-void codegen(Node *node);
+void codegen(Function *prog);
