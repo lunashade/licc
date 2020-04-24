@@ -20,5 +20,6 @@ function assert {
 
 assert 0 0
 assert 42 42
-assert 42 50-10+2
+assert 42 "50-10+2"
+assert 42 "50 - 10  + 2"
 echo OK
