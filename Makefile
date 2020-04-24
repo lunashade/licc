@@ -1,5 +1,6 @@
 CFLAGS=-std=c11 -g -static
 
+all: test
 lcc: lcc.c
 
 test: lcc
