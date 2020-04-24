@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -36,27 +37,28 @@ void error_tok(Token *tok, char *fmt, ...);
 //
 
 typedef enum {
-  ND_ADD, // +
-  ND_SUB, // -
-  ND_MUL, // *
-  ND_DIV, // /
-  ND_EQ,  // ==
-  ND_NE,  // !=
-  ND_LT,  // <
-  ND_LE,  // <=
-  ND_NUM,
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_LE,        // <=
+  ND_EXPR_STMT, // Expession Statement
+  ND_NUM,       // Integer
 } NodeKind;
 
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
+  Node *next;
   Node *lhs;
   Node *rhs;
   long val;
 };
 
 Node *parse(Token *tok);
-
 
 //
 // Codegen

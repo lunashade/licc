@@ -26,7 +26,7 @@ static void gen_expr(Node *node) {
   // binary node
   char *rd = reg(top - 2);
   char *rs = reg(top - 1);
-  top--;  // 2-pop, 1-push
+  top--; // 2-pop, 1-push
 
   if (node->kind == ND_ADD) {
     printf("\tadd %s, %s\n", rd, rs);
@@ -78,6 +78,16 @@ static void gen_expr(Node *node) {
   error("invalid expression");
 }
 
+static void gen_stmt(Node *node) {
+  if (node->kind == ND_EXPR_STMT) {
+    gen_expr(node->lhs);
+    top--;
+    printf("\tmov rax, %s\n", reg(top));
+    return;
+  }
+  error("invalid statement");
+}
+
 void codegen(Node *node) {
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
@@ -90,8 +100,10 @@ void codegen(Node *node) {
   printf("\tpush r14\n");
   printf("\tpush r15\n");
 
-  gen_expr(node);
-  printf("\tmov rax, %s\n", reg(top - 1));
+  for (Node *n = node; n; n = n->next) {
+    gen_stmt(n);
+    assert(top == 0);
+  }
 
   // recover callee-saved registers
   printf("\tpop r15\n");

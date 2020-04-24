@@ -1,5 +1,6 @@
 #include "lcc.h"
 
+// stmt = expr ";"
 // expr = equality
 // equality = relational ( "==" relational | "!=" relational )*
 // relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
@@ -7,6 +8,7 @@
 // mul = unary ( "*" unary | "/" unary )*
 // unary = ( "+" | "-" ) unary | primary
 // primary = "(" expr ")" | num
+static Node *stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
@@ -43,6 +45,12 @@ static Node *new_node(NodeKind kind) {
   return node;
 }
 
+static Node *new_unary_node(NodeKind kind, Node *lhs) {
+  Node *node = new_node(kind);
+  node->lhs = lhs;
+  return node;
+}
+
 static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = new_node(kind);
   node->lhs = lhs;
@@ -61,10 +69,17 @@ static Node *new_number_node(long val) {
 //
 
 Node *parse(Token *tok) {
-  Node *node = expr(&tok, tok);
-  if (tok->kind != TK_EOF) {
-    error_tok(tok, "extra token");
+  Node head = {};
+  Node *cur = &head;
+  while (tok->kind != TK_EOF) {
+    cur = cur->next = stmt(&tok, tok);
   }
+  return head.next;
+}
+
+static Node *stmt(Token **rest, Token *tok) {
+  Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+  *rest = skip(tok, ";");
   return node;
 }
 
