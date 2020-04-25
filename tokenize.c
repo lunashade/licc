@@ -33,13 +33,31 @@ static bool startswith(char *p, char *q) {
 }
 
 // Tokenizer
-Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
+static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
   Token *tok = calloc(1, sizeof(Token));
   tok->kind = kind;
   tok->loc = str;
   tok->len = len;
   cur->next = tok;
   return tok;
+}
+
+static bool is_keyword(Token *tok) {
+  static char *kw[] = {"return", "if", "else", "for", "while"};
+
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
+    if (equal(tok, kw[i]))
+      return true;
+  }
+  return false;
+}
+
+static void convert_keywords(Token *tok) {
+  for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+    if (t->kind == TK_IDENT && is_keyword(t)) {
+      t->kind = TK_RESERVED;
+    }
+  }
 }
 
 Token *tokenize(char *p) {
@@ -50,11 +68,6 @@ Token *tokenize(char *p) {
   while (*p) {
     if (isspace(*p)) {
       p++;
-      continue;
-    }
-    if (startswith(p, "return")) {
-      cur = new_token(cur, TK_RESERVED, p, 6);
-      p += 6;
       continue;
     }
     if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||
@@ -87,5 +100,6 @@ Token *tokenize(char *p) {
     error_at(p, "invalid token character");
   }
   new_token(cur, TK_EOF, p, 0);
+  convert_keywords(head.next);
   return head.next;
 }

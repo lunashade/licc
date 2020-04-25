@@ -29,7 +29,7 @@ static long get_number(Token *tok) {
   return tok->val;
 }
 
-static bool equal(Token *tok, char *s) {
+bool equal(Token *tok, char *s) {
   return strlen(s) == tok->len && !strncmp(tok->loc, s, tok->len);
 }
 

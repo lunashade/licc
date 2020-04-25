@@ -26,8 +26,8 @@ struct Token {
   int len;
 };
 
-Token *new_token(Token *cur, TokenKind kind, char *str, int len);
 Token *tokenize(char *p);
+bool equal(Token *tok, char *s);
 Token *skip(Token *tok, char *s);
 
 void error(char *fmt, ...);
