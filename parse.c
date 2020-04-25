@@ -186,7 +186,7 @@ static Node *stmt(Token **rest, Token *tok) {
 // expr-stmt = expr
 static Node *expr_stmt(Token **rest, Token *tok) {
     Node *node = new_node(ND_EXPR_STMT, tok);
-    node->lhs = expr_stmt(&tok, tok);
+    node->lhs = expr(rest, tok);
     return node;
 }
 
