@@ -45,5 +45,7 @@ assert 5 'if (8!=8) return 8; return 5;'
 assert 8 'if (8==8) return 8; else return 5;'
 assert 5 'if (8!=8) return 8; else return 5;'
 assert 5 'a=5; b=3; if (a==5) if (b==3) return a; else return 5;'
+assert 55 'sum=0; for (i=1;i<=10;i=i+1) sum = sum+i; return sum;'
+assert 45 'sum=0; i=5; while (sum < 45) sum = sum+i; return sum;'
 
 echo OK

@@ -126,22 +126,38 @@ static void gen_stmt(Node *node) {
     printf("\tjmp .L.return\n");
     return;
   }
+  if (node->kind == ND_FOR) {
+    int lfor = next_label();
+    if (node->init)
+      gen_stmt(node->init);
+    printf(".L.begin.%d:\n", lfor);
+    if (node->cond) {
+      gen_expr(node->cond);
+      printf("\tcmp %s, 0\n", reg_pop());
+      printf("\tje .L.end.%d\n", lfor);
+    }
+    gen_stmt(node->then);
+    if (node->inc)
+      gen_stmt(node->inc);
+    printf("\tjmp .L.begin.%d\n", lfor);
+    printf(".L.end.%d:\n", lfor);
+    return;
+  }
   if (node->kind == ND_IF) {
     gen_expr(node->cond);
     printf("\tcmp %s, 0\n", reg_pop());
-    int lend = next_label();
+    int lif = next_label();
     if (node->els) {
-      int lels = next_label();
-      printf("\tje .L.els.%d\n", lels);
+      printf("\tje .L.els.%d\n", lif);
       gen_stmt(node->then);
-      printf("\tjmp .L.end.%d\n", lend);
-      printf(".L.els.%d:\n", lels);
+      printf("\tjmp .L.end.%d\n", lif);
+      printf(".L.els.%d:\n", lif);
       gen_stmt(node->els);
     } else {
-      printf("\tje .L.end.%d\n", lend);
+      printf("\tje .L.end.%d\n", lif);
       gen_stmt(node->then);
     }
-    printf(".L.end.%d:\n", lend);
+    printf(".L.end.%d:\n", lif);
     return;
   }
   if (node->kind == ND_EXPR_STMT) {
@@ -171,6 +187,8 @@ void codegen(Function *prog) {
 
   for (Node *n = prog->node; n; n = n->next) {
     gen_stmt(n);
+    if (top != 0)
+      fprintf(stderr, "top: %d\n", top);
     assert(top == 0);
   }
 

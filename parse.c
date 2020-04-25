@@ -112,11 +112,48 @@ Function *parse(Token *tok) {
   return prog;
 }
 
-// stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt )?
+// stmt = expr ";"
+//      | "return" expr ";"
+//      | "if" "(" expr ")" stmt ( "else" stmt )?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr?; expr?; expr?; ")" stmt
 static Node *stmt(Token **rest, Token *tok) {
   if (equal(tok, "return")) {
     Node *node = new_unary_node(ND_RETURN, expr(&tok, tok->next));
     *rest = skip(tok, ";");
+    return node;
+  }
+  if (equal(tok, "while")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+    node->cond = expr(&tok, tok);
+    tok = skip(tok, ")");
+    node->then = stmt(&tok, tok);
+
+    *rest = tok;
+    return node;
+  }
+  if (equal(tok, "for")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+
+    if (!equal(tok, ";")) {
+      node->init = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+    }
+    tok = skip(tok, ";");
+
+    if (!equal(tok, ";")) {
+      node->cond = expr(&tok, tok);
+    }
+    tok = skip(tok, ";");
+
+    if (!equal(tok, ")")) {
+      node->inc = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+    }
+    tok = skip(tok, ")");
+    node->then = stmt(&tok, tok);
+
+    *rest = tok;
     return node;
   }
   if (equal(tok, "if")) {

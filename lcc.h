@@ -60,6 +60,7 @@ typedef enum {
   ND_EXPR_STMT, // Expession Statement
   ND_RETURN,    // return statement
   ND_IF,        // if statement
+  ND_FOR,       // for statement
   ND_NUM,       // Integer
   ND_VAR,       // variable
 } NodeKind;
@@ -72,6 +73,8 @@ struct Node {
   Node *cond; // condition
   Node *then; // then
   Node *els;  // else
+  Node *init; // for init
+  Node *inc;  // for increment
 
   Node *lhs; // binary node left-hand side
   Node *rhs; // binary node right-hand side
