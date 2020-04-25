@@ -1,16 +1,8 @@
 #include "lcc.h"
 
-// stmt = expr ";" | "return" expr ";"
-// expr = assign
-// assign = equality ("=" assign)
-// equality = relational ( "==" relational | "!=" relational )*
-// relational = add ( "<" add | ">" add | "<=" add | ">=" add )*
-// add = mul ( "+" mul | "-" mul )*
-// mul = unary ( "*" unary | "/" unary )*
-// unary = ( "+" | "-" ) unary | primary
-// primary = "(" expr ")" | num | ident
 static Node *compound_stmt(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
+static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
@@ -154,7 +146,7 @@ static Node *stmt(Token **rest, Token *tok) {
         tok = skip(tok->next, "(");
 
         if (!equal(tok, ";")) {
-            node->init = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+            node->init = expr_stmt(&tok, tok);
         }
         tok = skip(tok, ";");
 
@@ -164,7 +156,7 @@ static Node *stmt(Token **rest, Token *tok) {
         tok = skip(tok, ";");
 
         if (!equal(tok, ")")) {
-            node->inc = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+            node->inc = expr_stmt(&tok, tok);
         }
         tok = skip(tok, ")");
         node->then = stmt(&tok, tok);
@@ -184,9 +176,14 @@ static Node *stmt(Token **rest, Token *tok) {
         *rest = tok;
         return node;
     }
-    Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+    Node *node = expr_stmt(&tok, tok);
     *rest = skip(tok, ";");
     return node;
+}
+
+// expr-stmt = expr
+static Node *expr_stmt(Token **rest, Token *tok) {
+    return new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
 }
 
 // expr = assign
