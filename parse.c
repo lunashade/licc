@@ -125,6 +125,9 @@ static Node *stmt(Token **rest, Token *tok) {
     node->cond = expr(&tok, tok);
     tok = skip(tok, ")");
     node->then = stmt(&tok, tok);
+    if (equal(tok, "else")) {
+      node->els = stmt(&tok, tok->next);
+    }
     *rest = tok;
     return node;
   }

@@ -42,5 +42,8 @@ assert 8 'foo=3; bar=21; return (foo+bar)/foo;'
 assert 8 'foo123=3; bar=21; return (foo123+bar)/foo123;'
 assert 8 'if (8==8) return 8; return 5;'
 assert 5 'if (8!=8) return 8; return 5;'
+assert 8 'if (8==8) return 8; else return 5;'
+assert 5 'if (8!=8) return 8; else return 5;'
+assert 5 'a=5; b=3; if (a==5) if (b==3) return a; else return 5;'
 
 echo OK

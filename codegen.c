@@ -129,10 +129,19 @@ static void gen_stmt(Node *node) {
   if (node->kind == ND_IF) {
     gen_expr(node->cond);
     printf("\tcmp %s, 0\n", reg_pop());
-    int l = next_label();
-    printf("\tje .L.end.%d\n", l);
-    gen_stmt(node->then);
-    printf(".L.end.%d:\n", l);
+    int lend = next_label();
+    if (node->els) {
+      int lels = next_label();
+      printf("\tje .L.els.%d\n", lels);
+      gen_stmt(node->then);
+      printf("\tjmp .L.end.%d\n", lend);
+      printf(".L.els.%d:\n", lels);
+      gen_stmt(node->els);
+    } else {
+      printf("\tje .L.end.%d\n", lend);
+      gen_stmt(node->then);
+    }
+    printf(".L.end.%d:\n", lend);
     return;
   }
   if (node->kind == ND_EXPR_STMT) {
