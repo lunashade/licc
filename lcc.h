@@ -13,19 +13,19 @@
 // Tokenizer
 //
 typedef enum {
-  TK_RESERVED, // Keywords, punctuators
-  TK_NUM,      // numbers
-  TK_IDENT,    // identifier
-  TK_EOF,      // end-of-file
+    TK_RESERVED, // Keywords, punctuators
+    TK_NUM,      // numbers
+    TK_IDENT,    // identifier
+    TK_EOF,      // end-of-file
 } TokenKind;
 
 typedef struct Token Token;
 struct Token {
-  TokenKind kind;
-  Token *next;
-  long val;
-  char *loc;
-  int len;
+    TokenKind kind;
+    Token *next;
+    long val;
+    char *loc;
+    int len;
 };
 
 Token *tokenize(char *p);
@@ -42,55 +42,55 @@ void error_tok(Token *tok, char *fmt, ...);
 
 typedef struct LVar LVar;
 struct LVar {
-  LVar *next; // next LVar
-  char *name; // name string
-  int offset; // offset from rbp
+    LVar *next; // next LVar
+    char *name; // name string
+    int offset; // offset from rbp
 };
 
 typedef enum {
-  ND_ADD,       // +
-  ND_SUB,       // -
-  ND_MUL,       // *
-  ND_DIV,       // /
-  ND_EQ,        // ==
-  ND_NE,        // !=
-  ND_LT,        // <
-  ND_LE,        // <=
-  ND_ASSIGN,    // =
-  ND_EXPR_STMT, // Expession Statement
-  ND_BLOCK,     // block statement
-  ND_RETURN,    // return statement
-  ND_IF,        // if statement
-  ND_FOR,       // for statement
-  ND_NUM,       // Integer
-  ND_VAR,       // variable
+    ND_ADD,       // +
+    ND_SUB,       // -
+    ND_MUL,       // *
+    ND_DIV,       // /
+    ND_EQ,        // ==
+    ND_NE,        // !=
+    ND_LT,        // <
+    ND_LE,        // <=
+    ND_ASSIGN,    // =
+    ND_EXPR_STMT, // Expession Statement
+    ND_BLOCK,     // block statement
+    ND_RETURN,    // return statement
+    ND_IF,        // if statement
+    ND_FOR,       // for statement
+    ND_NUM,       // Integer
+    ND_VAR,       // variable
 } NodeKind;
 
 typedef struct Node Node;
 struct Node {
-  NodeKind kind;
-  Node *next; // next statement
-  Node *body; // block body
+    NodeKind kind;
+    Node *next; // next statement
+    Node *body; // block body
 
-  Node *cond; // condition
-  Node *then; // then
-  Node *els;  // else
-  Node *init; // for init
-  Node *inc;  // for increment
+    Node *cond; // condition
+    Node *then; // then
+    Node *els;  // else
+    Node *init; // for init
+    Node *inc;  // for increment
 
-  Node *lhs; // binary node left-hand side
-  Node *rhs; // binary node right-hand side
+    Node *lhs; // binary node left-hand side
+    Node *rhs; // binary node right-hand side
 
-  LVar *var; // ND_VAR, local variable
+    LVar *var; // ND_VAR, local variable
 
-  long val; // ND_NUM, value
+    long val; // ND_NUM, value
 };
 
 typedef struct Function Function;
 struct Function {
-  Node *node;
-  LVar *locals;  // linked list of locals
-  int stacksize; // local variable stack size
+    Node *node;
+    LVar *locals;  // linked list of locals
+    int stacksize; // local variable stack size
 };
 
 Function *parse(Token *tok);
