@@ -69,6 +69,7 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
     NodeKind kind;
+
     Node *next; // next statement
     Node *body; // block body
 
@@ -82,8 +83,9 @@ struct Node {
     Node *rhs; // binary node right-hand side
 
     LVar *var; // ND_VAR, local variable
+    long val;  // ND_NUM, value
 
-    long val; // ND_NUM, value
+    Token *tok; // Debug info: representative token
 };
 
 typedef struct Function Function;

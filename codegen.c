@@ -27,7 +27,7 @@ static void gen_addr(Node *node) {
         printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
         return;
     }
-    error("not an lvalue");
+    error_tok(node->tok, "not an lvalue");
 }
 
 static void load(void) {
@@ -116,7 +116,7 @@ static void gen_expr(Node *node) {
         printf("\tmov %s, rax\n", rd);
         return;
     }
-    error("invalid expression");
+    error_tok(node->tok, "invalid expression");
 }
 
 static void gen_stmt(Node *node) {
@@ -171,7 +171,7 @@ static void gen_stmt(Node *node) {
         reg_pop();
         return;
     }
-    error("invalid statement");
+    error_tok(node->tok, "invalid statement");
 }
 
 void codegen(Function *prog) {
