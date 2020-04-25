@@ -112,11 +112,20 @@ Function *parse(Token *tok) {
   return prog;
 }
 
-// stmt = expr ";" | "return" expr ";"
+// stmt = expr ";" | "return" expr ";" | "if" "(" expr ")" stmt ( "else" stmt )?
 static Node *stmt(Token **rest, Token *tok) {
   if (equal(tok, "return")) {
     Node *node = new_unary_node(ND_RETURN, expr(&tok, tok->next));
     *rest = skip(tok, ";");
+    return node;
+  }
+  if (equal(tok, "if")) {
+    Node *node = new_node(ND_IF);
+    tok = skip(tok->next, "(");
+    node->cond = expr(&tok, tok);
+    tok = skip(tok, ")");
+    node->then = stmt(&tok, tok);
+    *rest = tok;
     return node;
   }
   Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));

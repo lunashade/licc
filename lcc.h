@@ -1,4 +1,6 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -57,6 +59,7 @@ typedef enum {
   ND_ASSIGN,    // =
   ND_EXPR_STMT, // Expession Statement
   ND_RETURN,    // return statement
+  ND_IF,        // if statement
   ND_NUM,       // Integer
   ND_VAR,       // variable
 } NodeKind;
@@ -65,10 +68,17 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   Node *next; // next statement
-  Node *lhs;  // binary node left-hand side
-  Node *rhs;  // binary node right-hand side
-  LVar *var;  // ND_VAR, local variable
-  long val;   // ND_NUM, value
+
+  Node *cond; // condition
+  Node *then; // then
+  Node *els;  // else
+
+  Node *lhs; // binary node left-hand side
+  Node *rhs; // binary node right-hand side
+
+  LVar *var; // ND_VAR, local variable
+
+  long val; // ND_NUM, value
 };
 
 typedef struct Function Function;

@@ -4,6 +4,7 @@
 // Codegen
 //
 
+// register
 static char *reg(int idx) {
   static char *r[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
 
@@ -16,6 +17,11 @@ static int top;
 static char *reg_push() { return reg(top++); }
 static char *reg_pop() { return reg(--top); }
 
+// label
+static int labelcnt;
+static int next_label() { return ++labelcnt; }
+
+// address
 static void gen_addr(Node *node) {
   if (node->kind == ND_VAR) {
     printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
@@ -33,10 +39,11 @@ static void store(void) {
   char *addr = reg_pop();
   char *val = reg_pop();
   printf("\tmov [%s], %s\n", addr, val);
-  reg_push();  // address to top
+  reg_push(); // address to top
   return;
 }
 
+// code generation
 static void gen_expr(Node *node) {
   if (node->kind == ND_NUM) {
     printf("\tmov %s, %ld\n", reg_push(), node->val);
@@ -117,6 +124,15 @@ static void gen_stmt(Node *node) {
     gen_expr(node->lhs);
     printf("\tmov rax, %s\n", reg_pop());
     printf("\tjmp .L.return\n");
+    return;
+  }
+  if (node->kind == ND_IF) {
+    gen_expr(node->cond);
+    printf("\tcmp %s, 0\n", reg_pop());
+    int l = next_label();
+    printf("\tje .L.end.%d\n", l);
+    gen_stmt(node->then);
+    printf(".L.end.%d:\n", l);
     return;
   }
   if (node->kind == ND_EXPR_STMT) {

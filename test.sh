@@ -11,9 +11,9 @@ function assert {
     got="$?"
 
     if [[ "$got" == "$want" ]]; then
-        echo "$input => $want"
+        echo -e "🎉 $input => $want"
     else
-        echo "$input => want $want, but got $got"
+        echo -e "$input => want $want, but got $got"
         exit 1
     fi
 }
@@ -40,5 +40,7 @@ assert 16 'a=c=4; return a*c;'
 assert 3 'foo=3; return foo;'
 assert 8 'foo=3; bar=21; return (foo+bar)/foo;'
 assert 8 'foo123=3; bar=21; return (foo123+bar)/foo123;'
+assert 8 'if (8==8) return 8; return 5;'
+assert 5 'if (8!=8) return 8; return 5;'
 
 echo OK
