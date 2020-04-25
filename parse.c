@@ -9,6 +9,7 @@
 // mul = unary ( "*" unary | "/" unary )*
 // unary = ( "+" | "-" ) unary | primary
 // primary = "(" expr ")" | num | ident
+static Node *compound_stmt(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
@@ -101,15 +102,25 @@ static LVar *new_lvar(char *name) {
 //
 
 Function *parse(Token *tok) {
+  tok = skip(tok, "{");
+  Function *prog = calloc(1, sizeof(Function));
+  prog->node = compound_stmt(&tok, tok)->body;
+  prog->locals = locals;
+  assert(tok->kind == TK_EOF);
+  return prog;
+}
+
+// compound_stmt = stmt* "}"
+static Node *compound_stmt(Token **rest, Token *tok) {
   Node head = {};
   Node *cur = &head;
-  while (tok->kind != TK_EOF) {
+  while (!equal(tok, "}")) {
     cur = cur->next = stmt(&tok, tok);
   }
-  Function *prog = calloc(1, sizeof(Function));
-  prog->node = head.next;
-  prog->locals = locals;
-  return prog;
+  Node *node = new_node(ND_BLOCK);
+  node->body = head.next;
+  *rest = skip(tok, "}");
+  return node;
 }
 
 // stmt = expr ";"
@@ -117,7 +128,11 @@ Function *parse(Token *tok) {
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr?; expr?; expr?; ")" stmt
+//      | "{" compound_stmt
 static Node *stmt(Token **rest, Token *tok) {
+  if (equal(tok, "{")) {
+    return compound_stmt(rest, tok->next);
+  }
   if (equal(tok, "return")) {
     Node *node = new_unary_node(ND_RETURN, expr(&tok, tok->next));
     *rest = skip(tok, ";");

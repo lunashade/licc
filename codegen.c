@@ -120,6 +120,12 @@ static void gen_expr(Node *node) {
 }
 
 static void gen_stmt(Node *node) {
+  if (node->kind == ND_BLOCK) {
+    for (Node *n = node->body; n; n=n->next) {
+      gen_stmt(n);
+    }
+    return;
+  }
   if (node->kind == ND_RETURN) {
     gen_expr(node->lhs);
     printf("\tmov rax, %s\n", reg_pop());

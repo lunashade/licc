@@ -58,6 +58,7 @@ typedef enum {
   ND_LE,        // <=
   ND_ASSIGN,    // =
   ND_EXPR_STMT, // Expession Statement
+  ND_BLOCK,     // block statement
   ND_RETURN,    // return statement
   ND_IF,        // if statement
   ND_FOR,       // for statement
@@ -69,6 +70,7 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind;
   Node *next; // next statement
+  Node *body; // block body
 
   Node *cond; // condition
   Node *then; // then
