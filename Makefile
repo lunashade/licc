@@ -1,8 +1,8 @@
-CFLAGS=-std=c11 -g -static
+CFLAGS=-std=c11 -g -static -fPIC
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-all: test
+all: clean test
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
 
