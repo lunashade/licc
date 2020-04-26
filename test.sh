@@ -1,12 +1,14 @@
 #!/bin/bash
 BIN=lcc
 
+
 function assert {
     want="$1"
     input="$2"
 
     ./${BIN} "${input}" > tmp.s
-    gcc tmp.s -o tmp
+
+    gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     got="$?"
 
@@ -18,6 +20,14 @@ function assert {
     fi
 }
 
+function ready {
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret3() { return 3;  }
+int ret5() { return 5;  }
+EOF
+}
+
+ready
 assert 0 '{ return 0; }'
 assert 42 '{ return 42; }'
 assert 42 '{ return 50-10+2; }'
@@ -57,5 +67,7 @@ assert 7 '{ int x=3; int *y=5; *(&x+1)=7; return y;  }'
 assert 7 '{ int x=3; int *y=5; *(&y-1)=7; return x;  }'
 assert 8 '{ return sizeof( 12 ); }'
 assert 8 '{ int x=29; int *y=&x; return sizeof(&y); }'
+assert 3 '{ return ret3();  }'
+assert 5 '{ return ret5();  }'
 
 echo OK

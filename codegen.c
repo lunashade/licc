@@ -58,28 +58,30 @@ static void gen_addr(Node *node) {
 
 // code generate expression
 static void gen_expr(Node *node) {
-    if (node->kind == ND_NUM) {
+    switch (node->kind) {
+    case ND_NUM:
         printf("\tmov %s, %ld\n", reg_push(), node->val);
         return;
-    }
-    if (node->kind == ND_VAR) {
+    case ND_VAR:
         gen_addr(node);
         load();
         return;
-    }
-    if (node->kind == ND_ADDR) {
+    case ND_ADDR:
         gen_addr(node->lhs);
         return;
-    }
-    if (node->kind == ND_DEREF) {
+    case ND_DEREF:
         gen_expr(node->lhs);
         load();
         return;
-    }
-    if (node->kind == ND_ASSIGN) {
+    case ND_ASSIGN:
         gen_expr(node->rhs);
         gen_addr(node->lhs);
         store();
+        return;
+    case ND_FUNCALL:
+        printf("\tmov rax, 0\n");
+        printf("\tcall %s\n", node->funcname);
+        printf("\tmov %s, rax\n", reg_push());
         return;
     }
 

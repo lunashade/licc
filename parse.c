@@ -440,7 +440,8 @@ static Node *unary(Token **rest, Token *tok) {
     return primary(rest, tok);
 }
 
-// primary = "(" expr ")" | num | ident
+// primary = "(" expr ")" | num | ident args?
+// args = "(" ")"
 static Node *primary(Token **rest, Token *tok) {
     if (equal(tok, "(")) {
         Node *node = expr(&tok, tok->next);
@@ -448,6 +449,14 @@ static Node *primary(Token **rest, Token *tok) {
         return node;
     }
     if (tok->kind == TK_IDENT) {
+        if (equal(tok->next, "(")) {
+            Token *ident = tok;
+            tok = tok->next;
+            Node *node = new_node(ND_FUNCALL, tok);
+            node->funcname = get_ident(ident);
+            *rest = skip(tok->next, ")");
+            return node;
+        }
         LVar *lvar = find_lvar(tok);
         if (!lvar) {
             error_tok(tok, "undeclared variable: %s", get_ident(tok));
