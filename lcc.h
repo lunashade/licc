@@ -46,6 +46,7 @@ typedef struct LVar LVar;
 struct LVar {
     LVar *next; // next LVar
     char *name; // name string
+    Type *ty;   // type
     int offset; // offset from rbp
 };
 
@@ -115,11 +116,14 @@ struct Type {
     TypeKind kind;
     int size;
     Type *base;
+    Token *name;
 };
 
+extern Type *ty_int;
 bool is_integer(Type *ty);
 bool is_pointing(Type *ty);
 void add_type(Node *node);
+Type *pointer_to(Type *base);
 
 //
 // Codegen
