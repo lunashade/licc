@@ -68,6 +68,54 @@ static Node *new_var_node(LVar *var, Token *tok) {
     return node;
 }
 
+// pointer arithmetics support
+static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
+    add_type(lhs);
+    add_type(rhs);
+    // num+num
+    if (is_integer(lhs->ty) && is_integer(rhs->ty))
+        return new_binary_node(ND_ADD, lhs, rhs, tok);
+
+    // ptr+ptr -> invalid
+    if (is_pointing(lhs->ty) && is_pointing(rhs->ty))
+        error_tok(tok, "invalid operands: ptr+ptr");
+
+    // canonicalize num+ptr -> ptr + num
+    if (!is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
+        Node *tmp = lhs;
+        lhs = rhs;
+        rhs = tmp;
+    }
+
+    // ptr + num
+    Node *size = new_number_node(lhs->ty->size, tok);
+    rhs = new_binary_node(ND_MUL, rhs, size, tok);
+    return new_binary_node(ND_ADD, lhs, rhs, tok);
+}
+static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
+    add_type(lhs);
+    add_type(rhs);
+    // num+num
+    if (is_integer(lhs->ty) && is_integer(rhs->ty))
+        return new_binary_node(ND_SUB, lhs, rhs, tok);
+
+    // ptr-ptr : how many elements are between the two
+    if (is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
+        Node *size = new_number_node(lhs->ty->size, tok);
+        Node *node = new_binary_node(ND_SUB, lhs, rhs, tok);
+        return new_binary_node(ND_DIV, node, size, tok);
+    }
+    // ptr - num
+    if (is_pointing(lhs->ty) && is_integer(rhs->ty)) {
+        Node *size = new_number_node(lhs->ty->size, tok);
+        rhs = new_binary_node(ND_MUL, rhs, size, tok);
+        return new_binary_node(ND_SUB, lhs, rhs, tok);
+    }
+
+    // num-ptr -> invalid
+    error_tok(tok, "invalid operands: num-ptr");
+}
+
 //
 // LVar utility
 //
@@ -266,16 +314,15 @@ static Node *relational(Token **rest, Token *tok) {
 static Node *add(Token **rest, Token *tok) {
     Node *node = mul(&tok, tok);
     for (;;) {
+        Token *op = tok;
         if (equal(tok, "+")) {
-            Token *op = tok;
             Node *rhs = mul(&tok, tok->next);
-            node = new_binary_node(ND_ADD, node, rhs, op);
+            node = new_add_node(node, rhs, op);
             continue;
         }
         if (equal(tok, "-")) {
-            Token *op = tok;
             Node *rhs = mul(&tok, tok->next);
-            node = new_binary_node(ND_SUB, node, rhs, op);
+            node = new_sub_node(node, rhs, op);
             continue;
         }
         *rest = tok;

@@ -2,6 +2,7 @@
 static Type *ty_int = &(Type){TY_INT, NULL, 4};
 
 bool is_integer(Type *ty) { return ty->kind == TY_INT; }
+bool is_pointing(Type *ty) { return ty->base; }
 
 static Type *pointer_to(Type *base) {
     Type *ty = calloc(1, sizeof(Type));

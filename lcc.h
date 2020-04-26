@@ -118,6 +118,7 @@ struct Type {
 };
 
 bool is_integer(Type *ty);
+bool is_pointing(Type *ty);
 void add_type(Node *node);
 
 //
