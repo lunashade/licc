@@ -100,11 +100,13 @@ struct Node {
 
 typedef struct Function Function;
 struct Function {
-    Node *node;
     Function *next; // next function
     char *name;     // function name
-    Var *locals;    // linked list of locals
-    int stacksize;  // local variable stack size
+    Var *params;
+
+    Node *node;    // body statements
+    Var *locals;   // linked list of locals
+    int stacksize; // local variable stack size
 };
 
 Function *parse(Token *tok);
@@ -122,9 +124,13 @@ typedef enum {
 struct Type {
     TypeKind kind;
     int size;
-    Type *base;      // pointer to
+    // TY_PTR
+    Type *base; // pointer to
+    // TY_FUNC
     Type *return_ty; // function return type
-    Token *name;
+    Token *name;     // function name
+    Type *params;    // params
+    Type *next;      // next parameter
 };
 
 extern Type *ty_int;
@@ -133,6 +139,7 @@ bool is_pointing(Type *ty);
 void add_type(Node *node);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
+Type *copy_type(Type *ty);
 
 //
 // Codegen

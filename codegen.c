@@ -83,8 +83,14 @@ static void gen_expr(Node *node) {
         store();
         return;
     case ND_FUNCALL: {
+        int top_orig = top;
+        top = 0;
         printf("\tpush r10\n");
         printf("\tpush r11\n");
+        printf("\tpush r12\n");
+        printf("\tpush r13\n");
+        printf("\tpush r14\n");
+        printf("\tpush r15\n");
 
         // push arguments then pop to register
         int nargs = 0;
@@ -94,17 +100,22 @@ static void gen_expr(Node *node) {
             }
             gen_expr(arg);
             printf("\tpush %s\n", reg_pop());
-            printf("\tsub rsp, 16\n");
+            printf("\tsub rsp, 8\n");
             nargs++;
         }
         for (int i = nargs - 1; i >= 0; i--) {
-            printf("\tadd rsp, 16\n");
+            printf("\tadd rsp, 8\n");
             printf("\tpop %s\n", argreg[i]);
         }
 
         printf("\tmov rax, 0\n");
         printf("\tcall %s\n", node->funcname);
 
+        top = top_orig;
+        printf("\tpop r15\n");
+        printf("\tpop r14\n");
+        printf("\tpop r13\n");
+        printf("\tpop r12\n");
         printf("\tpop r11\n");
         printf("\tpop r10\n");
 
@@ -237,13 +248,20 @@ void codegen(Function *prog) {
         // save stack pointer
         printf("\tpush rbp\n");
         printf("\tmov rbp, rsp\n");
-        printf("\tsub rsp, %d\n", prog->stacksize);
+        printf("\tsub rsp, %d\n", fn->stacksize);
         // save callee-saved registers
         printf("\tmov [rbp-8], r12\n");
         printf("\tmov [rbp-16], r13\n");
         printf("\tmov [rbp-24], r14\n");
         printf("\tmov [rbp-32], r15\n");
 
+        int i = 0;
+        for (Var *v=fn->params; v; v=v->next) {
+            i++;
+        }
+        for (Var *v=fn->params; v; v=v->next) {
+            printf("\tmov [rbp-%d], %s\n", v->offset, argreg[--i]);
+        }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
             if (top != 0)

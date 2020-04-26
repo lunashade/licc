@@ -77,5 +77,6 @@ assert 5 'int main(){ return ret5();  }'
 assert 8 'int main(){ return add(3,5); }'
 assert 21 'int main(){ return add6(1,2,3,4,5,6); }'
 assert 4 'int main(){return ret4();} int ret4(){return 4;}'
+assert 55 'int main() {return fibo(9);} int fibo(int n) {if (n<=1)return 1; return fibo(n-2)+fibo(n-1);}'
 
 echo OK

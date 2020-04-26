@@ -12,6 +12,12 @@ Type *pointer_to(Type *base) {
     return ty;
 }
 
+Type *copy_type(Type *ty) {
+    Type *ret = malloc(sizeof(Type));
+    *ret = *ty;
+    return ret;
+}
+
 Type *func_type(Type *return_ty) {
     Type *ty = calloc(1, sizeof(Type));
     ty->kind = TY_FUNC;
@@ -33,6 +39,9 @@ void add_type(Node *node) {
     for (Node *n = node->body; n; n = n->next) {
         add_type(n);
     }
+    for (Node *n = node->args; n; n = n->next) {
+        add_type(n);
+    }
 
     switch (node->kind) {
     case ND_ADD:
@@ -47,6 +56,7 @@ void add_type(Node *node) {
     case ND_LT:
     case ND_LE:
     case ND_NUM:
+    case ND_FUNCALL:
         node->ty = ty_int;
         return;
     case ND_VAR:
@@ -58,11 +68,8 @@ void add_type(Node *node) {
     case ND_DEREF:
         if (node->lhs->ty->kind != TY_PTR) {
             error_tok(node->tok, "invalid pointer dereference");
-        } 
+        }
         node->ty = node->lhs->ty->base;
-
-        return;
-    default:
         return;
     }
 }

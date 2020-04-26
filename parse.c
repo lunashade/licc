@@ -175,8 +175,13 @@ static Function *funcdef(Token **rest, Token *tok) {
 
     Type *ty = typespec(&tok, tok);
     ty = declarator(&tok, tok, ty);
+
     Function *fn = calloc(1, sizeof(Function));
     fn->name = get_ident(ty->name);
+    for (Type *t = ty->params; t; t = t->next) {
+        new_lvar(get_ident(t->name), t);
+    }
+    fn->params = locals;
 
     tok = skip(tok, "{");
     fn->node = compound_stmt(&tok, tok)->body;
@@ -255,11 +260,26 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
 }
 
 // type-suffix = ("(" func-params)?
-// func-params = ")"
+// func-params = param ("," param)* ")"
+// param       = typespec declarator
 static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "(")) {
-        *rest = skip(tok->next, ")");
-        return func_type(ty);
+        tok = skip(tok, "(");
+
+        Type head = {};
+        Type *cur = &head;
+        int cnt = 0;
+        while (!equal(tok, ")")) {
+            if (cnt++ > 0)
+                tok = skip(tok, ",");
+            Type *basety = typespec(&tok, tok);
+            Type *ty = declarator(&tok, tok, basety);
+            cur = cur->next = copy_type(ty);
+        }
+        ty = func_type(ty);
+        ty->params = head.next;
+        *rest = skip(tok, ")");
+        return ty;
     }
     *rest = tok;
     return ty;
