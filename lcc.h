@@ -42,9 +42,9 @@ void error_tok(Token *tok, char *fmt, ...);
 // Parser
 //
 
-typedef struct LVar LVar;
-struct LVar {
-    LVar *next; // next LVar
+typedef struct Var Var;
+struct Var {
+    Var *next;  // next LVar
     char *name; // name string
     Type *ty;   // type
     int offset; // offset from rbp
@@ -91,7 +91,7 @@ struct Node {
     Node *lhs; // binary node left-hand side
     Node *rhs; // binary node right-hand side
 
-    LVar *var; // ND_VAR, local variable
+    Var *var;  // ND_VAR, local variable
     long val;  // ND_NUM, value
 
     Token *tok; // Debug info: representative token
@@ -100,7 +100,7 @@ struct Node {
 typedef struct Function Function;
 struct Function {
     Node *node;
-    LVar *locals;  // linked list of locals
+    Var *locals;   // linked list of locals
     int stacksize; // local variable stack size
 };
 

@@ -72,7 +72,7 @@ static Node *new_number_node(long val, Token *tok) {
     return node;
 }
 
-static Node *new_var_node(LVar *var, Token *tok) {
+static Node *new_var_node(Var *var, Token *tok) {
     Node *node = new_node(ND_VAR, tok);
     node->var = var;
     return node;
@@ -127,13 +127,13 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 }
 
 //
-// LVar utility
+// Var utility
 //
 
-LVar *locals;
+Var *locals;
 
-static LVar *find_lvar(Token *tok) {
-    for (LVar *lv = locals; lv; lv = lv->next)
+static Var *find_lvar(Token *tok) {
+    for (Var *lv = locals; lv; lv = lv->next)
         if (strlen(lv->name) == tok->len &&
             !strncmp(tok->loc, lv->name, tok->len))
             return lv;
@@ -141,8 +141,8 @@ static LVar *find_lvar(Token *tok) {
     return NULL;
 }
 
-static LVar *new_lvar(char *name, Type *ty) {
-    LVar *lvar = calloc(1, sizeof(LVar));
+static Var *new_lvar(char *name, Type *ty) {
+    Var *lvar = calloc(1, sizeof(Var));
     lvar->next = locals;
     lvar->name = name;
     lvar->ty = ty;
@@ -194,7 +194,7 @@ static Node *declaration(Token **rest, Token *tok) {
             tok = skip(tok, ",");
 
         Type *ty = declarator(&tok, tok, basety);
-        LVar *var = new_lvar(get_ident(ty->name), ty);
+        Var *var = new_lvar(get_ident(ty->name), ty);
 
         // ("=" expr)?
         if (!equal(tok, "="))
@@ -457,7 +457,7 @@ static Node *primary(Token **rest, Token *tok) {
             *rest = skip(tok->next, ")");
             return node;
         }
-        LVar *lvar = find_lvar(tok);
+        Var *lvar = find_lvar(tok);
         if (!lvar) {
             error_tok(tok, "undeclared variable: %s", get_ident(tok));
         }
