@@ -114,6 +114,7 @@ typedef enum {
 struct Type {
     TypeKind kind;
     Type *base;
+    int size;
 };
 
 bool is_integer(Type *ty);

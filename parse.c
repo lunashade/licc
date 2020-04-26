@@ -304,23 +304,26 @@ static Node *mul(Token **rest, Token *tok) {
     }
 }
 
-// unary = ( "+" | "-" | "*" | "&" ) unary | primary
+// unary = ( "+" | "-" | "*" | "&" | "sizeof" ) unary | primary
 static Node *unary(Token **rest, Token *tok) {
+    Token *start = tok;
     if (equal(tok, "+")) {
         return unary(rest, tok->next);
     }
     if (equal(tok, "-")) {
-        Token *op = tok;
         return new_binary_node(ND_SUB, new_number_node(0, NULL),
-                               unary(rest, tok->next), op);
+                               unary(rest, tok->next), start);
     }
     if (equal(tok, "*")) {
-        Token *op = tok;
-        return new_unary_node(ND_DEREF, unary(rest, tok->next), op);
+        return new_unary_node(ND_DEREF, unary(rest, tok->next), start);
     }
     if (equal(tok, "&")) {
-        Token *op = tok;
-        return new_unary_node(ND_ADDR, unary(rest, tok->next), op);
+        return new_unary_node(ND_ADDR, unary(rest, tok->next), start);
+    }
+    if (equal(tok, "sizeof")) {
+        Node *node = unary(rest, tok->next);
+        add_type(node);
+        return new_number_node(node->ty->size, start);
     }
     return primary(rest, tok);
 }
