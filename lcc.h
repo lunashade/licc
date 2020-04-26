@@ -81,6 +81,7 @@ struct Node {
     Node *body; // block body
 
     char *funcname; // function call
+    Node *args; // function args
 
     Node *cond; // condition
     Node *then; // then

@@ -14,6 +14,7 @@ static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
+static Node *func_args(Token **rest, Token *tok);
 
 //
 // Token utility
@@ -440,8 +441,7 @@ static Node *unary(Token **rest, Token *tok) {
     return primary(rest, tok);
 }
 
-// primary = "(" expr ")" | num | ident args?
-// args = "(" ")"
+// primary = "(" expr ")" | num | ident func-args?
 static Node *primary(Token **rest, Token *tok) {
     if (equal(tok, "(")) {
         Node *node = expr(&tok, tok->next);
@@ -450,11 +450,9 @@ static Node *primary(Token **rest, Token *tok) {
     }
     if (tok->kind == TK_IDENT) {
         if (equal(tok->next, "(")) {
-            Token *ident = tok;
-            tok = tok->next;
             Node *node = new_node(ND_FUNCALL, tok);
-            node->funcname = get_ident(ident);
-            *rest = skip(tok->next, ")");
+            node->funcname = get_ident(tok);
+            node->args = func_args(rest, tok->next);
             return node;
         }
         Var *lvar = find_lvar(tok);
@@ -467,4 +465,20 @@ static Node *primary(Token **rest, Token *tok) {
     Node *node = new_number_node(get_number(tok), tok);
     *rest = tok->next;
     return node;
+}
+
+// func-args = "(" (assign ("," assign)*)? ")"
+static Node *func_args(Token **rest, Token *tok) {
+    Node head = {};
+    Node *cur = &head;
+
+    tok = skip(tok, "(");
+    int cnt = 0;
+    while (!equal(tok, ")")) {
+        if (cnt++ > 0)
+            tok = skip(tok, ",");
+        cur = cur->next = assign(&tok, tok);
+    }
+    *rest = skip(tok, ")");
+    return head.next;
 }

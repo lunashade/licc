@@ -5,6 +5,8 @@
 //
 
 // register
+static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 static char *reg(int idx) {
     static char *r[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
 
@@ -81,6 +83,22 @@ static void gen_expr(Node *node) {
     case ND_FUNCALL: {
         printf("\tpush r10\n");
         printf("\tpush r11\n");
+
+        // push arguments then pop to register
+        int nargs = 0;
+        for (Node *arg = node->args; arg; arg = arg->next) {
+            if (nargs >= 6) {
+                error_tok(arg->tok, "too many arguments");
+            }
+            gen_expr(arg);
+            printf("\tpush %s\n", reg_pop());
+            printf("\tsub rsp, 16\n");
+            nargs++;
+        }
+        for (int i = nargs - 1; i >= 0; i--) {
+            printf("\tadd rsp, 16\n");
+            printf("\tpop %s\n", argreg[i]);
+        }
 
         printf("\tmov rax, 0\n");
         printf("\tcall %s\n", node->funcname);
