@@ -23,6 +23,8 @@ static char *reg_pop() { return reg(--top); }
 static int labelcnt;
 static int next_label() { return ++labelcnt; }
 
+static char *funcname;  // currently generating
+
 // address
 
 // load stack-top address and push
@@ -179,7 +181,7 @@ static void gen_stmt(Node *node) {
     if (node->kind == ND_RETURN) {
         gen_expr(node->lhs);
         printf("\tmov rax, %s\n", reg_pop());
-        printf("\tjmp .L.return\n");
+        printf("\tjmp .L.return.%s\n", funcname);
         return;
     }
     if (node->kind == ND_FOR) {
@@ -226,37 +228,38 @@ static void gen_stmt(Node *node) {
 
 void codegen(Function *prog) {
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
+    for (Function *fn = prog; fn; fn = fn->next) {
+        printf(".globl %s\n", fn->name);
+        printf("%s:\n", fn->name);
+        funcname = fn->name;
 
-    printf("main:\n");
+        // prologue
+        // save stack pointer
+        printf("\tpush rbp\n");
+        printf("\tmov rbp, rsp\n");
+        printf("\tsub rsp, %d\n", prog->stacksize);
+        // save callee-saved registers
+        printf("\tmov [rbp-8], r12\n");
+        printf("\tmov [rbp-16], r13\n");
+        printf("\tmov [rbp-24], r14\n");
+        printf("\tmov [rbp-32], r15\n");
 
-    // prologue
-    // save stack pointer
-    printf("\tpush rbp\n");
-    printf("\tmov rbp, rsp\n");
-    printf("\tsub rsp, %d\n", prog->stacksize);
-    // save callee-saved registers
-    printf("\tmov [rbp-8], r12\n");
-    printf("\tmov [rbp-16], r13\n");
-    printf("\tmov [rbp-24], r14\n");
-    printf("\tmov [rbp-32], r15\n");
+        for (Node *n = fn->node; n; n = n->next) {
+            gen_stmt(n);
+            if (top != 0)
+                error("top: %d\n", top);
+        }
 
-    for (Node *n = prog->node; n; n = n->next) {
-        gen_stmt(n);
-        if (top != 0)
-            fprintf(stderr, "top: %d\n", top);
-        assert(top == 0);
+        // Epilogue
+        // recover callee-saved registers
+        printf(".L.return.%s:\n", funcname);
+        printf("\tmov r12, [rbp-8]\n");
+        printf("\tmov r13, [rbp-16]\n");
+        printf("\tmov r14, [rbp-24]\n");
+        printf("\tmov r15, [rbp-32]\n");
+        // recover stack pointer
+        printf("\tmov rsp, rbp\n");
+        printf("\tpop rbp\n");
+        printf("\tret\n");
     }
-
-    // Epilogue
-    // recover callee-saved registers
-    printf(".L.return:\n");
-    printf("\tmov r12, [rbp-8]\n");
-    printf("\tmov r13, [rbp-16]\n");
-    printf("\tmov r14, [rbp-24]\n");
-    printf("\tmov r15, [rbp-32]\n");
-    // recover stack pointer
-    printf("\tmov rsp, rbp\n");
-    printf("\tpop rbp\n");
-    printf("\tret\n");
 }

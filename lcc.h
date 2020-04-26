@@ -81,7 +81,7 @@ struct Node {
     Node *body; // block body
 
     char *funcname; // function call
-    Node *args; // function args
+    Node *args;     // function args
 
     Node *cond; // condition
     Node *then; // then
@@ -92,8 +92,8 @@ struct Node {
     Node *lhs; // binary node left-hand side
     Node *rhs; // binary node right-hand side
 
-    Var *var;  // ND_VAR, local variable
-    long val;  // ND_NUM, value
+    Var *var; // ND_VAR, local variable
+    long val; // ND_NUM, value
 
     Token *tok; // Debug info: representative token
 };
@@ -101,8 +101,10 @@ struct Node {
 typedef struct Function Function;
 struct Function {
     Node *node;
-    Var *locals;   // linked list of locals
-    int stacksize; // local variable stack size
+    Function *next; // next function
+    char *name;     // function name
+    Var *locals;    // linked list of locals
+    int stacksize;  // local variable stack size
 };
 
 Function *parse(Token *tok);
@@ -114,12 +116,14 @@ Function *parse(Token *tok);
 typedef enum {
     TY_INT,
     TY_PTR,
+    TY_FUNC,
 } TypeKind;
 
 struct Type {
     TypeKind kind;
     int size;
-    Type *base;
+    Type *base;      // pointer to
+    Type *return_ty; // function return type
     Token *name;
 };
 
@@ -128,6 +132,7 @@ bool is_integer(Type *ty);
 bool is_pointing(Type *ty);
 void add_type(Node *node);
 Type *pointer_to(Type *base);
+Type *func_type(Type *return_ty);
 
 //
 // Codegen

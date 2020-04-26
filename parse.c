@@ -1,9 +1,13 @@
 #include "lcc.h"
 
-static Node *compound_stmt(Token **rest, Token *tok);
-static Node *declaration(Token **rest, Token *tok);
+static Function *funcdef(Token **rest, Token *tok);
+
 static Type *typespec(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
+static Type *type_suffix(Token **rest, Token *tok, Type *ty);
+
+static Node *compound_stmt(Token **rest, Token *tok);
+static Node *declaration(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
@@ -155,13 +159,30 @@ static Var *new_lvar(char *name, Type *ty) {
 // Parser
 //
 
+// program = funcdef*
 Function *parse(Token *tok) {
+    Function head = {};
+    Function *cur = &head;
+    while (tok->kind != TK_EOF) {
+        cur = cur->next = funcdef(&tok, tok);
+    }
+    return head.next;
+}
+
+// funcdef = typespec declarator "{" compound_stmt
+static Function *funcdef(Token **rest, Token *tok) {
+    locals = NULL;
+
+    Type *ty = typespec(&tok, tok);
+    ty = declarator(&tok, tok, ty);
+    Function *fn = calloc(1, sizeof(Function));
+    fn->name = get_ident(ty->name);
+
     tok = skip(tok, "{");
-    Function *prog = calloc(1, sizeof(Function));
-    prog->node = compound_stmt(&tok, tok)->body;
-    prog->locals = locals;
-    assert(tok->kind == TK_EOF);
-    return prog;
+    fn->node = compound_stmt(&tok, tok)->body;
+    fn->locals = locals;
+    *rest = tok;
+    return fn;
 }
 
 // compound_stmt = ( declaration | stmt )* "}"
@@ -218,7 +239,8 @@ static Type *typespec(Token **rest, Token *tok) {
     *rest = skip(tok, "int");
     return ty_int;
 }
-// declarator = ("*")* ident
+
+// declarator = ("*")* ident type-suffix?
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
     for (Token *t = tok; equal(t, "*"); t = t->next) {
         ty = pointer_to(ty);
@@ -227,8 +249,19 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "expected variable name");
     }
+    ty = type_suffix(rest, tok->next, ty);
     ty->name = tok;
-    *rest = tok->next;
+    return ty;
+}
+
+// type-suffix = ("(" func-params)?
+// func-params = ")"
+static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
+    if (equal(tok, "(")) {
+        *rest = skip(tok->next, ")");
+        return func_type(ty);
+    }
+    *rest = tok;
     return ty;
 }
 

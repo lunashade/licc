@@ -10,12 +10,14 @@ int main(int argc, char **argv) {
 
     Token *tok = tokenize(argv[1]);
     Function *prog = parse(tok);
-    int offset = 32; // for callee-saved registers
-    for (Var *v = prog->locals; v; v = v->next) {
-        offset += 8;
-        v->offset = offset;
+    for (Function *fn = prog; fn; fn=fn->next) {
+        int offset = 32; // for callee-saved registers
+        for (Var *v = fn->locals; v; v = v->next) {
+            offset += 8;
+            v->offset = offset;
+        }
+        fn->stacksize = align_to(offset, 16);
     }
-    prog->stacksize = align_to(offset, 16);
 
     codegen(prog);
     return 0;
