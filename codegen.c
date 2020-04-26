@@ -78,11 +78,19 @@ static void gen_expr(Node *node) {
         gen_addr(node->lhs);
         store();
         return;
-    case ND_FUNCALL:
+    case ND_FUNCALL: {
+        printf("\tpush r10\n");
+        printf("\tpush r11\n");
+
         printf("\tmov rax, 0\n");
         printf("\tcall %s\n", node->funcname);
+
+        printf("\tpop r11\n");
+        printf("\tpop r10\n");
+
         printf("\tmov %s, rax\n", reg_push());
         return;
+    }
     }
 
     // binary node
