@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Type Type;
+
 //
 // Tokenizer
 //
@@ -71,6 +73,7 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
     NodeKind kind;
+    Type *ty; // Type
 
     Node *next; // next statement
     Node *body; // block body
@@ -98,6 +101,23 @@ struct Function {
 };
 
 Function *parse(Token *tok);
+
+//
+// typing.c
+//
+
+typedef enum {
+    TY_INT,
+    TY_PTR,
+} TypeKind;
+
+struct Type {
+    TypeKind kind;
+    Type *base;
+};
+
+bool is_integer(Type *ty);
+void add_type(Node *node);
 
 //
 // Codegen
