@@ -55,7 +55,7 @@ assert 3 '{ x=3; y=5; return *(&y-1);  }'
 assert 5 '{ x=3; y=&x; *y=5; return x;  }'
 assert 7 '{ x=3; y=5; *(&x+1)=7; return y;  }'
 assert 7 '{ x=3; y=5; *(&y-1)=7; return x;  }'
-assert 4 '{ return sizeof( 12 ); }'
+assert 8 '{ return sizeof( 12 ); }'
 assert 8 '{ x=29; y=&x; return sizeof(&y); }'
 
 echo OK

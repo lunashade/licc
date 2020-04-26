@@ -1,5 +1,5 @@
 #include "lcc.h"
-static Type *ty_int = &(Type){TY_INT, NULL, 4};
+static Type *ty_int = &(Type){TY_INT, 8};
 
 bool is_integer(Type *ty) { return ty->kind == TY_INT; }
 bool is_pointing(Type *ty) { return ty->base; }
