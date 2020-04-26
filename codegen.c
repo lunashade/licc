@@ -22,19 +22,14 @@ static int labelcnt;
 static int next_label() { return ++labelcnt; }
 
 // address
-static void gen_addr(Node *node) {
-    if (node->kind == ND_VAR) {
-        printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
-        return;
-    }
-    error_tok(node->tok, "not an lvalue");
-}
 
+// load stack-top address and push
 static void load(void) {
     char *rd = reg_pop();
     printf("\tmov %s, [%s]\n", reg_push(), rd);
     return;
 }
+// pop address and value, store value into address, push address
 static void store(void) {
     char *addr = reg_pop();
     char *val = reg_pop();
@@ -44,6 +39,24 @@ static void store(void) {
 }
 
 // code generation
+static void gen_addr(Node *node);
+static void gen_expr(Node *node);
+static void gen_stmt(Node *node);
+
+// code generate address of node
+static void gen_addr(Node *node) {
+    if (node->kind == ND_VAR) {
+        printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
+        return;
+    }
+    if (node->kind == ND_DEREF) {
+        gen_expr(node->lhs);
+        return;
+    }
+    error_tok(node->tok, "not an lvalue");
+}
+
+// code generate expression
 static void gen_expr(Node *node) {
     if (node->kind == ND_NUM) {
         printf("\tmov %s, %ld\n", reg_push(), node->val);
@@ -51,6 +64,15 @@ static void gen_expr(Node *node) {
     }
     if (node->kind == ND_VAR) {
         gen_addr(node);
+        load();
+        return;
+    }
+    if (node->kind == ND_ADDR) {
+        gen_addr(node->lhs);
+        return;
+    }
+    if (node->kind == ND_DEREF) {
+        gen_expr(node->lhs);
         load();
         return;
     }

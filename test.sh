@@ -48,5 +48,12 @@ assert 5 '{ a=5; b=3; if (a==5) if (b==3) return a; else return 5; }'
 assert 55 '{ sum=0; for (i=1;i<=10;i=i+1) sum = sum+i; return sum; }'
 assert 45 '{ sum=0; i=5; while (sum < 45) sum = sum+i; return sum; }'
 assert 45 '{ sum=0; i=0; while (i<10) {sum=i+sum; i=i+1;} return sum;}'
+assert 3 '{ x=3; return *&x;  }'
+assert 3 '{ x=3; y=&x; z=&y; return **z;  }'
+assert 5 '{ x=3; y=5; return *(&x+8);  }'
+assert 3 '{ x=3; y=5; return *(&y-8);  }'
+assert 5 '{ x=3; y=&x; *y=5; return x;  }'
+assert 7 '{ x=3; y=5; *(&x+8)=7; return y;  }'
+assert 7 '{ x=3; y=5; *(&y-8)=7; return x;  }'
 
 echo OK

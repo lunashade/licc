@@ -64,6 +64,8 @@ typedef enum {
     ND_FOR,       // for statement
     ND_NUM,       // Integer
     ND_VAR,       // variable
+    ND_ADDR,      // &
+    ND_DEREF,     // unary *
 } NodeKind;
 
 typedef struct Node Node;
