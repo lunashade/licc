@@ -261,7 +261,7 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
 }
 
 // type-suffix = ("(" func-params)?
-//             | "[" num "]"
+//             | "[" num "]" type-suffix
 //             | e
 static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "(")) {
@@ -271,7 +271,9 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     }
     if (equal(tok, "[")) {
         int sz = get_number(tok->next);
-        *rest = skip(tok->next->next, "]");
+        tok = skip(tok->next->next, "]");
+        *rest = tok;
+        ty = type_suffix(rest, tok, ty);
         return array_of(ty, sz);
     }
     *rest = tok;
