@@ -103,7 +103,7 @@ static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
     }
 
     // ptr + num
-    Node *size = new_number_node(lhs->ty->size, tok);
+    Node *size = new_number_node(lhs->ty->base->size, tok);
     rhs = new_binary_node(ND_MUL, rhs, size, tok);
     return new_binary_node(ND_ADD, lhs, rhs, tok);
 }
@@ -116,13 +116,13 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 
     // ptr-ptr : how many elements are between the two
     if (is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
-        Node *size = new_number_node(lhs->ty->size, tok);
+        Node *size = new_number_node(lhs->ty->base->size, tok);
         Node *node = new_binary_node(ND_SUB, lhs, rhs, tok);
         return new_binary_node(ND_DIV, node, size, tok);
     }
     // ptr - num
     if (is_pointing(lhs->ty) && is_integer(rhs->ty)) {
-        Node *size = new_number_node(lhs->ty->size, tok);
+        Node *size = new_number_node(lhs->ty->base->size, tok);
         rhs = new_binary_node(ND_MUL, rhs, size, tok);
         return new_binary_node(ND_SUB, lhs, rhs, tok);
     }
