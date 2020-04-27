@@ -79,4 +79,8 @@ assert 21 'int main(){ return add6(1,2,3,4,5,6); }'
 assert 4 'int main(){return ret4();} int ret4(){return 4;}'
 assert 55 'int main() {return fibo(9);} int fibo(int n) {if (n<=1)return 1; return fibo(n-2)+fibo(n-1);}'
 
+assert 3 'int main() {int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x);}'
+assert 4 'int main() {int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1);}'
+assert 5 'int main() {int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2);}'
+
 echo OK

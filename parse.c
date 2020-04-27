@@ -5,6 +5,7 @@ static Function *funcdef(Token **rest, Token *tok);
 static Type *typespec(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Type *type_suffix(Token **rest, Token *tok, Type *ty);
+static Type *func_params(Token **rest, Token *tok, Type *ty);
 
 static Node *compound_stmt(Token **rest, Token *tok);
 static Node *declaration(Token **rest, Token *tok);
@@ -260,28 +261,38 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
 }
 
 // type-suffix = ("(" func-params)?
-// func-params = param ("," param)* ")"
-// param       = typespec declarator
+//             | "[" num "]"
+//             | e
 static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "(")) {
-        tok = skip(tok, "(");
-
-        Type head = {};
-        Type *cur = &head;
-        int cnt = 0;
-        while (!equal(tok, ")")) {
-            if (cnt++ > 0)
-                tok = skip(tok, ",");
-            Type *basety = typespec(&tok, tok);
-            Type *ty = declarator(&tok, tok, basety);
-            cur = cur->next = copy_type(ty);
-        }
         ty = func_type(ty);
-        ty->params = head.next;
-        *rest = skip(tok, ")");
+        ty = func_params(rest, tok->next, ty);
         return ty;
     }
+    if (equal(tok, "[")) {
+        int sz = get_number(tok->next);
+        *rest = skip(tok->next->next, "]");
+        return array_of(ty, sz);
+    }
     *rest = tok;
+    return ty;
+}
+
+// func-params = param ("," param)* ")"
+// param       = typespec declarator
+static Type *func_params(Token **rest, Token *tok, Type *ty) {
+    Type head = {};
+    Type *cur = &head;
+    int cnt = 0;
+    while (!equal(tok, ")")) {
+        if (cnt++ > 0)
+            tok = skip(tok, ",");
+        Type *basety = typespec(&tok, tok);
+        Type *ty = declarator(&tok, tok, basety);
+        cur = cur->next = copy_type(ty);
+    }
+    *rest = skip(tok, ")");
+    ty->params = head.next;
     return ty;
 }
 

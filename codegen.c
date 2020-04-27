@@ -23,12 +23,18 @@ static char *reg_pop() { return reg(--top); }
 static int labelcnt;
 static int next_label() { return ++labelcnt; }
 
-static char *funcname;  // currently generating
+static char *funcname; // currently generating
 
 // address
 
-// load stack-top address and push
-static void load(void) {
+// load a value from stack top is pointing to.
+static void load(Type *ty) {
+    if (ty->kind == TY_ARRAY) {
+        // do nothing since generally array can't be loaded to a register.
+        // As a result, array evaluation is converted to pointer to the first
+        // element.
+        return;
+    }
     char *rd = reg_pop();
     printf("\tmov %s, [%s]\n", reg_push(), rd);
     return;
@@ -68,16 +74,19 @@ static void gen_expr(Node *node) {
         return;
     case ND_VAR:
         gen_addr(node);
-        load();
+        load(node->ty);
         return;
     case ND_ADDR:
         gen_addr(node->lhs);
         return;
     case ND_DEREF:
         gen_expr(node->lhs);
-        load();
+        load(node->ty);
         return;
     case ND_ASSIGN:
+        if (node->ty->kind == TY_ARRAY) {
+            error_tok(node->tok, "not an lvalue");
+        }
         gen_expr(node->rhs);
         gen_addr(node->lhs);
         store();
@@ -256,10 +265,10 @@ void codegen(Function *prog) {
         printf("\tmov [rbp-32], r15\n");
 
         int i = 0;
-        for (Var *v=fn->params; v; v=v->next) {
+        for (Var *v = fn->params; v; v = v->next) {
             i++;
         }
-        for (Var *v=fn->params; v; v=v->next) {
+        for (Var *v = fn->params; v; v = v->next) {
             printf("\tmov [rbp-%d], %s\n", v->offset, argreg[--i]);
         }
         for (Node *n = fn->node; n; n = n->next) {
