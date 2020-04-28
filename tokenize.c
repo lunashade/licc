@@ -79,29 +79,29 @@ static void convert_keywords(Token *tok) {
 static char *read_escape_char(char *ret, char *p) {
     switch (*p) {
     case 'a':
-        *ret = '\a';
-        return p++;
+        *ret = 7;
+        return p + 1;
     case 'b':
-        *ret = '\b';
-        return p++;
+        *ret = 8;
+        return p + 1;
     case 't':
-        *ret = '\t';
-        return p++;
-    case 'r':
-        *ret = '\r';
-        return p++;
+        *ret = 9;
+        return p + 1;
     case 'n':
-        *ret = '\n';
-        return p++;
+        *ret = 10;
+        return p + 1;
     case 'v':
-        *ret = '\v';
-        return p++;
+        *ret = 11;
+        return p + 1;
     case 'f':
-        *ret = '\f';
-        return p++;
+        *ret = 12;
+        return p + 1;
+    case 'r':
+        *ret = 13;
+        return p + 1;
     case 'e':
         *ret = 27;
-        return p++;
+        return p + 1;
     case 'x': {
         int r;
         p++;
@@ -144,7 +144,7 @@ static char *read_escape_char(char *ret, char *p) {
     }
     default:
         *ret = *p;
-        return p++;
+        return p + 1;
     }
 }
 

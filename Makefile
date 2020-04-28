@@ -9,7 +9,10 @@ lcc: $(OBJS)
 $(OBJS): lcc.h
 
 test: lcc
-	./test.sh
+	# tests/old_test.sh
+	./lcc tests/tests.c > tmp.s
+	cc -static -o tmp tmp.s
+	./tmp
 
 clean:
 	git clean -fX
