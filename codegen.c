@@ -5,7 +5,9 @@
 //
 
 // register
-static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg64[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+static char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 
 static char *reg(int idx) {
     static char *r[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
@@ -37,15 +39,25 @@ static void load(Type *ty) {
     }
     char *rd = reg_pop();
     printf("# load value from address %s, store %s\n", rd, rd);
-    printf("\tmov %s, [%s]\n", reg_push(), rd);
+    if (ty->size == 1) {
+        printf("\tmovsx %s, byte ptr [%s]\n", reg_push(), rd);
+
+    } else {
+        assert(ty->size == 8);
+        printf("\tmov %s, [%s]\n", reg_push(), rd);
+    }
     return;
 }
 // pop address and value, store value into address, push address
-static void store(void) {
+static void store(Type *ty) {
     char *addr = reg_pop();
     char *val = reg_pop();
     printf("# store value %s into address %s\n", val, addr);
-    printf("\tmov [%s], %s\n", addr, val);
+    if (ty->size == 1) {
+        printf("\tmov [%s], %sb\n", addr, val);
+    } else {
+        printf("\tmov [%s], %s\n", addr, val);
+    }
     reg_push(); // address to top
     return;
 }
@@ -96,7 +108,7 @@ static void gen_expr(Node *node) {
         }
         gen_expr(node->rhs);
         gen_addr(node->lhs);
-        store();
+        store(node->ty);
         return;
     case ND_FUNCALL: {
         int top_orig = top;
@@ -123,7 +135,7 @@ static void gen_expr(Node *node) {
         }
         for (int i = nargs - 1; i >= 0; i--) {
             printf("\tadd rsp, 8\n");
-            printf("\tpop %s\n", argreg[i]);
+            printf("\tpop %s\n", argreg64[i]);
         }
 
         printf("\tmov rax, 0\n");
@@ -262,7 +274,6 @@ static void gen_stmt(Node *node) {
     error_tok(node->tok, "invalid statement");
 }
 
-
 static void emit_data(Program *prog) {
     printf(".data\n");
 
@@ -295,11 +306,15 @@ static void emit_text(Program *prog) {
         for (Var *v = fn->params; v; v = v->next) {
             i++;
         }
-        if (i>0)
+        if (i > 0)
             printf("# load arguments\n");
 
         for (Var *v = fn->params; v; v = v->next) {
-            printf("\tmov [rbp-%d], %s\n", v->offset, argreg[--i]);
+            if (v->ty->size == 1) {
+                printf("\tmov [rbp-%d], %s\n", v->offset, argreg8[--i]);
+            } else {
+                printf("\tmov [rbp-%d], %s\n", v->offset, argreg64[--i]);
+            }
         }
         printf("# call function statements\n");
         for (Node *n = fn->node; n; n = n->next) {

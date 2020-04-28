@@ -43,7 +43,7 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
 }
 
 static bool is_keyword(Token *tok) {
-    static char *kw[] = {"return", "if", "else", "for", "while", "sizeof", "int"};
+    static char *kw[] = {"return", "if", "else", "for", "while", "sizeof", "int", "char"};
 
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
         if (equal(tok, kw[i]))

@@ -1,7 +1,8 @@
 #include "lcc.h"
 Type *ty_int = &(Type){TY_INT, 8};
+Type *ty_char = &(Type){TY_CHAR, 1};
 
-bool is_integer(Type *ty) { return ty->kind == TY_INT; }
+bool is_integer(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
 bool is_pointing(Type *ty) { return ty->base; }
 
 Type *pointer_to(Type *base) {

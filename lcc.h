@@ -123,6 +123,7 @@ Program *parse(Token *tok);
 //
 
 typedef enum {
+    TY_CHAR,
     TY_INT,
     TY_PTR,
     TY_FUNC,
@@ -142,9 +143,13 @@ struct Type {
 };
 
 extern Type *ty_int;
+extern Type *ty_char;
+
 bool is_integer(Type *ty);
 bool is_pointing(Type *ty);
+
 void add_type(Node *node);
+
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);
