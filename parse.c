@@ -140,15 +140,34 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 static Var *globals;
 static Var *locals;
 
+static VarScope *current_scope;
+static int scope_depth;
+
+static void enter_scope(void) {
+    scope_depth++;
+}
+static void leave_scope(void) {
+    scope_depth--;
+    while (current_scope && current_scope->depth > scope_depth)
+        current_scope = current_scope->next;
+}
+
+static void push_scope(Var *var) {
+    VarScope *sc = calloc(1, sizeof(VarScope));
+    sc->depth = scope_depth;
+    sc->next = current_scope;
+    sc->var = var;
+    sc->name = var->name;
+    current_scope = sc;
+}
+
+
 static Var *find_var(Token *tok) {
-    for (Var *lv = locals; lv; lv = lv->next)
-        if (strlen(lv->name) == tok->len &&
-            !strncmp(tok->loc, lv->name, tok->len))
-            return lv;
-    for (Var *gv = globals; gv; gv = gv->next)
-        if (strlen(gv->name) == tok->len &&
-            !strncmp(tok->loc, gv->name, tok->len))
-            return gv;
+    for (VarScope *sc = current_scope; sc; sc=sc->next){
+        if (strlen(sc->name) == tok->len &&
+            !strncmp(tok->loc, sc->name, tok->len))
+            return sc->var;
+    }
 
     return NULL;
 }
@@ -159,6 +178,7 @@ static Var *new_lvar(char *name, Type *ty) {
     lvar->name = name;
     lvar->ty = ty;
     lvar->is_local = true;
+    push_scope(lvar);
     locals = lvar;
     return lvar;
 }
@@ -169,6 +189,7 @@ static Var *new_gvar(char *name, Type *ty) {
     gvar->name = name;
     gvar->ty = ty;
     gvar->is_local = false;
+    push_scope(gvar);
     globals = gvar;
     return gvar;
 }
@@ -232,6 +253,7 @@ static Function *funcdef(Token **rest, Token *tok) {
 
     Function *fn = calloc(1, sizeof(Function));
     fn->name = get_ident(ty->name);
+    enter_scope();
     for (Type *t = ty->params; t; t = t->next) {
         new_lvar(get_ident(t->name), t);
     }
@@ -241,6 +263,7 @@ static Function *funcdef(Token **rest, Token *tok) {
     fn->node = compound_stmt(&tok, tok)->body;
     fn->locals = locals;
     *rest = tok;
+    leave_scope();
     return fn;
 }
 
@@ -252,6 +275,7 @@ static bool is_typename(Token *tok) {
 static Node *compound_stmt(Token **rest, Token *tok) {
     Node head = {};
     Node *cur = &head;
+    enter_scope();
     while (!equal(tok, "}")) {
         if (is_typename(tok)) {
             cur = cur->next = declaration(&tok, tok);
@@ -262,6 +286,7 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
     add_type(node);
+    leave_scope();
     *rest = skip(tok, "}");
     return node;
 }

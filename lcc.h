@@ -58,6 +58,14 @@ struct Var {
     int contents_len; // string literal length
 };
 
+typedef struct VarScope VarScope;
+struct VarScope {
+    Var *var;
+    VarScope *next;
+    int depth;
+    char *name;
+};
+
 typedef enum {
     ND_ADD,       // +
     ND_SUB,       // -
