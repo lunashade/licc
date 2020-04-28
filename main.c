@@ -9,8 +9,8 @@ int main(int argc, char **argv) {
     }
 
     Token *tok = tokenize(argv[1]);
-    Function *prog = parse(tok);
-    for (Function *fn = prog; fn; fn=fn->next) {
+    Program *prog = parse(tok);
+    for (Function *fn = prog->fns; fn; fn=fn->next) {
         int offset = 32; // for callee-saved registers
         for (Var *v = fn->locals; v; v = v->next) {
             offset += v->ty->size;

@@ -137,13 +137,18 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 // Var utility
 //
 
-Var *locals;
+static Var *globals;
+static Var *locals;
 
-static Var *find_lvar(Token *tok) {
+static Var *find_var(Token *tok) {
     for (Var *lv = locals; lv; lv = lv->next)
         if (strlen(lv->name) == tok->len &&
             !strncmp(tok->loc, lv->name, tok->len))
             return lv;
+    for (Var *gv = globals; gv; gv = gv->next)
+        if (strlen(gv->name) == tok->len &&
+            !strncmp(tok->loc, gv->name, tok->len))
+            return gv;
 
     return NULL;
 }
@@ -153,22 +158,55 @@ static Var *new_lvar(char *name, Type *ty) {
     lvar->next = locals;
     lvar->name = name;
     lvar->ty = ty;
+    lvar->is_local = true;
     locals = lvar;
     return lvar;
+}
+
+static Var *new_gvar(char *name, Type *ty) {
+    Var *gvar = calloc(1, sizeof(Var));
+    gvar->next = globals;
+    gvar->name = name;
+    gvar->ty = ty;
+    gvar->is_local = false;
+    globals = gvar;
+    return gvar;
 }
 
 //
 // Parser
 //
 
-// program = funcdef*
-Function *parse(Token *tok) {
+// program = ( global-var |  funcdef )*
+Program *parse(Token *tok) {
+    globals = NULL;
     Function head = {};
     Function *cur = &head;
+
     while (tok->kind != TK_EOF) {
-        cur = cur->next = funcdef(&tok, tok);
+        Token *start = tok;
+        Type *basety = typespec(&tok, tok);
+        Type *ty = declarator(&tok, tok, basety);
+
+        if (ty->kind == TY_FUNC) {
+            cur = cur->next = funcdef(&tok, start);
+            continue;
+        }
+        for (;;) {
+            new_gvar(get_ident(ty->name), ty);
+            if (equal(tok, ";")) {
+                tok = skip(tok, ";");
+                break;
+            }
+            tok = skip(tok, ",");
+            ty = declarator(&tok, tok, basety);
+        }
     }
-    return head.next;
+
+    Program *prog = calloc(1, sizeof(Program));
+    prog->globals = globals;
+    prog->fns = head.next;
+    return prog;
 }
 
 // funcdef = typespec declarator "{" compound_stmt
@@ -536,7 +574,7 @@ static Node *primary(Token **rest, Token *tok) {
             node->args = func_args(rest, tok->next);
             return node;
         }
-        Var *lvar = find_lvar(tok);
+        Var *lvar = find_var(tok);
         if (!lvar) {
             error_tok(tok, "undeclared variable: %s", get_ident(tok));
         }

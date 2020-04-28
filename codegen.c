@@ -59,7 +59,11 @@ static void gen_stmt(Node *node);
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         printf("# get variable %s address\n", node->var->name);
-        printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
+        if (node->var->is_local)
+            printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
+        else
+            printf("\tmov %s, offset %s\n", reg_push(), node->var->name);
+
         return;
     }
     if (node->kind == ND_DEREF) {
@@ -258,9 +262,19 @@ static void gen_stmt(Node *node) {
     error_tok(node->tok, "invalid statement");
 }
 
-void codegen(Function *prog) {
-    printf(".intel_syntax noprefix\n");
-    for (Function *fn = prog; fn; fn = fn->next) {
+
+static void emit_data(Program *prog) {
+    printf(".data\n");
+
+    for (Var *gv = prog->globals; gv; gv = gv->next) {
+        printf("%s:\n", gv->name);
+        printf("\t.zero %d\n", gv->ty->size);
+    }
+}
+
+static void emit_text(Program *prog) {
+    printf(".text\n");
+    for (Function *fn = prog->fns; fn; fn = fn->next) {
         printf(".globl %s\n", fn->name);
         printf("%s:\n", fn->name);
         funcname = fn->name;
@@ -307,4 +321,10 @@ void codegen(Function *prog) {
         printf("\tpop rbp\n");
         printf("\tret\n");
     }
+}
+
+void codegen(Program *prog) {
+    printf(".intel_syntax noprefix\n");
+    emit_data(prog);
+    emit_text(prog);
 }

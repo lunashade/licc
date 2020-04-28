@@ -44,10 +44,11 @@ void error_tok(Token *tok, char *fmt, ...);
 
 typedef struct Var Var;
 struct Var {
-    Var *next;  // next LVar
-    char *name; // name string
-    Type *ty;   // type
-    int offset; // offset from rbp
+    Var *next;     // next LVar
+    char *name;    // name string
+    Type *ty;      // type
+    int offset;    // offset from rbp
+    bool is_local; // local or not
 };
 
 typedef enum {
@@ -109,7 +110,13 @@ struct Function {
     int stacksize; // local variable stack size
 };
 
-Function *parse(Token *tok);
+typedef struct Program Program;
+struct Program {
+    Var *globals;
+    Function *fns;
+};
+
+Program *parse(Token *tok);
 
 //
 // typing.c
@@ -147,4 +154,4 @@ Type *copy_type(Type *ty);
 // Codegen
 //
 
-void codegen(Function *prog);
+void codegen(Program *prog);
