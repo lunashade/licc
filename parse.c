@@ -18,6 +18,7 @@ static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
+static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 static Node *func_args(Token **rest, Token *tok);
 
@@ -483,7 +484,7 @@ static Node *mul(Token **rest, Token *tok) {
     }
 }
 
-// unary = ( "+" | "-" | "*" | "&" | "sizeof" ) unary | primary
+// unary = ( "+" | "-" | "*" | "&" | "sizeof" ) unary | postfix
 static Node *unary(Token **rest, Token *tok) {
     Token *start = tok;
     if (equal(tok, "+")) {
@@ -504,7 +505,21 @@ static Node *unary(Token **rest, Token *tok) {
         add_type(node);
         return new_number_node(node->ty->size, start);
     }
-    return primary(rest, tok);
+    return postfix(rest, tok);
+}
+
+// postfix = primary ("[" expr "]")?
+static Node *postfix(Token **rest, Token *tok) {
+    Node *node = primary(&tok, tok);
+    while (equal(tok, "[")) {
+        Token *op = tok;
+        Node *ex = expr(&tok, tok->next);
+        node = new_add_node(node, ex, op);
+        node = new_unary_node(ND_DEREF, node, op);
+        tok = skip(tok, "]");
+    }
+    *rest = tok;
+    return node;
 }
 
 // primary = "(" expr ")" | num | ident func-args?
