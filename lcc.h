@@ -3,6 +3,7 @@
 #endif
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -33,7 +34,7 @@ struct Token {
     int contents_len; // string literal length
 };
 
-Token *tokenize(char *p);
+Token *tokenize(char *filename, char *p);
 bool equal(Token *tok, char *s);
 Token *skip(Token *tok, char *s);
 

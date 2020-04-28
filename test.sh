@@ -6,7 +6,7 @@ function assert {
     want="$1"
     input="$2"
 
-    ./${BIN} "${input}" > tmp.s
+    echo "${input}" | ./${BIN} - > tmp.s || exit
 
     gcc -static -o tmp tmp.s tmp2.o
     ./tmp
