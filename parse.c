@@ -172,6 +172,20 @@ static Var *new_gvar(char *name, Type *ty) {
     globals = gvar;
     return gvar;
 }
+static char *new_label(void) {
+    static int cnt = 0;
+    char *buf = malloc(20);
+    sprintf(buf, ".L.data.%d", cnt++);
+    return buf;
+}
+
+static Var *new_string_literal(char *p, int len) {
+    Type *ty = array_of(ty_char, len);
+    Var *var = new_gvar(new_label(), ty);
+    var->contents = p;
+    var->contents_len = len;
+    return var;
+}
 
 //
 // Parser
@@ -568,7 +582,7 @@ static Node *postfix(Token **rest, Token *tok) {
     return node;
 }
 
-// primary = "(" expr ")" | num | ident func-args?
+// primary = "(" expr ")" | num | str | ident func-args?
 static Node *primary(Token **rest, Token *tok) {
     if (equal(tok, "(")) {
         Node *node = expr(&tok, tok->next);
@@ -589,6 +603,13 @@ static Node *primary(Token **rest, Token *tok) {
         *rest = tok->next;
         return new_var_node(lvar, tok);
     }
+    if (tok->kind == TK_STR) {
+        Var *var = new_string_literal(tok->contents, tok->contents_len);
+        *rest = tok->next;
+        return new_var_node(var, tok);
+    }
+    if (tok->kind != TK_NUM)
+        error_tok(tok, "expected expression");
     Node *node = new_number_node(get_number(tok), tok);
     *rest = tok->next;
     return node;

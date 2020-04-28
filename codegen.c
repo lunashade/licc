@@ -279,7 +279,10 @@ static void emit_data(Program *prog) {
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         printf("%s:\n", gv->name);
-        printf("\t.zero %d\n", gv->ty->size);
+        if (gv->contents)
+            printf("\t.string \"%s\"\n", gv->contents);
+        else
+            printf("\t.zero %d\n", gv->ty->size);
     }
 }
 

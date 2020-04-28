@@ -43,7 +43,8 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
 }
 
 static bool is_keyword(Token *tok) {
-    static char *kw[] = {"return", "if", "else", "for", "while", "sizeof", "int", "char"};
+    static char *kw[] = {"return", "if",     "else", "for",
+                         "while",  "sizeof", "int",  "char"};
 
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
         if (equal(tok, kw[i]))
@@ -60,6 +61,20 @@ static void convert_keywords(Token *tok) {
     }
 }
 
+static Token *read_string_literal(Token *cur, char *start) {
+    char *p = start + 1;
+    while (*p && *p != '"')
+        p++;
+
+    if (!*p) {
+        error_at(p, "string literal not closed.");
+    }
+    cur = new_token(cur, TK_STR, start, p - start + 1);
+    cur->contents = strndup(start + 1, p - start - 1);
+    cur->contents_len = p - start;
+    return cur;
+}
+
 Token *tokenize(char *p) {
     Token head = {};
     current_input = p;
@@ -74,6 +89,11 @@ Token *tokenize(char *p) {
             startswith(p, "!=")) {
             cur = new_token(cur, TK_RESERVED, p, 2);
             p += 2;
+            continue;
+        }
+        if (*p == '"') {
+            cur = read_string_literal(cur, p);
+            p += cur->len;
             continue;
         }
         if (ispunct(*p)) {
