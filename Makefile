@@ -2,7 +2,7 @@ CFLAGS=-std=c11 -g -static
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-all: clean test
+all: test
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
 
@@ -14,7 +14,10 @@ test: lcc
 	cc -static -o tmp tmp.s
 	./tmp
 
+longtest: clean lcc test
+	tests/old_test.sh
+
 clean:
 	git clean -fX
 
-.PHONY: clean test
+.PHONY: clean test longtest
