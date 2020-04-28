@@ -110,6 +110,12 @@ static void gen_expr(Node *node) {
         gen_addr(node->lhs);
         store(node->ty);
         return;
+    case ND_STMT_EXPR:
+        for (Node *n=node->body; n ; n=n->next) {
+            gen_stmt(n);
+        }
+        reg_push();
+        return;
     case ND_FUNCALL: {
         int top_orig = top;
         top = 0;

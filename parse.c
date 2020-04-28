@@ -143,9 +143,7 @@ static Var *locals;
 static VarScope *current_scope;
 static int scope_depth;
 
-static void enter_scope(void) {
-    scope_depth++;
-}
+static void enter_scope(void) { scope_depth++; }
 static void leave_scope(void) {
     scope_depth--;
     while (current_scope && current_scope->depth > scope_depth)
@@ -161,9 +159,8 @@ static void push_scope(Var *var) {
     current_scope = sc;
 }
 
-
 static Var *find_var(Token *tok) {
-    for (VarScope *sc = current_scope; sc; sc=sc->next){
+    for (VarScope *sc = current_scope; sc; sc = sc->next) {
         if (strlen(sc->name) == tok->len &&
             !strncmp(tok->loc, sc->name, tok->len))
             return sc->var;
@@ -607,8 +604,23 @@ static Node *postfix(Token **rest, Token *tok) {
     return node;
 }
 
-// primary = "(" expr ")" | num | str | ident func-args?
+// primary = "(" "{" compound-stmt ")"
+//         | "(" expr ")"
+//         | num | str | ident func-args?
 static Node *primary(Token **rest, Token *tok) {
+    if (equal(tok, "(") && equal(tok->next, "{")) {
+        Node *node = new_node(ND_STMT_EXPR, tok);
+        node->body = compound_stmt(&tok, tok->next->next)->body;
+        *rest = skip(tok, ")");
+
+        Node *cur = node->body;
+        while (cur->next)
+            cur = cur->next;
+        if (cur->kind != ND_EXPR_STMT)
+            error_tok(cur->tok,
+                      "statement expression returning void is not supported");
+        return node;
+    }
     if (equal(tok, "(")) {
         Node *node = expr(&tok, tok->next);
         *rest = skip(tok, ")");

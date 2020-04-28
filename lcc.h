@@ -77,6 +77,7 @@ typedef enum {
     ND_LE,        // <=
     ND_ASSIGN,    // =
     ND_EXPR_STMT, // Expession Statement
+    ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
     ND_FUNCALL,   // function call
     ND_RETURN,    // return statement
