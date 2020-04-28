@@ -61,17 +61,65 @@ static void convert_keywords(Token *tok) {
     }
 }
 
+static char *read_escape_char(char *ret, char *p) {
+    switch (*p) {
+    case 'a':
+        *ret = '\a';
+        return p;
+    case 'b':
+        *ret = '\b';
+        return p;
+    case 't':
+        *ret = '\t';
+        return p;
+    case 'r':
+        *ret = '\r';
+        return p;
+    case 'n':
+        *ret = '\n';
+        return p;
+    case 'v':
+        *ret = '\v';
+        return p;
+    case 'f':
+        *ret = '\f';
+        return p;
+    case 'e':
+        *ret = 27;
+        return p;
+    default:
+        *ret = *p;
+        return p;
+    }
+}
+
 static Token *read_string_literal(Token *cur, char *start) {
     char *p = start + 1;
-    while (*p && *p != '"')
-        p++;
-
-    if (!*p) {
-        error_at(p, "string literal not closed.");
+    char *end = p;
+    for (; *end != '"'; end++) {
+        if (*end == '\0')
+            error_at(start, "string literal not closed.");
+        if (*end == '\\')
+            end++; // skip escaped char
     }
-    cur = new_token(cur, TK_STR, start, p - start + 1);
-    cur->contents = strndup(start + 1, p - start - 1);
-    cur->contents_len = p - start;
+    char *buf = malloc(end - p + 1);
+    int len = 0;
+
+    for (; (end - p) > 0; p++) {
+        if (*p == '\\') {
+            char c;
+            p = read_escape_char(&c, p + 1);
+            buf[len++] = c;
+        } else {
+            buf[len++] = *p;
+        }
+    }
+
+    buf[len++] = '\0';
+
+    cur = new_token(cur, TK_STR, start, end - start + 1);
+    cur->contents = buf;
+    cur->contents_len = len;
     return cur;
 }
 
