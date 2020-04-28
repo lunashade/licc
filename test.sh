@@ -138,4 +138,14 @@ assert 106 'int main() { return "\j"[0];  }'
 assert 107 'int main() { return "\k"[0];  }'
 assert 108 'int main() { return "\l"[0];  }'
 
+assert 0 'int main() {return "\0"[0];}'
+assert 16 'int main() {return "\20"[0];}'
+assert 72 'int main() {return "\110"[0];}'
+assert 48 'int main() {return "\1100"[1];}'
+
+assert 0 'int main() {return "\x0"[0];}'
+assert 16 'int main() {return "\x10"[0];}'
+assert 171 'int main() {return "\xab"[0];}'
+assert 106 'int main() {return "\xaj"[1];}'
+
 echo OK

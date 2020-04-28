@@ -65,31 +65,71 @@ static char *read_escape_char(char *ret, char *p) {
     switch (*p) {
     case 'a':
         *ret = '\a';
-        return p;
+        return p++;
     case 'b':
         *ret = '\b';
-        return p;
+        return p++;
     case 't':
         *ret = '\t';
-        return p;
+        return p++;
     case 'r':
         *ret = '\r';
-        return p;
+        return p++;
     case 'n':
         *ret = '\n';
-        return p;
+        return p++;
     case 'v':
         *ret = '\v';
-        return p;
+        return p++;
     case 'f':
         *ret = '\f';
-        return p;
+        return p++;
     case 'e':
         *ret = 27;
+        return p++;
+    case 'x': {
+        int r;
+        p++;
+        if ('0' <= *p && *p <= '9') {
+            r = *p++ - '0';
+        } else if ('a' <= *p && *p <= 'f') {
+            r = 10 + (*p++ - 'a');
+        } else if ('A' <= *p && *p <= 'F') {
+            r = 10 + (*p++ - 'A');
+        } else {
+            error_at(p, "expected hexadecimal sequence");
+        }
+        if ('0' <= *p && *p <= '9') {
+            r = (r << 4) | (*p++ - '0');
+        } else if ('a' <= *p && *p <= 'f') {
+            r = (r << 4) | (10 + (*p++ - 'a'));
+        } else if ('A' <= *p && *p <= 'F') {
+            r = (r << 4) | (10 + (*p++ - 'A'));
+        }
+        *ret = r;
         return p;
+    }
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7': {
+        int r = *p++ - '0';
+        if ('0' <= *p && *p <= '7') {
+            r = (r << 3) | (*p++ - '0');
+        }
+        if ('0' <= *p && *p <= '7') {
+            r = (r << 3) | (*p++ - '0');
+        }
+        *ret = r;
+        return p;
+    }
     default:
         *ret = *p;
-        return p;
+        return p++;
     }
 }
 
@@ -105,13 +145,14 @@ static Token *read_string_literal(Token *cur, char *start) {
     char *buf = malloc(end - p + 1);
     int len = 0;
 
-    for (; (end - p) > 0; p++) {
+    for (; (end - p) > 0;) {
         if (*p == '\\') {
             char c;
             p = read_escape_char(&c, p + 1);
             buf[len++] = c;
         } else {
             buf[len++] = *p;
+            p++;
         }
     }
 
