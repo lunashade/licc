@@ -191,6 +191,19 @@ Token *tokenize(char *filename, char *p) {
             p++;
             continue;
         }
+        if (startswith(p, "//")) {
+            p += 2;
+            while (*p != '\n')
+                p++;
+            continue;
+        }
+        if (startswith(p, "/*")) {
+            char *q = strstr(p + 2, "*/");
+            if (!q)
+                error_at(p, "unclosed block comment");
+            p = q + 2;
+            continue;
+        }
         if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||
             startswith(p, "!=")) {
             cur = new_token(cur, TK_RESERVED, p, 2);

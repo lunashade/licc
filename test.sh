@@ -33,6 +33,10 @@ EOF
 }
 
 ready
+
+assert 2 'int main(){/* return 1; */ return 2;}'
+assert 2 'int main(){// return 1;
+return 2;}'
 assert 0 'int main(){ return 0; }'
 assert 42 'int main(){ return 42; }'
 assert 42 'int main(){ return 50-10+2; }'
