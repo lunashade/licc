@@ -1,28 +1,32 @@
 #include "lcc.h"
 
-Type *ty_int = &(Type){TY_INT, 8};
-Type *ty_char = &(Type){TY_CHAR, 1};
+int align_to(int n, int align) {
+    return (n + align - 1) & ~(align - 1);
+} // align must 2-power
+
+Type *ty_int = &(Type){TY_INT, 8, 8};
+Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
 bool is_integer(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
 bool is_pointing(Type *ty) { return ty->base; }
 
-Type *new_type(TypeKind kind) {
+Type *new_type(TypeKind kind, int size, int align) {
     Type *ty = calloc(1, sizeof(Type));
     ty->kind = kind;
+    ty->size = size;
+    ty->align = align;
     return ty;
 }
 
 Type *pointer_to(Type *base) {
-    Type *ty = new_type(TY_PTR);
+    Type *ty = new_type(TY_PTR, 8, 8);
     ty->base = base;
-    ty->size = 8;
     return ty;
 }
 
 Type *array_of(Type *base, int size) {
-    Type *ty = new_type(TY_ARRAY);
+    Type *ty = new_type(TY_ARRAY, size*(base->size), base->align);
     ty->base = base;
-    ty->size = size * (base->size);
     ty->array_len = size;
     return ty;
 }
@@ -34,7 +38,8 @@ Type *copy_type(Type *ty) {
 }
 
 Type *func_type(Type *return_ty) {
-    Type *ty = new_type(TY_FUNC);
+    Type *ty = calloc(1, sizeof(Type));
+    ty->kind = TY_FUNC;
     ty->return_ty = return_ty;
     return ty;
 }

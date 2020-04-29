@@ -142,6 +142,8 @@ Program *parse(Token *tok);
 // typing.c
 //
 
+int align_to(int n, int align);
+
 typedef enum {
     TY_CHAR,
     TY_INT,
@@ -154,6 +156,7 @@ typedef enum {
 struct Type {
     TypeKind kind;
     int size;
+    int align;
     Type *base;    // TY_PTR or TY_ARRAY pointer_to
     int array_len; // TY_ARRAY
     // TY_FUNC
@@ -182,7 +185,7 @@ bool is_pointing(Type *ty);
 
 void add_type(Node *node);
 
-Type *new_type(TypeKind kind);
+Type *new_type(TypeKind kind, int size, int align);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);

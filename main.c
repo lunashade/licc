@@ -1,7 +1,4 @@
 #include "lcc.h"
-static int align_to(int n, int align) {
-    return (n + align - 1) & ~(align - 1);
-} // align must 2-power
 
 static char *readfile(char *path) {
     FILE *fp = stdin;
