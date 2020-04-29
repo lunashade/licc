@@ -38,7 +38,6 @@ static void load(Type *ty) {
         return;
     }
     char *rd = reg_pop();
-    printf("# load value from address %s, store %s\n", rd, rd);
     if (ty->size == 1) {
         printf("\tmovsx %s, byte ptr [%s]\n", reg_push(), rd);
 
@@ -52,7 +51,6 @@ static void load(Type *ty) {
 static void store(Type *ty) {
     char *addr = reg_pop();
     char *val = reg_pop();
-    printf("# store value %s into address %s\n", val, addr);
     if (ty->size == 1) {
         printf("\tmov [%s], %sb\n", addr, val);
     } else {
@@ -70,7 +68,6 @@ static void gen_stmt(Node *node);
 // code generate address of node
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
-        printf("# get variable %s address\n", node->var->name);
         if (node->var->is_local)
             printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
         else
@@ -87,6 +84,7 @@ static void gen_addr(Node *node) {
 
 // code generate expression
 static void gen_expr(Node *node) {
+    printf(".loc 1 %d\n", node->tok->lineno);
     switch (node->kind) {
     case ND_NUM:
         printf("\tmov %s, %ld\n", reg_push(), node->val);
@@ -119,7 +117,6 @@ static void gen_expr(Node *node) {
     case ND_FUNCALL: {
         int top_orig = top;
         top = 0;
-        printf("# function %s call prologue\n", node->funcname);
         printf("\tpush r10\n");
         printf("\tpush r11\n");
         printf("\tpush r12\n");
@@ -129,7 +126,6 @@ static void gen_expr(Node *node) {
 
         // push arguments then pop to register
         int nargs = 0;
-        printf("# push argument to register\n");
         for (Node *arg = node->args; arg; arg = arg->next) {
             if (nargs >= 6) {
                 error_tok(arg->tok, "too many arguments");
@@ -156,7 +152,6 @@ static void gen_expr(Node *node) {
         printf("\tpop r10\n");
 
         printf("\tmov %s, rax\n", reg_push());
-        printf("# function %s call end\n", node->funcname);
         return;
     }
     }
@@ -182,7 +177,6 @@ static void gen_expr(Node *node) {
         return;
     }
     if (node->kind == ND_DIV) {
-        printf("# div %s = %s / %s\n", rd, rd, rs);
         printf("\tmov rax, %s\n", rd);
         printf("\tcqo\n");
         printf("\tidiv %s\n", rs);
@@ -221,6 +215,7 @@ static void gen_expr(Node *node) {
 }
 
 static void gen_stmt(Node *node) {
+    printf(".loc 1 %d\n", node->tok->lineno);
     if (node->kind == ND_BLOCK) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
@@ -251,25 +246,20 @@ static void gen_stmt(Node *node) {
         return;
     }
     if (node->kind == ND_IF) {
-        printf("# if cond\n");
         gen_expr(node->cond);
         printf("\tcmp %s, 0\n", reg_pop());
         int lif = next_label();
         if (node->els) {
             printf("\tje .L.els.%d\n", lif);
-            printf("# then\n");
             gen_stmt(node->then);
             printf("\tjmp .L.end.%d\n", lif);
             printf(".L.els.%d:\n", lif);
-            printf("# else\n");
             gen_stmt(node->els);
         } else {
             printf("\tje .L.end.%d\n", lif);
-            printf("# then\n");
             gen_stmt(node->then);
         }
         printf(".L.end.%d:\n", lif);
-        printf("# endif\n");
         return;
     }
     if (node->kind == ND_EXPR_STMT) {
@@ -302,7 +292,6 @@ static void emit_text(Program *prog) {
         funcname = fn->name;
 
         // prologue
-        printf("# prologue\n");
         // save stack pointer
         printf("\tpush rbp\n");
         printf("\tmov rbp, rsp\n");
@@ -317,9 +306,6 @@ static void emit_text(Program *prog) {
         for (Var *v = fn->params; v; v = v->next) {
             i++;
         }
-        if (i > 0)
-            printf("# load arguments\n");
-
         for (Var *v = fn->params; v; v = v->next) {
             if (v->ty->size == 1) {
                 printf("\tmov [rbp-%d], %s\n", v->offset, argreg8[--i]);
@@ -327,7 +313,6 @@ static void emit_text(Program *prog) {
                 printf("\tmov [rbp-%d], %s\n", v->offset, argreg64[--i]);
             }
         }
-        printf("# call function statements\n");
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
             if (top != 0)
@@ -336,7 +321,6 @@ static void emit_text(Program *prog) {
 
         // Epilogue
         // recover callee-saved registers
-        printf("# epilogue\n");
         printf(".L.return.%s:\n", funcname);
         printf("\tmov r12, [rbp-8]\n");
         printf("\tmov r13, [rbp-16]\n");

@@ -573,7 +573,7 @@ static Node *unary(Token **rest, Token *tok) {
         return unary(rest, tok->next);
     }
     if (equal(tok, "-")) {
-        return new_binary_node(ND_SUB, new_number_node(0, NULL),
+        return new_binary_node(ND_SUB, new_number_node(0, tok),
                                unary(rest, tok->next), start);
     }
     if (equal(tok, "*")) {
