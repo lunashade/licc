@@ -10,18 +10,13 @@ void error(char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     exit(1);
 }
-static void verror_at(char *loc, char *fmt, va_list ap) {
+static void verror_at(int lineno, char *loc, char *fmt, va_list ap) {
     char *line = loc;
     while (current_input < line && line[-1] != '\n')
         line--;
     char *lineend = loc;
     while (*lineend != '\n')
         lineend++;
-
-    int lineno = 1;
-    for (char *p = current_input; p < line; p++)
-        if (*p == '\n')
-            lineno++;
 
     int indent = fprintf(stderr, "%s:%d: ", current_filename, lineno);
     fprintf(stderr, "%.*s\n", (int)(lineend - line), line);
@@ -33,16 +28,23 @@ static void verror_at(char *loc, char *fmt, va_list ap) {
     exit(1);
 }
 void error_at(char *loc, char *fmt, ...) {
+    int lineno = 1;
+    for (char *p = current_input; p < loc; p++)
+        if (*p == '\n')
+            lineno++;
+
     va_list ap;
     va_start(ap, fmt);
-    verror_at(loc, fmt, ap);
+    verror_at(lineno, loc, fmt, ap);
 }
 
 void error_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_at(tok->loc, fmt, ap);
+    verror_at(tok->lineno, tok->loc, fmt, ap);
 }
+
+// utility
 static bool startswith(char *p, char *q) {
     return strncmp(p, q, strlen(q)) == 0;
 }
@@ -73,6 +75,18 @@ static void convert_keywords(Token *tok) {
         if (t->kind == TK_IDENT && is_keyword(t)) {
             t->kind = TK_RESERVED;
         }
+    }
+}
+static void add_lineno(Token *tok) {
+    char *p = current_input;
+    int lineno = 1;
+    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+        for (;p < t->loc;p++) {
+            if (*p == '\n') {
+                lineno++;
+            }
+        }
+        t->lineno = lineno;
     }
 }
 
@@ -215,18 +229,18 @@ Token *tokenize(char *filename, char *p) {
             p += cur->len;
             continue;
         }
-        if (ispunct(*p)) {
-            cur = new_token(cur, TK_RESERVED, p, 1);
-            p++;
-            continue;
-        }
-        if (isalpha(*p)) {
+        if (isalpha(*p) || *p == '_') {
             cur = new_token(cur, TK_IDENT, p, 0);
             char *q = p;
             while (isalnum(*p) || *p == '_') {
                 p++;
             }
             cur->len = p - q;
+            continue;
+        }
+        if (ispunct(*p)) {
+            cur = new_token(cur, TK_RESERVED, p, 1);
+            p++;
             continue;
         }
         if (isdigit(*p)) {
@@ -239,6 +253,7 @@ Token *tokenize(char *filename, char *p) {
         error_at(p, "invalid token character");
     }
     new_token(cur, TK_EOF, p, 0);
+    add_lineno(head.next);
     convert_keywords(head.next);
     return head.next;
 }

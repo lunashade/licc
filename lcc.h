@@ -32,6 +32,7 @@ struct Token {
     int len;
     char *contents;   // string literal including \0
     int contents_len; // string literal length
+    int lineno;
 };
 
 Token *tokenize(char *filename, char *p);
