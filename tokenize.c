@@ -1,5 +1,7 @@
 #include "lcc.h"
 
+static char *KEYWORDS[] = {"return", "if",  "else", "for",   "while",
+                           "sizeof", "int", "char", "struct"};
 // error report
 static char *current_filename;
 static char *current_input;
@@ -60,11 +62,8 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
 }
 
 static bool is_keyword(Token *tok) {
-    static char *kw[] = {"return", "if",     "else", "for",
-                         "while",  "sizeof", "int",  "char"};
-
-    for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
-        if (equal(tok, kw[i]))
+    for (int i = 0; i < sizeof(KEYWORDS) / sizeof(*KEYWORDS); i++) {
+        if (equal(tok, KEYWORDS[i]))
             return true;
     }
     return false;
@@ -81,7 +80,7 @@ static void add_lineno(Token *tok) {
     char *p = current_input;
     int lineno = 1;
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
-        for (;p < t->loc;p++) {
+        for (; p < t->loc; p++) {
             if (*p == '\n') {
                 lineno++;
             }

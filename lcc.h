@@ -11,6 +11,7 @@
 #include <string.h>
 
 typedef struct Type Type;
+typedef struct Member Member;
 
 //
 // Tokenizer
@@ -77,6 +78,7 @@ typedef enum {
     ND_LT,        // <
     ND_LE,        // <=
     ND_ASSIGN,    // =
+    ND_MEMBER,    // . (struct member)
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
@@ -112,6 +114,7 @@ struct Node {
 
     Var *var; // ND_VAR, local variable
     long val; // ND_NUM, value
+    Member *member; // ND_MEMBER, struct member
 
     Token *tok; // Debug info: representative token
 };
@@ -145,6 +148,7 @@ typedef enum {
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
+    TY_STRUCT,
 } TypeKind;
 
 struct Type {
@@ -157,7 +161,18 @@ struct Type {
     Token *name;     // function name
     Type *params;    // params
     Type *next;      // next parameter
+    // TY_STRUCT
+    Member *member;
 };
+
+struct Member {
+    Member *next;
+    Type *ty;    // type
+    Token *name; // member name
+    int offset;  // offset from base
+    int size;    // size of this member
+};
+Member *new_member(Type *ty);
 
 extern Type *ty_int;
 extern Type *ty_char;
@@ -167,6 +182,7 @@ bool is_pointing(Type *ty);
 
 void add_type(Node *node);
 
+Type *new_type(TypeKind kind);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);

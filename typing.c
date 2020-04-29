@@ -1,21 +1,26 @@
 #include "lcc.h"
+
 Type *ty_int = &(Type){TY_INT, 8};
 Type *ty_char = &(Type){TY_CHAR, 1};
 
 bool is_integer(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
 bool is_pointing(Type *ty) { return ty->base; }
 
-Type *pointer_to(Type *base) {
+Type *new_type(TypeKind kind) {
     Type *ty = calloc(1, sizeof(Type));
-    ty->kind = TY_PTR;
+    ty->kind = kind;
+    return ty;
+}
+
+Type *pointer_to(Type *base) {
+    Type *ty = new_type(TY_PTR);
     ty->base = base;
     ty->size = 8;
     return ty;
 }
 
 Type *array_of(Type *base, int size) {
-    Type *ty = calloc(1, sizeof(Type));
-    ty->kind = TY_ARRAY;
+    Type *ty = new_type(TY_ARRAY);
     ty->base = base;
     ty->size = size * (base->size);
     ty->array_len = size;
@@ -29,10 +34,17 @@ Type *copy_type(Type *ty) {
 }
 
 Type *func_type(Type *return_ty) {
-    Type *ty = calloc(1, sizeof(Type));
-    ty->kind = TY_FUNC;
+    Type *ty = new_type(TY_FUNC);
     ty->return_ty = return_ty;
     return ty;
+}
+
+Member *new_member(Type *ty) {
+    Member *mem = calloc(1, sizeof(Member));
+    mem->ty = ty;
+    mem->name = ty->name;
+    mem->size = ty->size;
+    return mem;
 }
 
 void add_type(Node *node) {
@@ -71,6 +83,9 @@ void add_type(Node *node) {
         return;
     case ND_VAR:
         node->ty = node->var->ty;
+        return;
+    case ND_MEMBER:
+        node->ty = node->member->ty;
         return;
     case ND_ADDR:
         if (node->lhs->ty->kind == TY_ARRAY) {

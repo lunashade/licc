@@ -3,6 +3,8 @@
 static Function *funcdef(Token **rest, Token *tok);
 
 static Type *typespec(Token **rest, Token *tok);
+static Type *struct_spec(Token **rest, Token *tok);
+static Member *struct_decl(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
@@ -21,6 +23,8 @@ static Node *unary(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 static Node *func_args(Token **rest, Token *tok);
+
+static bool is_typename(Token *tok);
 
 //
 // Token utility
@@ -109,6 +113,7 @@ static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
     rhs = new_binary_node(ND_MUL, rhs, size, tok);
     return new_binary_node(ND_ADD, lhs, rhs, tok);
 }
+
 static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
     add_type(lhs);
     add_type(rhs);
@@ -131,6 +136,28 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 
     // num-ptr -> invalid
     error_tok(tok, "invalid operands: num-ptr");
+}
+
+static Member *get_struct_member(Type *ty, Token *tok) {
+    for (Member *m = ty->member; m; m = m->next) {
+        if (m->name->len == tok->len &&
+            !strncmp(m->name->loc, tok->loc, tok->len))
+            return m;
+    }
+    error_tok(tok, "no such member in struct");
+}
+
+static Node *struct_ref(Node *lhs, Token *tok) {
+    add_type(lhs);
+    if (lhs->ty->kind != TY_STRUCT) {
+        error_tok(lhs->tok, "member access for non-struct");
+    }
+    if (tok->kind != TK_IDENT) {
+        error_tok(tok, "member should be a identifier token");
+    }
+    Node *node = new_unary_node(ND_MEMBER, lhs, tok);
+    node->member = get_struct_member(lhs->ty, tok);
+    return node;
 }
 
 //
@@ -264,10 +291,6 @@ static Function *funcdef(Token **rest, Token *tok) {
     return fn;
 }
 
-static bool is_typename(Token *tok) {
-    return equal(tok, "int") || equal(tok, "char");
-}
-
 // compound_stmt = ( declaration | stmt )* "}"
 static Node *compound_stmt(Token **rest, Token *tok) {
     Node head = {};
@@ -319,14 +342,64 @@ static Node *declaration(Token **rest, Token *tok) {
     return node;
 }
 
-// typespec = "int" | "char"
+static bool is_typename(Token *tok) {
+    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct");
+}
+
+// typespec = "int" | "char" | struct-spec
 static Type *typespec(Token **rest, Token *tok) {
+    if (equal(tok, "struct")) {
+        Type *ty = struct_spec(&tok, tok);
+        *rest = tok;
+        return ty;
+    }
     if (equal(tok, "char")) {
         *rest = skip(tok, "char");
         return ty_char;
     }
     *rest = skip(tok, "int");
     return ty_int;
+}
+
+// struct-spec = "struct" "{" struct-decl
+static Type *struct_spec(Token **rest, Token *tok) {
+    tok = skip(tok, "struct");
+    tok = skip(tok, "{");
+    Type *ty = new_type(TY_STRUCT);
+    ty->member = struct_decl(rest, tok);
+
+    int offset = 0;
+    for (Member *m = ty->member; m; m = m->next) {
+        m->offset = offset;
+        offset += m->ty->size;
+    }
+    ty->size = offset;
+
+    return ty;
+}
+
+// struct-decl = (typespec declarator ("," declarator)* ";")* "}"
+static Member *struct_decl(Token **rest, Token *tok) {
+    Member head = {};
+    Member *cur = &head;
+
+    while (!equal(tok, "}")) {
+        Type *basety = typespec(&tok, tok);
+        int cnt = 0;
+
+        while (!equal(tok, ";")) {
+            if (cnt++ > 0) {
+                tok = skip(tok, ",");
+            }
+            Type *ty = declarator(&tok, tok, basety);
+            cur->next = new_member(ty);
+            cur = cur->next;
+        }
+        tok = skip(tok, ";");
+    }
+
+    *rest = skip(tok, "}");
+    return head.next;
 }
 
 // declarator = ("*")* ident type-suffix?
@@ -590,18 +663,27 @@ static Node *unary(Token **rest, Token *tok) {
     return postfix(rest, tok);
 }
 
-// postfix = primary ("[" expr "]")?
+// postfix = primary ("[" expr "]" | "." ident)*
 static Node *postfix(Token **rest, Token *tok) {
     Node *node = primary(&tok, tok);
-    while (equal(tok, "[")) {
-        Token *op = tok;
-        Node *ex = expr(&tok, tok->next);
-        node = new_add_node(node, ex, op);
-        node = new_unary_node(ND_DEREF, node, op);
-        tok = skip(tok, "]");
+    for (;;) {
+        if (equal(tok, "[")) {
+            Token *op = tok;
+            Node *ex = expr(&tok, tok->next);
+            node = new_add_node(node, ex, op);
+            node = new_unary_node(ND_DEREF, node, op);
+            tok = skip(tok, "]");
+            continue;
+        }
+        if (equal(tok, ".")) {
+            Token *op = tok;
+            node = struct_ref(node, tok->next);
+            tok = tok->next->next;
+            continue;
+        }
+        *rest = tok;
+        return node;
     }
-    *rest = tok;
-    return node;
 }
 
 // primary = "(" "{" compound-stmt ")"
