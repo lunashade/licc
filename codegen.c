@@ -31,10 +31,10 @@ static char *funcname; // currently generating
 
 // load a value from stack top is pointing to.
 static void load(Type *ty) {
-    if (ty->kind == TY_ARRAY) {
-        // do nothing since generally array can't be loaded to a register.
-        // As a result, array evaluation is converted to pointer to the first
-        // element.
+    if (ty->kind == TY_ARRAY || ty->kind == TY_STRUCT) {
+        // do nothing since generally array or struct can't be loaded to a
+        // register. As a result, evaluation is converted to pointer to the
+        // first element.
         return;
     }
     char *rd = reg_pop();
@@ -49,12 +49,20 @@ static void load(Type *ty) {
 }
 // pop address and value, store value into address, push address
 static void store(Type *ty) {
-    char *addr = reg_pop();
-    char *val = reg_pop();
-    if (ty->size == 1) {
-        printf("\tmov [%s], %sb\n", addr, val);
+    char *rd = reg_pop();
+    char *rs = reg_pop();
+    if (ty->kind == TY_STRUCT) {
+        // TODO: if size<8, load on reg
+        // TODO: use alignment
+        for (int i = 0; i < ty->size; i++) {
+            printf("\tmov al, [%s+%d]\n", rs, i);
+            printf("\tmov [%s+%d], al\n", rd, i);
+        }
+    } else if (ty->size == 1) {
+        printf("\tmov [%s], %sb\n", rd, rs);
     } else {
-        printf("\tmov [%s], %s\n", addr, val);
+        assert(ty->size == 8);
+        printf("\tmov [%s], %s\n", rd, rs);
     }
     reg_push(); // address to top
     return;
@@ -116,7 +124,7 @@ static void gen_expr(Node *node) {
         store(node->ty);
         return;
     case ND_STMT_EXPR:
-        for (Node *n=node->body; n ; n=n->next) {
+        for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
         }
         reg_push();
@@ -135,7 +143,8 @@ static void gen_expr(Node *node) {
         int nargs = 0;
         for (Node *arg = node->args; arg; arg = arg->next) {
             if (nargs >= 6) {
-                error_tok(arg->tok, "codegen: funcall: too many arguments: %d", nargs);
+                error_tok(arg->tok, "codegen: funcall: too many arguments: %d",
+                          nargs);
             }
             gen_expr(arg);
             printf("\tpush %s\n", reg_pop());
@@ -283,7 +292,7 @@ static void emit_data(Program *prog) {
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         printf("%s:\n", gv->name);
         if (gv->contents)
-            for (int i=0; i<gv->contents_len; i++) {
+            for (int i = 0; i < gv->contents_len; i++) {
                 printf("\t.byte %d\n", gv->contents[i]);
             }
         else
