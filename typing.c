@@ -4,7 +4,7 @@ int align_to(int n, int align) {
     return (n + align - 1) & ~(align - 1);
 } // align must 2-power
 
-Type *ty_int = &(Type){TY_INT, 8, 8};
+Type *ty_int = &(Type){TY_INT, 4, 4};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
 bool is_integer(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
