@@ -2,7 +2,7 @@
 
 static Function *funcdef(Token **rest, Token *tok);
 
-static Type *typespec(Token **rest, Token *tok);
+static Type *decl_spec(Token **rest, Token *tok);
 static Type *builtin_type(Token **rest, Token *tok);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
@@ -267,7 +267,7 @@ Program *parse(Token *tok) {
 
     while (tok->kind != TK_EOF) {
         Token *start = tok;
-        Type *basety = typespec(&tok, tok);
+        Type *basety = decl_spec(&tok, tok);
         Type *ty = declarator(&tok, tok, basety);
 
         if (ty->kind == TY_FUNC) {
@@ -295,11 +295,11 @@ Program *parse(Token *tok) {
     return prog;
 }
 
-// funcdef = typespec declarator "{" compound_stmt
+// funcdef = decl_spec declarator "{" compound_stmt
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
 
-    Type *ty = typespec(&tok, tok);
+    Type *ty = decl_spec(&tok, tok);
     ty = declarator(&tok, tok, ty);
 
     Function *fn = calloc(1, sizeof(Function));
@@ -338,10 +338,10 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     return node;
 }
 
-// declaration = typespec declarator ("=" expr)? ("," declarator ("=" expr)?)*
+// declaration = decl_spec declarator ("=" expr)? ("," declarator ("=" expr)?)*
 // ";"
 static Node *declaration(Token **rest, Token *tok) {
-    Type *basety = typespec(&tok, tok);
+    Type *basety = decl_spec(&tok, tok);
 
     Node head = {};
     Node *cur = &head;
@@ -369,8 +369,9 @@ static Node *declaration(Token **rest, Token *tok) {
     return node;
 }
 
-// typespec = builtin-type | struct-union-spec
-static Type *typespec(Token **rest, Token *tok) {
+// decl_spec = (storage-class-specifier | type-specifier | type-qualifier)*
+// type-specifier = builtin-type | struct-union-spec
+static Type *decl_spec(Token **rest, Token *tok) {
     Type *ty = builtin_type(rest, tok);
     if (ty) {
         return ty;
@@ -380,7 +381,7 @@ static Type *typespec(Token **rest, Token *tok) {
         *rest = tok;
         return ty;
     }
-    error_tok(tok, "parse: typespec: unknown type specifier");
+    error_tok(tok, "parse: decl_spec: unknown type specifier");
 }
 
 static Type *builtin_type(Token **rest, Token *tok) {
@@ -462,13 +463,13 @@ static Type *struct_spec(Token **rest, Token *tok) {
     return ty;
 }
 
-// struct-decl = (typespec declarator ("," declarator)* ";")* "}"
+// struct-decl = (decl_spec declarator ("," declarator)* ";")* "}"
 static Member *struct_decl(Token **rest, Token *tok) {
     Member head = {};
     Member *cur = &head;
 
     while (!equal(tok, "}")) {
-        Type *basety = typespec(&tok, tok);
+        Type *basety = decl_spec(&tok, tok);
         int cnt = 0;
 
         while (!equal(tok, ";")) {
@@ -528,7 +529,7 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
 }
 
 // func-params = param ("," param)* ")"
-// param       = typespec declarator
+// param       = decl_spec declarator
 static Type *func_params(Token **rest, Token *tok, Type *ty) {
     Type head = {};
     Type *cur = &head;
@@ -536,7 +537,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
     while (!equal(tok, ")")) {
         if (cnt++ > 0)
             tok = skip(tok, ",");
-        Type *basety = typespec(&tok, tok);
+        Type *basety = decl_spec(&tok, tok);
         Type *ty = declarator(&tok, tok, basety);
         cur = cur->next = copy_type(ty);
     }
