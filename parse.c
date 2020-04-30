@@ -55,7 +55,7 @@ Token *skip(Token *tok, char *s) {
 
 bool is_typename(Token *tok) {
     return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct") ||
-           equal(tok, "union") || equal(tok, "short") || equal(tok, "long");
+           equal(tok, "union") || equal(tok, "short") || equal(tok, "long") || equal(tok, "void");
 }
 
 //
@@ -351,6 +351,9 @@ static Node *declaration(Token **rest, Token *tok) {
             tok = skip(tok, ",");
 
         Type *ty = declarator(&tok, tok, basety);
+        if (ty->kind == TY_VOID) {
+            error_tok(tok, "type: variable declared void");
+        }
         Var *var = new_lvar(get_ident(ty->name), ty);
 
         // ("=" expr)?
@@ -385,6 +388,10 @@ static Type *decl_spec(Token **rest, Token *tok) {
 }
 
 static Type *builtin_type(Token **rest, Token *tok) {
+    if (equal(tok, "void")) {
+        *rest = tok->next;
+        return ty_void;
+    }
     if (equal(tok, "int")) {
         *rest = tok->next;
         return ty_int;

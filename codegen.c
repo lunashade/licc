@@ -70,14 +70,15 @@ static void load(Type *ty) {
         return;
     }
     char *rd = reg_pop(8);
-    if (ty->size == 1) {
+    int sz = size_of(ty);
+    if (sz == 1) {
         printf("\tmovsx %s, byte ptr [%s]\n", reg_push(8), rd);
-    } else if (ty->size == 2) {
+    } else if (sz == 2) {
         printf("\tmovsx %s, word ptr [%s]\n", reg_push(8), rd);
-    } else if (ty->size == 4) {
+    } else if (sz == 4) {
         printf("\tmovsx %s, dword ptr [%s]\n", reg_push(8), rd);
     } else {
-        assert(ty->size == 8);
+        assert(sz == 8);
         printf("\tmov %s, [%s]\n", reg_push(8), rd);
     }
     return;
@@ -93,20 +94,11 @@ static void store(Type *ty) {
             printf("\tmov al, [%s+%d]\n", rs, i);
             printf("\tmov [%s+%d], al\n", rd, i);
         }
-    } else if (ty->size == 1) {
-        char *rs = reg_pop(1);
-        printf("\tmov [%s], %s\n", rd, rs);
-    } else if (ty->size == 2) {
-        char *rs = reg_pop(2);
-        printf("\tmov [%s], %s\n", rd, rs);
-    } else if (ty->size == 4) {
-        char *rs = reg_pop(4);
-        printf("\tmov [%s], %s\n", rd, rs);
-    } else {
-        assert(ty->size == 8);
-        char *rs = reg_pop(8);
-        printf("\tmov [%s], %s\n", rd, rs);
+        reg_push(8); // address to top
+        return;
     }
+    char *rs = reg_pop(size_of(ty));
+    printf("\tmov [%s], %s\n", rd, rs);
     reg_push(8); // address to top
     return;
 }
@@ -338,7 +330,7 @@ static void emit_data(Program *prog) {
                 printf("\t.byte %d\n", gv->contents[i]);
             }
         else
-            printf("\t.zero %d\n", gv->ty->size);
+            printf("\t.zero %d\n", size_of(gv->ty));
     }
 }
 
@@ -365,7 +357,7 @@ static void emit_text(Program *prog) {
             i++;
         }
         for (Var *v = fn->params; v; v = v->next) {
-            printf("\tmov [rbp-%d], %s\n", v->offset, argreg(v->ty->size, --i));
+            printf("\tmov [rbp-%d], %s\n", v->offset, argreg(size_of(v->ty), --i));
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);

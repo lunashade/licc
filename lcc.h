@@ -159,6 +159,7 @@ int align_to(int n, int align);
 bool is_typename(Token *tok);
 
 typedef enum {
+    TY_VOID,
     TY_CHAR,
     TY_SHORT,
     TY_INT,
@@ -193,6 +194,8 @@ struct Member {
 };
 Member *new_member(Type *ty);
 
+extern Type *ty_void;
+
 extern Type *ty_int;
 extern Type *ty_char;
 extern Type *ty_short;
@@ -200,6 +203,7 @@ extern Type *ty_long;
 
 bool is_integer(Type *ty);
 bool is_pointing(Type *ty);
+int size_of(Type *ty);
 
 void add_type(Node *node);
 

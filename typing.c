@@ -4,6 +4,7 @@ int align_to(int n, int align) {
     return (n + align - 1) & ~(align - 1);
 }
 
+Type *ty_void = &(Type){TY_VOID, 1, 1};
 Type *ty_long = &(Type){TY_LONG, 8, 8};
 Type *ty_int = &(Type){TY_INT, 4, 4};
 Type *ty_short = &(Type){TY_SHORT, 2, 2};
@@ -15,6 +16,12 @@ bool is_integer(Type *ty) {
             ty->kind == TY_LONG);
 }
 bool is_pointing(Type *ty) { return ty->base; }
+int size_of(Type *ty) {
+    if (ty->kind == TY_VOID) {
+        error_tok(ty->name, "type: void has no size");
+    }
+    return ty->size;
+}
 
 Type *new_type(TypeKind kind, int size, int align) {
     Type *ty = calloc(1, sizeof(Type));
@@ -108,6 +115,9 @@ void add_type(Node *node) {
     case ND_DEREF:
         if (!is_pointing(node->lhs->ty)) {
             error_tok(node->tok, "type: invalid pointer dereference");
+        }
+        if (node->lhs->ty->base->kind == TY_VOID) {
+            error_tok(node->tok, "type: dereferencing a void pointer");
         }
         node->ty = node->lhs->ty->base;
         return;

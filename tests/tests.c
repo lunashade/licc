@@ -9,6 +9,7 @@ int exit();
 int g1, g2[4];
 int testno;
 
+
 int assert(int want, int got, char *code) {
     testno = testno + 1;
     if (want == got) {
@@ -279,6 +280,7 @@ int main() {
     assert(4, ({int x[3]; int (*y)[3]=x; y[0][0]=4; y[0][0];}), "{int x[3]; int (*y)[3]=x; y[0][0]=4; y[0][0];}");
     assert(4, ({int x[3]; int (*y)[3]=x; y[0][0]=4; x[0];}), "{int x[3]; int (*y)[3]=x; y[0][0]=4; x[0];}");
 
+    { void *x; }
     printf("OK\n");
     return 0;
 }
