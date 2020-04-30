@@ -167,32 +167,50 @@ static Node *struct_ref(Node *lhs, Token *tok) {
 static Var *globals;
 static Var *locals;
 
-static VarScope *current_scope;
+static VarScope *var_scope;
+static TagScope *tag_scope;
 static int scope_depth;
 
 static void enter_scope(void) { scope_depth++; }
 static void leave_scope(void) {
     scope_depth--;
-    while (current_scope && current_scope->depth > scope_depth)
-        current_scope = current_scope->next;
+    while (tag_scope && tag_scope->depth > scope_depth)
+        tag_scope = tag_scope->next;
+    while (var_scope && var_scope->depth > scope_depth)
+        var_scope = var_scope->next;
 }
 
 static void push_scope(Var *var) {
     VarScope *sc = calloc(1, sizeof(VarScope));
     sc->depth = scope_depth;
-    sc->next = current_scope;
+    sc->next = var_scope;
     sc->var = var;
     sc->name = var->name;
-    current_scope = sc;
+    var_scope = sc;
+}
+static void push_tag_scope(Token *tok, Type *ty) {
+    TagScope *sc = calloc(1, sizeof(TagScope));
+    sc->depth = scope_depth;
+    sc->next = tag_scope;
+    sc->name = strndup(tok->loc, tok->len);
+    sc->ty = ty;
+    tag_scope = sc;
 }
 
 static Var *find_var(Token *tok) {
-    for (VarScope *sc = current_scope; sc; sc = sc->next) {
+    for (VarScope *sc = var_scope; sc; sc = sc->next) {
         if (strlen(sc->name) == tok->len &&
             !strncmp(tok->loc, sc->name, tok->len))
             return sc->var;
     }
-
+    return NULL;
+}
+static TagScope *find_tag(Token *tok) {
+    for (TagScope *sc = tag_scope; sc; sc = sc->next) {
+        if (strlen(sc->name) == tok->len &&
+            !strncmp(tok->loc, sc->name, tok->len))
+            return sc;
+    }
     return NULL;
 }
 
@@ -361,9 +379,23 @@ static Type *typespec(Token **rest, Token *tok) {
     return ty_int;
 }
 
-// struct-spec = "struct" "{" struct-decl
+// struct-spec = "struct" (ident)? "{" struct-decl
 static Type *struct_spec(Token **rest, Token *tok) {
     tok = skip(tok, "struct");
+    Token *tag = NULL;
+    if (tok->kind == TK_IDENT) {
+        tag = tok;
+        tok = tok->next;
+    }
+    if (tag && !equal(tok, "{")) {
+        TagScope *sc = find_tag(tag);
+        if(!sc) {
+            error_tok(tag, "unknown struct type");
+        }
+        *rest = tok;
+        return sc->ty;
+    }
+
     tok = skip(tok, "{");
     Type *ty = calloc(1, sizeof(Type));
     ty->kind = TY_STRUCT;
@@ -379,6 +411,8 @@ static Type *struct_spec(Token **rest, Token *tok) {
     }
     ty->size = align_to(offset, ty->align);
 
+    if (tag)
+        push_tag_scope(tag, ty);
     return ty;
 }
 

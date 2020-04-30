@@ -250,6 +250,10 @@ int main() {
     assert(15, ({ int x; int y; char z; char *a=&y; char *b=&z; b-a;  }), "({ int x; int y; char z; char *a=&y; char *b=&z; b-a;  })");
     assert(1, ({ int x; char y; int z; char *a=&y; char *b=&z; b-a;  }), "({ int x; char y; int z; char *a=&y; char *b=&z; b-a;  })");
 
+    assert(16, ({struct t {int a, b;} x; struct t y; sizeof(y);}), "{struct t {int a, b;} x; struct t y; sizeof(y);}");
+    assert(2, ({struct t {char x[2];}; {struct t {char x[4];};} struct t y; sizeof(y);}), "{struct t {char x[2];}; {struct t {char x[4];}} struct t y; sizeof(y);}");
+    assert(3, ({struct t {char a;} x; x.a=2; int t = 1; t+x.a;}), "{struct t {char a;} x; x.a=2; int t = 1; t+x.a;}");
+
     printf("OK\n");
     return 0;
 }

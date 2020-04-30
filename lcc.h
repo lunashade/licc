@@ -68,6 +68,14 @@ struct VarScope {
     char *name;
 };
 
+typedef struct TagScope TagScope;
+struct TagScope {
+    Type *ty;
+    TagScope *next;
+    int depth;
+    char *name;
+};
+
 typedef enum {
     ND_ADD,       // +
     ND_SUB,       // -
