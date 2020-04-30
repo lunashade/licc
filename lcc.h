@@ -68,8 +68,13 @@ struct VarScope {
     char *name;
 };
 
+typedef enum {
+    TAG_STRUCT,
+    TAG_UNION,
+} TagKind;
 typedef struct TagScope TagScope;
 struct TagScope {
+    TagKind kind;
     Type *ty;
     TagScope *next;
     int depth;

@@ -188,10 +188,11 @@ static void push_scope(Var *var) {
     sc->name = var->name;
     var_scope = sc;
 }
-static void push_tag_scope(Token *tok, Type *ty) {
+static void push_tag_scope(Token *tok, Type *ty, TagKind kind) {
     TagScope *sc = calloc(1, sizeof(TagScope));
     sc->depth = scope_depth;
     sc->next = tag_scope;
+    sc->kind = kind;
     sc->name = strndup(tok->loc, tok->len);
     sc->ty = ty;
     tag_scope = sc;
@@ -382,12 +383,13 @@ static Type *typespec(Token **rest, Token *tok) {
 
 // struct-union-spec = ("struct" | "union") (ident)? "{" struct-decl
 static Type *struct_spec(Token **rest, Token *tok) {
-    bool is_struct;
+    TagKind kind;
     if (equal(tok, "struct")) {
-        is_struct = true;
+        kind = TAG_STRUCT;
         tok = skip(tok, "struct");
     } else {
-        is_struct = false;
+        // tok == "union"
+        kind = TAG_UNION;
         tok = skip(tok, "union");
     }
 
@@ -401,6 +403,8 @@ static Type *struct_spec(Token **rest, Token *tok) {
         if (!sc) {
             error_tok(tag, "parse: struct-spec: unknown struct type");
         }
+        if (sc->kind != kind)
+            error_tok(tag, "parse: tag kind mismatch from previous declaration");
         *rest = tok;
         return sc->ty;
     }
@@ -410,7 +414,7 @@ static Type *struct_spec(Token **rest, Token *tok) {
     ty->kind = TY_STRUCT;
     ty->member = struct_decl(rest, tok);
 
-    if (is_struct) {
+    if (kind == TAG_STRUCT) {
         int offset = 0;
         for (Member *m = ty->member; m; m = m->next) {
             offset = align_to(offset, m->ty->align);
@@ -432,7 +436,7 @@ static Type *struct_spec(Token **rest, Token *tok) {
     }
 
     if (tag)
-        push_tag_scope(tag, ty);
+        push_tag_scope(tag, ty, kind);
     return ty;
 }
 
