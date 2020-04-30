@@ -482,11 +482,18 @@ static Member *struct_decl(Token **rest, Token *tok) {
     return head.next;
 }
 
-// declarator = ("*")* ident type-suffix?
+// declarator = ("*")* ("(" declarator ")" | ident) type-suffix?
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
     for (Token *t = tok; equal(t, "*"); t = t->next) {
         ty = pointer_to(ty);
         tok = t->next;
+    }
+    if (equal(tok, "(")) {
+        Type *placeholder = calloc(1, sizeof(Type));
+        Type *new_ty = declarator(&tok, tok->next, placeholder);
+        tok = skip(tok, ")");
+        *placeholder = *type_suffix(rest, tok, ty);
+        return new_ty;
     }
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "parse: declarator: expected variable name");
