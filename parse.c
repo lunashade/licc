@@ -271,6 +271,10 @@ Program *parse(Token *tok) {
         Type *ty = declarator(&tok, tok, basety);
 
         if (ty->kind == TY_FUNC) {
+            if (equal(tok, ";")) {
+                tok = skip(tok, ";");
+                continue;
+            }
             cur = cur->next = funcdef(&tok, start);
             continue;
         }
