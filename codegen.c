@@ -85,7 +85,7 @@ static void gen_addr(Node *node) {
         reg_push();
         return;
     }
-    error_tok(node->tok, "not an lvalue");
+    error_tok(node->tok, "codegen: gen_addr: not an lvalue");
 }
 
 // code generate expression
@@ -109,7 +109,7 @@ static void gen_expr(Node *node) {
         return;
     case ND_ASSIGN:
         if (node->ty->kind == TY_ARRAY) {
-            error_tok(node->tok, "not an lvalue");
+            error_tok(node->tok, "codegen: assign: array is not an lvalue");
         }
         gen_expr(node->rhs);
         gen_addr(node->lhs);
@@ -135,7 +135,7 @@ static void gen_expr(Node *node) {
         int nargs = 0;
         for (Node *arg = node->args; arg; arg = arg->next) {
             if (nargs >= 6) {
-                error_tok(arg->tok, "too many arguments");
+                error_tok(arg->tok, "codegen: funcall: too many arguments: %d", nargs);
             }
             gen_expr(arg);
             printf("\tpush %s\n", reg_pop());
@@ -218,7 +218,7 @@ static void gen_expr(Node *node) {
         printf("\tmov %s, rax\n", rd);
         return;
     }
-    error_tok(node->tok, "invalid expression");
+    error_tok(node->tok, "codegen: gen_expr: invalid expression");
 }
 
 static void gen_stmt(Node *node) {
@@ -274,7 +274,7 @@ static void gen_stmt(Node *node) {
         reg_pop();
         return;
     }
-    error_tok(node->tok, "invalid statement");
+    error_tok(node->tok, "codegen: gen_stmt: invalid statement");
 }
 
 static void emit_data(Program *prog) {

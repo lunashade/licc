@@ -5,7 +5,7 @@ static char *readfile(char *path) {
     if (strcmp(path, "-")) {
         fp = fopen(path, "r");
         if (!fp) {
-            error("cannot open file %s: %s", path, strerror(errno));
+            error("main: cannot open file %s: %s", path, strerror(errno));
         }
     }
     int buflen = 4096;

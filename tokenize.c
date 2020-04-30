@@ -125,7 +125,7 @@ static char *read_escape_char(char *ret, char *p) {
         } else if ('A' <= *p && *p <= 'F') {
             r = 10 + (*p++ - 'A');
         } else {
-            error_at(p, "expected hexadecimal sequence");
+            error_at(p, "tokenize: expected hexadecimal sequence");
         }
         if ('0' <= *p && *p <= '9') {
             r = (r << 4) | (*p++ - '0');
@@ -166,7 +166,7 @@ static Token *read_string_literal(Token *cur, char *start) {
     char *end = p;
     for (; *end != '"'; end++) {
         if (*end == '\0')
-            error_at(start, "string literal not closed.");
+            error_at(start, "tokenize: string literal not closed.");
         if (*end == '\\')
             end++; // skip escaped char
     }
@@ -213,7 +213,7 @@ Token *tokenize(char *filename, char *p) {
         if (startswith(p, "/*")) {
             char *q = strstr(p + 2, "*/");
             if (!q)
-                error_at(p, "unclosed block comment");
+                error_at(p, "tokenize: unclosed block comment");
             p = q + 2;
             continue;
         }
@@ -249,7 +249,7 @@ Token *tokenize(char *filename, char *p) {
             cur->len = p - q;
             continue;
         }
-        error_at(p, "invalid token character");
+        error_at(p, "tokenize: invalid token character");
     }
     new_token(cur, TK_EOF, p, 0);
     add_lineno(head.next);
