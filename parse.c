@@ -31,14 +31,14 @@ static bool is_typename(Token *tok);
 //
 static long get_number(Token *tok) {
     if (tok->kind != TK_NUM) {
-        error_tok(tok, "expected a number token");
+        error_tok(tok, "parse: number: expected a number token");
     }
     return tok->val;
 }
 
 static char *get_ident(Token *tok) {
     if (tok->kind != TK_IDENT) {
-        error_tok(tok, "expected a identifier token");
+        error_tok(tok, "parse: ident: expected a identifier token");
     }
     return strndup(tok->loc, tok->len);
 }
@@ -49,7 +49,7 @@ bool equal(Token *tok, char *s) {
 
 Token *skip(Token *tok, char *s) {
     if (!equal(tok, s)) {
-        error_tok(tok, "expected token %s", s);
+        error_tok(tok, "parse: expected token %s", s);
     }
     return tok->next;
 }
@@ -99,7 +99,7 @@ static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
 
     // ptr+ptr -> invalid
     if (is_pointing(lhs->ty) && is_pointing(rhs->ty))
-        error_tok(tok, "invalid operands: ptr+ptr");
+        error_tok(tok, "parse: add: invalid operands: ptr+ptr");
 
     // canonicalize num+ptr -> ptr + num
     if (!is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
@@ -135,7 +135,7 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
     }
 
     // num-ptr -> invalid
-    error_tok(tok, "invalid operands: num-ptr");
+    error_tok(tok, "parse: sub: invalid operands: num-ptr");
 }
 
 static Member *get_struct_member(Type *ty, Token *tok) {
@@ -144,16 +144,16 @@ static Member *get_struct_member(Type *ty, Token *tok) {
             !strncmp(m->name->loc, tok->loc, tok->len))
             return m;
     }
-    error_tok(tok, "no such member in struct");
+    error_tok(tok, "parse: member: no such member in struct");
 }
 
 static Node *struct_ref(Node *lhs, Token *tok) {
     add_type(lhs);
     if (lhs->ty->kind != TY_STRUCT) {
-        error_tok(lhs->tok, "member access for non-struct");
+        error_tok(lhs->tok, "parse: member: member access for non-struct");
     }
     if (tok->kind != TK_IDENT) {
-        error_tok(tok, "member should be a identifier token");
+        error_tok(tok, "parse: member: member should be a identifier token");
     }
     Node *node = new_unary_node(ND_MEMBER, lhs, tok);
     node->member = get_struct_member(lhs->ty, tok);
@@ -361,12 +361,13 @@ static Node *declaration(Token **rest, Token *tok) {
 }
 
 static bool is_typename(Token *tok) {
-    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct");
+    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct") ||
+           equal(tok, "union");
 }
 
-// typespec = "int" | "char" | struct-spec
+// typespec = "int" | "char" | struct-union-spec
 static Type *typespec(Token **rest, Token *tok) {
-    if (equal(tok, "struct")) {
+    if (equal(tok, "struct") || equal(tok, "union")) {
         Type *ty = struct_spec(&tok, tok);
         *rest = tok;
         return ty;
@@ -379,9 +380,17 @@ static Type *typespec(Token **rest, Token *tok) {
     return ty_int;
 }
 
-// struct-spec = "struct" (ident)? "{" struct-decl
+// struct-union-spec = ("struct" | "union") (ident)? "{" struct-decl
 static Type *struct_spec(Token **rest, Token *tok) {
-    tok = skip(tok, "struct");
+    bool is_struct;
+    if (equal(tok, "struct")) {
+        is_struct = true;
+        tok = skip(tok, "struct");
+    } else {
+        is_struct = false;
+        tok = skip(tok, "union");
+    }
+
     Token *tag = NULL;
     if (tok->kind == TK_IDENT) {
         tag = tok;
@@ -389,8 +398,8 @@ static Type *struct_spec(Token **rest, Token *tok) {
     }
     if (tag && !equal(tok, "{")) {
         TagScope *sc = find_tag(tag);
-        if(!sc) {
-            error_tok(tag, "unknown struct type");
+        if (!sc) {
+            error_tok(tag, "parse: struct-spec: unknown struct type");
         }
         *rest = tok;
         return sc->ty;
@@ -401,15 +410,26 @@ static Type *struct_spec(Token **rest, Token *tok) {
     ty->kind = TY_STRUCT;
     ty->member = struct_decl(rest, tok);
 
-    int offset = 0;
-    for (Member *m = ty->member; m; m = m->next) {
-        offset = align_to(offset, m->ty->align);
-        m->offset = offset;
-        offset += m->ty->size;
-        if (ty->align < m->ty->align)
-            ty->align = m->ty->align;
+    if (is_struct) {
+        int offset = 0;
+        for (Member *m = ty->member; m; m = m->next) {
+            offset = align_to(offset, m->ty->align);
+            m->offset = offset;
+            offset += m->ty->size;
+            if (ty->align < m->ty->align)
+                ty->align = m->ty->align;
+        }
+        ty->size = align_to(offset, ty->align);
+    } else {
+        for (Member *m = ty->member; m; m = m->next) {
+            m->offset = 0;
+            if (ty->size < m->ty->size)
+                ty->size = m->ty->size;
+            if (ty->align < m->ty->align)
+                ty->align = m->ty->align;
+        }
+        ty->size = align_to(ty->size, ty->align);
     }
-    ty->size = align_to(offset, ty->align);
 
     if (tag)
         push_tag_scope(tag, ty);
@@ -447,7 +467,7 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
         tok = t->next;
     }
     if (tok->kind != TK_IDENT) {
-        error_tok(tok, "expected variable name");
+        error_tok(tok, "parse: declarator: expected variable name");
     }
     ty = type_suffix(rest, tok->next, ty);
     ty->name = tok;
@@ -745,7 +765,7 @@ static Node *primary(Token **rest, Token *tok) {
             cur = cur->next;
         if (cur->kind != ND_EXPR_STMT)
             error_tok(cur->tok,
-                      "statement expression returning void is not supported");
+                      "parse: stmt-expr: statement expression returning void is not supported");
         return node;
     }
     if (equal(tok, "(")) {
@@ -762,7 +782,7 @@ static Node *primary(Token **rest, Token *tok) {
         }
         Var *lvar = find_var(tok);
         if (!lvar) {
-            error_tok(tok, "undeclared variable: %s", get_ident(tok));
+            error_tok(tok, "parse: var: undeclared variable: %s", get_ident(tok));
         }
         *rest = tok->next;
         return new_var_node(lvar, tok);
@@ -773,7 +793,7 @@ static Node *primary(Token **rest, Token *tok) {
         return new_var_node(var, tok);
     }
     if (tok->kind != TK_NUM)
-        error_tok(tok, "expected expression");
+        error_tok(tok, "parse: primary: expected expression");
     Node *node = new_number_node(get_number(tok), tok);
     *rest = tok->next;
     return node;
