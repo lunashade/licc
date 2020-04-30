@@ -218,7 +218,7 @@ Token *tokenize(char *filename, char *p) {
             continue;
         }
         if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||
-            startswith(p, "!=")) {
+            startswith(p, "!=") || startswith(p, "->")) {
             cur = new_token(cur, TK_RESERVED, p, 2);
             p += 2;
             continue;

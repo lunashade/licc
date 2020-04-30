@@ -254,6 +254,9 @@ int main() {
     assert(2, ({struct t {char x[2];}; {struct t {char x[4];};} struct t y; sizeof(y);}), "{struct t {char x[2];}; {struct t {char x[4];}} struct t y; sizeof(y);}");
     assert(3, ({struct t {char a;} x; x.a=2; int t = 1; t+x.a;}), "{struct t {char a;} x; x.a=2; int t = 1; t+x.a;}");
 
+    assert(3, ({struct t {char a;} x; struct t *y = &x; x.a = 3; y->a;}), "{struct t {char a;} x; struct t *y = &x; x.a = 3; y->a;}");
+    assert(3, ({struct t {char a;} x; struct t *y = &x; y->a = 3; x.a;}), "{struct t {char a;} x; struct t *y = &x; y->a = 3; x.a;}");
+
     printf("OK\n");
     return 0;
 }

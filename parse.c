@@ -701,7 +701,7 @@ static Node *unary(Token **rest, Token *tok) {
     return postfix(rest, tok);
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
 static Node *postfix(Token **rest, Token *tok) {
     Node *node = primary(&tok, tok);
     for (;;) {
@@ -715,6 +715,13 @@ static Node *postfix(Token **rest, Token *tok) {
         }
         if (equal(tok, ".")) {
             Token *op = tok;
+            node = struct_ref(node, tok->next);
+            tok = tok->next->next;
+            continue;
+        }
+        if (equal(tok, "->")) {
+            Token *op = tok;
+            node = new_unary_node(ND_DEREF, node, op);
             node = struct_ref(node, tok->next);
             tok = tok->next->next;
             continue;
