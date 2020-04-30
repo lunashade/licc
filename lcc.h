@@ -156,10 +156,13 @@ Program *parse(Token *tok);
 //
 
 int align_to(int n, int align);
+bool is_typename(Token *tok);
 
 typedef enum {
     TY_CHAR,
+    TY_SHORT,
     TY_INT,
+    TY_LONG,
     TY_PTR,
     TY_FUNC,
     TY_ARRAY,
@@ -192,6 +195,8 @@ Member *new_member(Type *ty);
 
 extern Type *ty_int;
 extern Type *ty_char;
+extern Type *ty_short;
+extern Type *ty_long;
 
 bool is_integer(Type *ty);
 bool is_pointing(Type *ty);

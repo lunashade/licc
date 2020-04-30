@@ -1,7 +1,8 @@
 #include "lcc.h"
 
-static char *KEYWORDS[] = {"return", "if",  "else", "for",   "while",
-                           "sizeof", "int", "char", "struct", "union"};
+static char *KEYWORDS[] = {"return", "if",     "else",  "for",
+                           "while",  "sizeof", "int",   "char",
+                           "struct", "union",  "short", "long"};
 // error report
 static char *current_filename;
 static char *current_input;

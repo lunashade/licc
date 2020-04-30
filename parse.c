@@ -3,6 +3,7 @@
 static Function *funcdef(Token **rest, Token *tok);
 
 static Type *typespec(Token **rest, Token *tok);
+static Type *builtin_type(Token **rest, Token *tok);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
@@ -23,8 +24,6 @@ static Node *unary(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 static Node *func_args(Token **rest, Token *tok);
-
-static bool is_typename(Token *tok);
 
 //
 // Token utility
@@ -52,6 +51,11 @@ Token *skip(Token *tok, char *s) {
         error_tok(tok, "parse: expected token %s", s);
     }
     return tok->next;
+}
+
+bool is_typename(Token *tok) {
+    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct") ||
+           equal(tok, "union") || equal(tok, "short") || equal(tok, "long");
 }
 
 //
@@ -361,24 +365,38 @@ static Node *declaration(Token **rest, Token *tok) {
     return node;
 }
 
-static bool is_typename(Token *tok) {
-    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct") ||
-           equal(tok, "union");
-}
-
-// typespec = "int" | "char" | struct-union-spec
+// typespec = builtin-type | struct-union-spec
 static Type *typespec(Token **rest, Token *tok) {
+    Type *ty = builtin_type(rest, tok);
+    if (ty) {
+        return ty;
+    }
     if (equal(tok, "struct") || equal(tok, "union")) {
         Type *ty = struct_spec(&tok, tok);
         *rest = tok;
         return ty;
     }
+    error_tok(tok, "parse: typespec: unknown type specifier");
+}
+
+static Type *builtin_type(Token **rest, Token *tok) {
+    if (equal(tok, "int")) {
+        *rest = tok->next;
+        return ty_int;
+    }
     if (equal(tok, "char")) {
-        *rest = skip(tok, "char");
+        *rest = tok->next;
         return ty_char;
     }
-    *rest = skip(tok, "int");
-    return ty_int;
+    if (equal(tok, "short")) {
+        *rest = tok->next;
+        return ty_short;
+    }
+    if (equal(tok, "long")) {
+        *rest = tok->next;
+        return ty_long;
+    }
+    return NULL;
 }
 
 // struct-union-spec = ("struct" | "union") (ident)? "{" struct-decl
@@ -392,7 +410,6 @@ static Type *struct_spec(Token **rest, Token *tok) {
         kind = TAG_UNION;
         tok = skip(tok, "union");
     }
-
     Token *tag = NULL;
     if (tok->kind == TK_IDENT) {
         tag = tok;
@@ -404,7 +421,8 @@ static Type *struct_spec(Token **rest, Token *tok) {
             error_tok(tag, "parse: struct-spec: unknown struct type");
         }
         if (sc->kind != kind)
-            error_tok(tag, "parse: tag kind mismatch from previous declaration");
+            error_tok(tag,
+                      "parse: tag kind mismatch from previous declaration");
         *rest = tok;
         return sc->ty;
     }
@@ -768,8 +786,8 @@ static Node *primary(Token **rest, Token *tok) {
         while (cur->next)
             cur = cur->next;
         if (cur->kind != ND_EXPR_STMT)
-            error_tok(cur->tok,
-                      "parse: stmt-expr: statement expression returning void is not supported");
+            error_tok(cur->tok, "parse: stmt-expr: statement expression "
+                                "returning void is not supported");
         return node;
     }
     if (equal(tok, "(")) {
@@ -786,7 +804,8 @@ static Node *primary(Token **rest, Token *tok) {
         }
         Var *lvar = find_var(tok);
         if (!lvar) {
-            error_tok(tok, "parse: var: undeclared variable: %s", get_ident(tok));
+            error_tok(tok, "parse: var: undeclared variable: %s",
+                      get_ident(tok));
         }
         *rest = tok->next;
         return new_var_node(lvar, tok);

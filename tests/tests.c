@@ -40,6 +40,8 @@ int fibo(int n) {
     return fibo(n - 2) + fibo(n - 1);
 }
 int sub_char(char a, char b, char c) { return a - b - c; }
+int sub_short(short a, short b, short c) { return a - b - c; }
+int sub_long(long a, long b, long c) { return a - b - c; }
 
 int main() {
     testno = 0;
@@ -130,7 +132,7 @@ int main() {
                x;
            }),
            "{ int x=3; int *y=&x; *y=5;  x;  }");
-    assert(4, ({ sizeof(12); }), "{  sizeof( 12 ); }");
+    assert(8, ({ sizeof(12); }), "{  sizeof( 12 ); }");
     assert(8, ({
                int x = 29;
                int *y = &x;
@@ -259,6 +261,16 @@ int main() {
     assert(0, ({ union { int a; char b[4]; } x; x.a = 515; x.b[3]; }), "({ union { int a; char b[4]; } x; x.a = 515; x.b[3]; })");
 
     assert(3, ({struct t {char a, b;} x; struct t y; x.a = 2; x.b=3; y = x; y.b;}), "{struct t {char a;} x; struct t y; x.a = 3; y = x; y.a}");
+
+    assert(2, ({short x; sizeof(x);}), "{short x; sizeof(x);}");
+    assert(4, ({struct {short a; char b;}x; sizeof(x);}), "{struct {short a; char b;}x; sizeof(x);}");
+
+    assert(8, ({long x; sizeof(x);}), "{long x; sizeof(x);}");
+    assert(16, ({struct {long a; int b;}x; sizeof(x);}), "{struct {long a; int b;}x; sizeof(x);}");
+
+    assert(1, (sub_short(7, 3, 3)), "sub_short(7, 3, 3);");
+    assert(1, (sub_long(7, 3, 3)), "sub_long(7, 3, 3);");
+
     printf("OK\n");
     return 0;
 }

@@ -2,12 +2,18 @@
 
 int align_to(int n, int align) {
     return (n + align - 1) & ~(align - 1);
-} // align must 2-power
+}
 
+Type *ty_long = &(Type){TY_LONG, 8, 8};
 Type *ty_int = &(Type){TY_INT, 4, 4};
+Type *ty_short = &(Type){TY_SHORT, 2, 2};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
-bool is_integer(Type *ty) { return ty->kind == TY_INT || ty->kind == TY_CHAR; }
+
+bool is_integer(Type *ty) {
+    return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
+            ty->kind == TY_LONG);
+}
 bool is_pointing(Type *ty) { return ty->base; }
 
 Type *new_type(TypeKind kind, int size, int align) {
@@ -25,7 +31,7 @@ Type *pointer_to(Type *base) {
 }
 
 Type *array_of(Type *base, int size) {
-    Type *ty = new_type(TY_ARRAY, size*(base->size), base->align);
+    Type *ty = new_type(TY_ARRAY, size * (base->size), base->align);
     ty->base = base;
     ty->array_len = size;
     return ty;
@@ -84,7 +90,7 @@ void add_type(Node *node) {
     case ND_LE:
     case ND_NUM:
     case ND_FUNCALL:
-        node->ty = ty_int;
+        node->ty = ty_long;
         return;
     case ND_VAR:
         node->ty = node->var->ty;
