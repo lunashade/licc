@@ -295,6 +295,18 @@ int main() {
     assert(8, ({long long x; sizeof(x);}), "({long long x; sizeof(x);})");
 
     { void *x; }
+
+typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
+    assert(4, ({typedef int T; T x; sizeof(x);}), "({typedef int T; T x; sizeof(x);})");
+    assert(2, ({short typedef int T; T x; sizeof(x);}), "({short typedef int T; T x; sizeof(x);})");
+    assert(8, ({TypeX TypeX; sizeof(TypeX);}), "({TypeX TypeX; sizeof(TypeX);})");
+    assert(32, ({TypeY TypeY; sizeof(TypeY);}), "({TypeY TypeY; sizeof(TypeY);})");
+    assert(8, ({TypeZ TypeZ; sizeof(TypeZ);}), "({TypeZ TypeZ; sizeof(TypeZ);})");
+    assert(1, ({typedef int t; t x=1; x;}), "({typedef int t; t x=1; x;})");
+    assert(1, ({typedef char t; { typedef short t; t y; if (sizeof(y) !=2) {printf("NG");}} t x=1; sizeof(x);}), "({typedef char t; { typedef short t; t y; if (sizeof(y) !=2) {printf(\"NG\");}} t x=1; sizeof(x);})");
+    assert(1, ({typedef struct t { int a;} t; t x; x.a=1; x.a;}), "({typedef struct t { int a;} t; t x; x.a=1; x.a;})");
+    assert(4, ({typedef X; X x; sizeof(x);}), "({typedef X; X x; sizeof(x);})");
+
     printf("OK\n");
     return 0;
 }

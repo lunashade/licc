@@ -2,8 +2,7 @@
 
 static Function *funcdef(Token **rest, Token *tok);
 
-static Type *decl_specifier(Token **rest, Token *tok);
-static Type *builtin_type(Token **rest, Token *tok);
+static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
@@ -57,14 +56,6 @@ bool consume(Token **rest, Token *tok, char *s) {
         *rest = skip(tok, s);
         return true;
     }
-    return false;
-}
-
-bool is_typename(Token *tok) {
-    char *tn[] = {"int", "char", "struct", "union", "short", "long", "void"};
-    for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
-        if (equal(tok, tn[i]))
-            return true;
     return false;
 }
 
@@ -198,15 +189,16 @@ static void leave_scope(void) {
         var_scope = var_scope->next;
 }
 
-static void push_scope(Var *var) {
+static VarScope *push_scope(char *name) {
     VarScope *sc = calloc(1, sizeof(VarScope));
     sc->depth = scope_depth;
     sc->next = var_scope;
-    sc->var = var;
-    sc->name = var->name;
+    sc->name = name;
     var_scope = sc;
+    return sc;
 }
-static void push_tag_scope(Token *tok, Type *ty, TagKind kind) {
+
+static TagScope *push_tag_scope(Token *tok, Type *ty, TagKind kind) {
     TagScope *sc = calloc(1, sizeof(TagScope));
     sc->depth = scope_depth;
     sc->next = tag_scope;
@@ -214,16 +206,27 @@ static void push_tag_scope(Token *tok, Type *ty, TagKind kind) {
     sc->name = strndup(tok->loc, tok->len);
     sc->ty = ty;
     tag_scope = sc;
+    return sc;
 }
 
-static Var *find_var(Token *tok) {
+static VarScope *find_var(Token *tok) {
     for (VarScope *sc = var_scope; sc; sc = sc->next) {
         if (strlen(sc->name) == tok->len &&
             !strncmp(tok->loc, sc->name, tok->len))
-            return sc->var;
+            return sc;
     }
     return NULL;
 }
+
+static Type *find_typedef(Token *tok) {
+    if (tok->kind == TK_IDENT) {
+        VarScope *v = find_var(tok);
+        if (v)
+            return v->type_def;
+    }
+    return NULL;
+}
+
 static TagScope *find_tag(Token *tok) {
     for (TagScope *sc = tag_scope; sc; sc = sc->next) {
         if (strlen(sc->name) == tok->len &&
@@ -239,7 +242,7 @@ static Var *new_lvar(char *name, Type *ty) {
     lvar->name = name;
     lvar->ty = ty;
     lvar->is_local = true;
-    push_scope(lvar);
+    push_scope(name)->var = lvar;
     locals = lvar;
     return lvar;
 }
@@ -250,7 +253,7 @@ static Var *new_gvar(char *name, Type *ty) {
     gvar->name = name;
     gvar->ty = ty;
     gvar->is_local = false;
-    push_scope(gvar);
+    push_scope(name)->var = gvar;
     globals = gvar;
     return gvar;
 }
@@ -269,6 +272,19 @@ static Var *new_string_literal(char *p, int len) {
     return var;
 }
 
+bool is_typename(Token *tok) {
+    if (tok->kind == TK_IDENT) {
+        return find_typedef(tok);
+    }
+
+    char *tn[] = {"int",   "char", "struct", "union",
+                  "short", "long", "void",   "typedef"};
+    for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
+        if (equal(tok, tn[i]))
+            return true;
+    return false;
+}
+
 //
 // Parser
 //
@@ -280,10 +296,23 @@ Program *parse(Token *tok) {
     Function *cur = &head;
 
     while (tok->kind != TK_EOF) {
+        DeclContext ctx = {};
         Token *start = tok;
-        Type *basety = decl_specifier(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok, &ctx);
         Type *ty = declarator(&tok, tok, basety);
 
+        if (ctx.type_def) {
+            for (;;) {
+                push_scope(get_ident(ty->name))->type_def = ty;
+                if (equal(tok, ";")) {
+                    tok = skip(tok, ";");
+                    break;
+                }
+                tok = skip(tok, ",");
+                ty = declarator(&tok, tok, basety);
+            }
+            continue;
+        }
         if (ty->kind == TY_FUNC) {
             if (equal(tok, ";")) {
                 tok = skip(tok, ";");
@@ -313,7 +342,7 @@ Program *parse(Token *tok) {
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
 
-    Type *ty = decl_specifier(&tok, tok);
+    Type *ty = decl_specifier(&tok, tok, NULL);
     ty = declarator(&tok, tok, ty);
 
     Function *fn = calloc(1, sizeof(Function));
@@ -352,10 +381,11 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     return node;
 }
 
-// declaration = decl_specifier declarator ("=" expr)?
-//                              ("," declarator ("=" expr)?)* ";"
+// declaration = decl-specifier init-declarator ("," init-declarator)* ";"
+// init-declarator = declarator ("=" expr)?
 static Node *declaration(Token **rest, Token *tok) {
-    Type *basety = decl_specifier(&tok, tok);
+    DeclContext ctx = {};
+    Type *basety = decl_specifier(&tok, tok, &ctx);
 
     Node head = {};
     Node *cur = &head;
@@ -367,6 +397,11 @@ static Node *declaration(Token **rest, Token *tok) {
         Type *ty = declarator(&tok, tok, basety);
         if (ty->kind == TY_VOID) {
             error_tok(tok, "type: variable declared void");
+        }
+        if (ctx.type_def) {
+            push_scope(get_ident(ty->name))->type_def = ty;
+            // tok = tok->next;
+            continue;
         }
         Var *var = new_lvar(get_ident(ty->name), ty);
 
@@ -391,9 +426,10 @@ struct TypeSpec {
     int cnt;
     Type *ty;
 };
-// decl_specifier = (storage-class-specifier | type-specifier | type-qualifier)*
-// type-specifier = builtin-type | struct-union-spec
-static Type *decl_specifier(Token **rest, Token *tok) {
+// decl-specifier = (storage-class-specifier | type-specifier | type-qualifier)*
+// type-specifier = builtin-type | struct-union-spec | typedef-name
+// storage-class-specifier = "typedef" #| "extern" | "static"
+static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     enum {
         VOID = 1 << 0,
         CHAR = 1 << 2,
@@ -403,7 +439,47 @@ static Type *decl_specifier(Token **rest, Token *tok) {
         OTHER = 1 << 10,
     };
     TypeSpec spec = {};
+    spec.ty = ty_int;
+
     while (is_typename(tok)) {
+        // storage-class
+        if (consume(&tok, tok, "typedef")) {
+            if (!ctx)
+                error_tok(tok, "parse: decl-specifier: storage-class-specifier "
+                               "not allowed in this context");
+            if (ctx->type_def)
+                error_tok(tok, "parse: decl-specifier: duplicate `typedef`");
+            ctx->type_def = true;
+            continue;
+        }
+
+        // user defined types
+
+        // if IDENT && is_typename, it is typedef-name
+        if (tok->kind == TK_IDENT) {
+            if (spec.cnt) {
+                break;
+            }
+            Type *ty = find_typedef(tok);
+            if (!ty) {
+                error_tok(tok, "parse: internal error");
+            }
+            tok = tok->next;
+            spec.ty = ty;
+            spec.cnt += OTHER;
+            continue;
+        }
+        if (equal(tok, "struct") || equal(tok, "union")) {
+            if (spec.cnt) {
+                break;
+            }
+            Type *ty = struct_spec(&tok, tok);
+            spec.ty = ty;
+            spec.cnt += OTHER;
+            continue;
+        }
+
+        // built-in types
         if (consume(&tok, tok, "void")) {
             spec.cnt += VOID;
         } else if (consume(&tok, tok, "int")) {
@@ -414,41 +490,34 @@ static Type *decl_specifier(Token **rest, Token *tok) {
             spec.cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
             spec.cnt += CHAR;
-        } else if (equal(tok, "struct") || equal(tok, "union")) {
-            if (spec.ty) {
-                error_tok(tok, "parse: decl-specifier: cannot combine struct "
-                               "or union type");
-            }
-            Type *ty = struct_spec(&tok, tok);
-            spec.ty = ty;
-            spec.cnt += OTHER;
-            continue;
         }
-        // end parse
+
+        // validation check
         switch (spec.cnt) {
         case VOID:
             spec.ty = ty_void;
             break;
         case CHAR:
-            spec.ty= ty_char;
+            spec.ty = ty_char;
             break;
         case SHORT:
         case SHORT + INT:
-            spec.ty= ty_short;
+            spec.ty = ty_short;
             break;
         case INT:
-            spec.ty= ty_int;
+            spec.ty = ty_int;
             break;
         case LONG:
         case LONG + INT:
         case LONG + LONG:
         case LONG + LONG + INT:
-            spec.ty= ty_long;
+            spec.ty = ty_long;
             break;
         default:
             error_tok(tok, "parse: unsupported type-specifier");
         }
     }
+    // epilogue
     *rest = tok;
     return spec.ty;
 }
@@ -518,7 +587,7 @@ static Member *struct_decl(Token **rest, Token *tok) {
     Member *cur = &head;
 
     while (!equal(tok, "}")) {
-        Type *basety = decl_specifier(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok, NULL);
         int cnt = 0;
 
         while (!equal(tok, ";")) {
@@ -586,7 +655,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
     while (!equal(tok, ")")) {
         if (cnt++ > 0)
             tok = skip(tok, ",");
-        Type *basety = decl_specifier(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok, NULL);
         Type *ty = declarator(&tok, tok, basety);
         cur = cur->next = copy_type(ty);
     }
@@ -863,13 +932,13 @@ static Node *primary(Token **rest, Token *tok) {
             node->args = func_args(rest, tok->next);
             return node;
         }
-        Var *lvar = find_var(tok);
-        if (!lvar) {
+        VarScope *sc = find_var(tok);
+        if (!sc) {
             error_tok(tok, "parse: var: undeclared variable: %s",
                       get_ident(tok));
         }
         *rest = tok->next;
-        return new_var_node(lvar, tok);
+        return new_var_node(sc->var, tok);
     }
     if (tok->kind == TK_STR) {
         Var *var = new_string_literal(tok->contents, tok->contents_len);

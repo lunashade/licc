@@ -48,6 +48,13 @@ void error_tok(Token *tok, char *fmt, ...);
 // Parser
 //
 
+typedef struct DeclContext DeclContext;
+struct DeclContext {
+    bool type_def;
+    bool external;
+    bool is_static;
+};
+
 typedef struct Var Var;
 struct Var {
     Var *next;     // next LVar
@@ -62,16 +69,18 @@ struct Var {
 
 typedef struct VarScope VarScope;
 struct VarScope {
-    Var *var;
     VarScope *next;
-    int depth;
     char *name;
+    int depth;
+    Var *var;
+    Type *type_def;
 };
 
 typedef enum {
     TAG_STRUCT,
     TAG_UNION,
 } TagKind;
+
 typedef struct TagScope TagScope;
 struct TagScope {
     TagKind kind;
