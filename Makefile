@@ -8,7 +8,7 @@ lcc: $(OBJS)
 
 $(OBJS): lcc.h
 
-test: lcc
+test: lcc fmt
 	# tests/old_test.sh
 	./lcc tests/tests.c > tmp.s
 	cc -static -o tmp tmp.s
@@ -17,7 +17,9 @@ test: lcc
 longtest: clean lcc test
 	tests/old_test.sh
 
+fmt:
+	@bash fmt.sh
 clean:
 	git clean -fX
 
-.PHONY: clean test longtest
+.PHONY: clean test longtest fmt
