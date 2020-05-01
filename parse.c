@@ -2,7 +2,7 @@
 
 static Function *funcdef(Token **rest, Token *tok);
 
-static Type *decl_spec(Token **rest, Token *tok);
+static Type *decl_specifier(Token **rest, Token *tok);
 static Type *builtin_type(Token **rest, Token *tok);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
@@ -52,10 +52,20 @@ Token *skip(Token *tok, char *s) {
     }
     return tok->next;
 }
+bool consume(Token **rest, Token *tok, char *s) {
+    if (equal(tok, s)) {
+        *rest = skip(tok, s);
+        return true;
+    }
+    return false;
+}
 
 bool is_typename(Token *tok) {
-    return equal(tok, "int") || equal(tok, "char") || equal(tok, "struct") ||
-           equal(tok, "union") || equal(tok, "short") || equal(tok, "long") || equal(tok, "void");
+    char *tn[] = {"int", "char", "struct", "union", "short", "long", "void"};
+    for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
+        if (equal(tok, tn[i]))
+            return true;
+    return false;
 }
 
 //
@@ -140,6 +150,8 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 
     // num-ptr -> invalid
     error_tok(tok, "parse: sub: invalid operands: num-ptr");
+    // won't reach
+    return NULL;
 }
 
 static Member *get_struct_member(Type *ty, Token *tok) {
@@ -149,6 +161,8 @@ static Member *get_struct_member(Type *ty, Token *tok) {
             return m;
     }
     error_tok(tok, "parse: member: no such member in struct");
+    // won't reach
+    return NULL;
 }
 
 static Node *struct_ref(Node *lhs, Token *tok) {
@@ -267,7 +281,7 @@ Program *parse(Token *tok) {
 
     while (tok->kind != TK_EOF) {
         Token *start = tok;
-        Type *basety = decl_spec(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok);
         Type *ty = declarator(&tok, tok, basety);
 
         if (ty->kind == TY_FUNC) {
@@ -299,7 +313,7 @@ Program *parse(Token *tok) {
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
 
-    Type *ty = decl_spec(&tok, tok);
+    Type *ty = decl_specifier(&tok, tok);
     ty = declarator(&tok, tok, ty);
 
     Function *fn = calloc(1, sizeof(Function));
@@ -338,10 +352,10 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     return node;
 }
 
-// declaration = decl_spec declarator ("=" expr)? ("," declarator ("=" expr)?)*
-// ";"
+// declaration = decl_specifier declarator ("=" expr)?
+//                              ("," declarator ("=" expr)?)* ";"
 static Node *declaration(Token **rest, Token *tok) {
-    Type *basety = decl_spec(&tok, tok);
+    Type *basety = decl_specifier(&tok, tok);
 
     Node head = {};
     Node *cur = &head;
@@ -372,43 +386,71 @@ static Node *declaration(Token **rest, Token *tok) {
     return node;
 }
 
-// decl_spec = (storage-class-specifier | type-specifier | type-qualifier)*
+typedef struct TypeSpec TypeSpec;
+struct TypeSpec {
+    int cnt;
+    Type *ty;
+};
+// decl_specifier = (storage-class-specifier | type-specifier | type-qualifier)*
 // type-specifier = builtin-type | struct-union-spec
-static Type *decl_spec(Token **rest, Token *tok) {
-    Type *ty = builtin_type(rest, tok);
-    if (ty) {
-        return ty;
+static Type *decl_specifier(Token **rest, Token *tok) {
+    enum {
+        VOID = 1 << 0,
+        CHAR = 1 << 2,
+        SHORT = 1 << 4,
+        INT = 1 << 6,
+        LONG = 1 << 8,
+        OTHER = 1 << 10,
+    };
+    TypeSpec spec = {};
+    while (is_typename(tok)) {
+        if (consume(&tok, tok, "void")) {
+            spec.cnt += VOID;
+        } else if (consume(&tok, tok, "int")) {
+            spec.cnt += INT;
+        } else if (consume(&tok, tok, "short")) {
+            spec.cnt += SHORT;
+        } else if (consume(&tok, tok, "long")) {
+            spec.cnt += LONG;
+        } else if (consume(&tok, tok, "char")) {
+            spec.cnt += CHAR;
+        } else if (equal(tok, "struct") || equal(tok, "union")) {
+            if (spec.ty) {
+                error_tok(tok, "parse: decl-specifier: cannot combine struct "
+                               "or union type");
+            }
+            Type *ty = struct_spec(&tok, tok);
+            spec.ty = ty;
+            spec.cnt += OTHER;
+            continue;
+        }
+        // end parse
+        switch (spec.cnt) {
+        case VOID:
+            spec.ty = ty_void;
+            break;
+        case CHAR:
+            spec.ty= ty_char;
+            break;
+        case SHORT:
+        case SHORT + INT:
+            spec.ty= ty_short;
+            break;
+        case INT:
+            spec.ty= ty_int;
+            break;
+        case LONG:
+        case LONG + INT:
+        case LONG + LONG:
+        case LONG + LONG + INT:
+            spec.ty= ty_long;
+            break;
+        default:
+            error_tok(tok, "parse: unsupported type-specifier");
+        }
     }
-    if (equal(tok, "struct") || equal(tok, "union")) {
-        Type *ty = struct_spec(&tok, tok);
-        *rest = tok;
-        return ty;
-    }
-    error_tok(tok, "parse: decl_spec: unknown type specifier");
-}
-
-static Type *builtin_type(Token **rest, Token *tok) {
-    if (equal(tok, "void")) {
-        *rest = tok->next;
-        return ty_void;
-    }
-    if (equal(tok, "int")) {
-        *rest = tok->next;
-        return ty_int;
-    }
-    if (equal(tok, "char")) {
-        *rest = tok->next;
-        return ty_char;
-    }
-    if (equal(tok, "short")) {
-        *rest = tok->next;
-        return ty_short;
-    }
-    if (equal(tok, "long")) {
-        *rest = tok->next;
-        return ty_long;
-    }
-    return NULL;
+    *rest = tok;
+    return spec.ty;
 }
 
 // struct-union-spec = ("struct" | "union") (ident)? "{" struct-decl
@@ -476,7 +518,7 @@ static Member *struct_decl(Token **rest, Token *tok) {
     Member *cur = &head;
 
     while (!equal(tok, "}")) {
-        Type *basety = decl_spec(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok);
         int cnt = 0;
 
         while (!equal(tok, ";")) {
@@ -544,7 +586,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
     while (!equal(tok, ")")) {
         if (cnt++ > 0)
             tok = skip(tok, ",");
-        Type *basety = decl_spec(&tok, tok);
+        Type *basety = decl_specifier(&tok, tok);
         Type *ty = declarator(&tok, tok, basety);
         cur = cur->next = copy_type(ty);
     }
