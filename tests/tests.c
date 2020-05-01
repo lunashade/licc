@@ -306,6 +306,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, ({typedef char t; { typedef short t; t y; if (sizeof(y) !=2) {printf("NG");}} t x=1; sizeof(x);}), "({typedef char t; { typedef short t; t y; if (sizeof(y) !=2) {printf(\"NG\");}} t x=1; sizeof(x);})");
     assert(1, ({typedef struct t { int a;} t; t x; x.a=1; x.a;}), "({typedef struct t { int a;} t; t x; x.a=1; x.a;})");
     assert(4, ({typedef X; X x; sizeof(x);}), "({typedef X; X x; sizeof(x);})");
+    assert(55, ({ int j=0; for (int i=0; i<=10; i=i+1) j=j+i; j;  }), "({ int j=0; for (int i=0; i<=10; i=i+1) j=j+i; j;  })");
+    assert(3, ({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i;  }), "({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i;  })");
 
     printf("OK\n");
     return 0;
