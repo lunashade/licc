@@ -31,7 +31,13 @@ static char *argreg(int sz, int idx) {
     error("invalid size of register: %d", sz);
 }
 
-static char *reg(int sz, int idx) {
+static char *reg(int idx) {
+    if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
+        error("registor out of range: %d", idx);
+    return reg64[idx];
+}
+
+static char *regsz(int sz, int idx) {
     if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
         error("registor out of range: %d", idx);
     if (sz == 1) {
@@ -49,9 +55,23 @@ static char *reg(int sz, int idx) {
     error("invalid size of register: %d", sz);
 }
 
+static char *regx(Type *ty, int idx) {
+    if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
+        error("registor out of range: %d", idx);
+    if (is_pointing(ty) || size_of(ty)== 8) {
+        return regsz(8, idx);
+    } else {
+        return regsz(4, idx);
+    }
+}
+
 static int top;
-static char *reg_push(int sz) { return reg(sz, top++); }
-static char *reg_pop(int sz) { return reg(sz, --top); }
+static char *reg_push() { return reg(top++); }
+static char *reg_push_sz(int sz) { return regsz(sz, top++); }
+static char *reg_push_x(Type *ty) { return regx(ty, top++); }
+static char *reg_pop() { return reg(--top); }
+static char *reg_pop_sz(int sz) { return regsz(sz, --top);}
+static char *reg_pop_x(Type *ty) { return regx(ty, --top);}
 
 // label
 static int labelcnt;
@@ -69,37 +89,38 @@ static void load(Type *ty) {
         // first element.
         return;
     }
-    char *rd = reg_pop(8);
+    char *rs = reg_pop();
+    char *rd = reg_push();
     int sz = size_of(ty);
     if (sz == 1) {
-        printf("\tmovsx %s, byte ptr [%s]\n", reg_push(8), rd);
+        printf("\tmovsx %s, byte ptr [%s]\n", rd, rs);
     } else if (sz == 2) {
-        printf("\tmovsx %s, word ptr [%s]\n", reg_push(8), rd);
+        printf("\tmovsx %s, word ptr [%s]\n", rd, rs);
     } else if (sz == 4) {
-        printf("\tmovsx %s, dword ptr [%s]\n", reg_push(8), rd);
+        printf("\tmovsx %s, dword ptr [%s]\n", rd, rs);
     } else {
         assert(sz == 8);
-        printf("\tmov %s, [%s]\n", reg_push(8), rd);
+        printf("\tmov %s, [%s]\n", rd, rs);
     }
     return;
 }
 // pop address and value, store value into address, push address
 static void store(Type *ty) {
-    char *rd = reg_pop(8);
+    char *rd = reg_pop();
     if (ty->kind == TY_STRUCT) {
         // TODO: if size<8, load on reg
         // TODO: use alignment
-        char *rs = reg_pop(8);
+        char *rs = reg_pop();
         for (int i = 0; i < ty->size; i++) {
             printf("\tmov al, [%s+%d]\n", rs, i);
             printf("\tmov [%s+%d], al\n", rd, i);
         }
-        reg_push(8); // address to top
+        reg_push(); // address to top
         return;
     }
-    char *rs = reg_pop(size_of(ty));
+    char *rs = reg_pop_sz(size_of(ty));
     printf("\tmov [%s], %s\n", rd, rs);
-    reg_push(8); // address to top
+    reg_push(); // address to top
     return;
 }
 
@@ -112,9 +133,9 @@ static void gen_stmt(Node *node);
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local)
-            printf("\tlea %s, [rbp-%d]\n", reg_push(8), node->var->offset);
+            printf("\tlea %s, [rbp-%d]\n", reg_push(), node->var->offset);
         else
-            printf("\tmov %s, offset %s\n", reg_push(8), node->var->name);
+            printf("\tmov %s, offset %s\n", reg_push(), node->var->name);
         return;
     }
     if (node->kind == ND_DEREF) {
@@ -123,8 +144,8 @@ static void gen_addr(Node *node) {
     }
     if (node->kind == ND_MEMBER) {
         gen_addr(node->lhs);
-        printf("\tadd %s, %d\n", reg_pop(8), node->member->offset);
-        reg_push(8);
+        printf("\tadd %s, %d\n", reg_pop(), node->member->offset);
+        reg_push();
         return;
     }
     error_tok(node->tok, "codegen: gen_addr: not an lvalue");
@@ -135,7 +156,7 @@ static void gen_expr(Node *node) {
     printf(".loc 1 %d\n", node->tok->lineno);
     switch (node->kind) {
     case ND_NUM:
-        printf("\tmov %s, %ld\n", reg_push(8), node->val);
+        printf("\tmov %s, %ld\n", reg_push(), node->val);
         return;
     case ND_VAR:
     case ND_MEMBER:
@@ -161,7 +182,7 @@ static void gen_expr(Node *node) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
         }
-        reg_push(8);
+        reg_push();
         return;
     case ND_FUNCALL: {
         int top_orig = top;
@@ -181,7 +202,7 @@ static void gen_expr(Node *node) {
                           nargs);
             }
             gen_expr(arg);
-            printf("\tpush %s\n", reg_pop(8));
+            printf("\tpush %s\n", reg_pop());
             printf("\tsub rsp, 8\n");
             nargs++;
         }
@@ -201,7 +222,7 @@ static void gen_expr(Node *node) {
         printf("\tpop r11\n");
         printf("\tpop r10\n");
 
-        printf("\tmov %s, rax\n", reg_push(8));
+        printf("\tmov %s, rax\n", reg_push());
         return;
     }
     }
@@ -210,9 +231,9 @@ static void gen_expr(Node *node) {
     gen_expr(node->lhs);
     gen_expr(node->rhs);
 
-    char *rs = reg_pop(8);
-    char *rd = reg_pop(8);
-    reg_push(8);
+    char *rs = reg_pop();
+    char *rd = reg_pop();
+    reg_push();
 
     if (node->kind == ND_ADD) {
         printf("\tadd %s, %s\n", rd, rs);
@@ -274,7 +295,7 @@ static void gen_stmt(Node *node) {
     }
     if (node->kind == ND_RETURN) {
         gen_expr(node->lhs);
-        printf("\tmov rax, %s\n", reg_pop(8));
+        printf("\tmov rax, %s\n", reg_pop());
         printf("\tjmp .L.return.%s\n", funcname);
         return;
     }
@@ -285,7 +306,7 @@ static void gen_stmt(Node *node) {
         printf(".L.begin.%d:\n", lfor);
         if (node->cond) {
             gen_expr(node->cond);
-            printf("\tcmp %s, 0\n", reg_pop(8));
+            printf("\tcmp %s, 0\n", reg_pop());
             printf("\tje .L.end.%d\n", lfor);
         }
         gen_stmt(node->then);
@@ -297,7 +318,7 @@ static void gen_stmt(Node *node) {
     }
     if (node->kind == ND_IF) {
         gen_expr(node->cond);
-        printf("\tcmp %s, 0\n", reg_pop(8));
+        printf("\tcmp %s, 0\n", reg_pop());
         int lif = next_label();
         if (node->els) {
             printf("\tje .L.els.%d\n", lif);
@@ -314,7 +335,7 @@ static void gen_stmt(Node *node) {
     }
     if (node->kind == ND_EXPR_STMT) {
         gen_expr(node->lhs);
-        reg_pop(8);
+        reg_pop();
         return;
     }
     error_tok(node->tok, "codegen: gen_stmt: invalid statement");
@@ -357,7 +378,8 @@ static void emit_text(Program *prog) {
             i++;
         }
         for (Var *v = fn->params; v; v = v->next) {
-            printf("\tmov [rbp-%d], %s\n", v->offset, argreg(size_of(v->ty), --i));
+            printf("\tmov [rbp-%d], %s\n", v->offset,
+                   argreg(size_of(v->ty), --i));
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
