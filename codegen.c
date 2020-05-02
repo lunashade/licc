@@ -58,7 +58,7 @@ static char *regsz(int sz, int idx) {
 static char *regx(Type *ty, int idx) {
     if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
         error("registor out of range: %d", idx);
-    if (is_pointing(ty) || size_of(ty)== 8) {
+    if (is_pointing(ty) || size_of(ty) == 8) {
         return regsz(8, idx);
     } else {
         return regsz(4, idx);
@@ -70,8 +70,8 @@ static char *reg_push() { return reg(top++); }
 static char *reg_push_sz(int sz) { return regsz(sz, top++); }
 static char *reg_push_x(Type *ty) { return regx(ty, top++); }
 static char *reg_pop() { return reg(--top); }
-static char *reg_pop_sz(int sz) { return regsz(sz, --top);}
-static char *reg_pop_x(Type *ty) { return regx(ty, --top);}
+static char *reg_pop_sz(int sz) { return regsz(sz, --top); }
+static char *reg_pop_x(Type *ty) { return regx(ty, --top); }
 
 // label
 static int labelcnt;
@@ -341,15 +341,29 @@ static void gen_stmt(Node *node) {
     error_tok(node->tok, "codegen: gen_stmt: invalid statement");
 }
 
+static void emit_string_literal(char *contents, int len) {
+    printf("\t.ascii \"");
+    for (int i = 0; i < len; i++) {
+        char c = contents[i];
+        if (iscntrl(c) ||  c == '\"') {
+            char d1 = c / 64;
+            char d2 = (c % 64) / 8;
+            char d3 = (c % 8);
+            printf("\\%d%d%d", d1, d2, d3);
+        } else {
+            printf("%c", c);
+        }
+    }
+    printf("\"\n");
+}
+
 static void emit_data(Program *prog) {
     printf(".data\n");
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         printf("%s:\n", gv->name);
         if (gv->contents)
-            for (int i = 0; i < gv->contents_len; i++) {
-                printf("\t.byte %d\n", gv->contents[i]);
-            }
+            emit_string_literal(gv->contents, gv->contents_len);
         else
             printf("\t.zero %d\n", size_of(gv->ty));
     }
