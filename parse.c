@@ -764,22 +764,26 @@ static Node *assign(Token **rest, Token *tok) {
         if (equal(tok, "+=")) {
             Token *op = tok;
             Node *rhs = assign(&tok, tok->next);
-            node = new_binary_node(ND_ASSIGN, node, new_add_node(node, rhs, op), op);
+            node = new_binary_node(ND_ASSIGN, node, new_add_node(node, rhs, op),
+                                   op);
         }
         if (equal(tok, "-=")) {
             Token *op = tok;
             Node *rhs = assign(&tok, tok->next);
-            node = new_binary_node(ND_ASSIGN, node, new_sub_node(node, rhs, op), op);
+            node = new_binary_node(ND_ASSIGN, node, new_sub_node(node, rhs, op),
+                                   op);
         }
         if (equal(tok, "*=")) {
             Token *op = tok;
             Node *rhs = assign(&tok, tok->next);
-            node = new_binary_node(ND_ASSIGN, node, new_binary_node(ND_MUL, node, rhs, op), op);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_MUL, node, rhs, op), op);
         }
         if (equal(tok, "/=")) {
             Token *op = tok;
             Node *rhs = assign(&tok, tok->next);
-            node = new_binary_node(ND_ASSIGN, node, new_binary_node(ND_DIV, node, rhs, op), op);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_DIV, node, rhs, op), op);
         }
         *rest = tok;
         return node;
@@ -904,11 +908,15 @@ static Node *unary(Token **rest, Token *tok) {
     }
     if (equal(tok, "++")) {
         Node *node = unary(rest, tok->next);
-        return new_binary_node(ND_ASSIGN, node, new_add_node(node, new_number_node(1, start), start), start);
+        return new_binary_node(ND_ASSIGN, node,
+                               new_add_node(node, new_number_node(1, tok), tok),
+                               tok);
     }
     if (equal(tok, "--")) {
         Node *node = unary(rest, tok->next);
-        return new_binary_node(ND_ASSIGN, node, new_sub_node(node, new_number_node(1, start), start), start);
+        return new_binary_node(ND_ASSIGN, node,
+                               new_sub_node(node, new_number_node(1, tok), tok),
+                               tok);
     }
     return postfix(rest, tok);
 }
@@ -936,6 +944,24 @@ static Node *postfix(Token **rest, Token *tok) {
             node = new_unary_node(ND_DEREF, node, op);
             node = struct_ref(node, tok->next);
             tok = tok->next->next;
+            continue;
+        }
+        if (equal(tok, "++")) {
+            Node *expr1 = new_binary_node(
+                ND_ASSIGN, node,
+                new_add_node(node, new_number_node(1, tok), tok), tok);
+            Node *expr2 = new_sub_node(node, new_number_node(1, tok), tok);
+            node = new_binary_node(ND_COMMA, expr1, expr2, tok);
+            tok = skip(tok, "++");
+            continue;
+        }
+        if (equal(tok, "--")) {
+            Node *expr1 = new_binary_node(
+                ND_ASSIGN, node,
+                new_sub_node(node, new_number_node(1, tok), tok), tok);
+            Node *expr2 = new_add_node(node, new_number_node(1, tok), tok);
+            node = new_binary_node(ND_COMMA, expr1, expr2, tok);
+            tok = skip(tok, "--");
             continue;
         }
         *rest = tok;

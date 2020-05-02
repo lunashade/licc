@@ -324,6 +324,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(3, ({1,2,3;}), "({1,2,3;})");
 
+    assert(2, ({int i=1; i++; i;}), "({int i=1; i++; i;})");
+    assert(0, ({int i=1; i--; i;}), "({int i=1; i--; i;})");
+    assert(1, ({int i=1; i++;}), "({int i=1; i++;})");
+    assert(1, ({int i=1; i--;}), "({int i=1; i--;})");
+
     printf("OK\n");
     return 0;
 }
