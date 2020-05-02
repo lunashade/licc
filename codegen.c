@@ -178,6 +178,11 @@ static void gen_expr(Node *node) {
         gen_addr(node->lhs);
         store(node->ty);
         return;
+    case ND_COMMA:
+        gen_expr(node->lhs);
+        reg_pop();
+        gen_expr(node->rhs);
+        return;
     case ND_STMT_EXPR:
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);

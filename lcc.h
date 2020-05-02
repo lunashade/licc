@@ -99,6 +99,7 @@ typedef enum {
     ND_NE,        // !=
     ND_LT,        // <
     ND_LE,        // <=
+    ND_COMMA,     // ,
     ND_ASSIGN,    // =
     ND_MEMBER,    // . (struct member)
     ND_EXPR_STMT, // Expession Statement
@@ -134,8 +135,8 @@ struct Node {
     Node *lhs; // binary node left-hand side
     Node *rhs; // binary node right-hand side
 
-    Var *var; // ND_VAR, local variable
-    long val; // ND_NUM, value
+    Var *var;       // ND_VAR, local variable
+    long val;       // ND_NUM, value
     Member *member; // ND_MEMBER, struct member
 
     Token *tok; // Debug info: representative token
