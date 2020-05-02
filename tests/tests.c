@@ -309,6 +309,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(55, ({ int j=0; for (int i=0; i<=10; i=i+1) j=j+i; j;  }), "({ int j=0; for (int i=0; i<=10; i=i+1) j=j+i; j;  })");
     assert(3, ({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i;  }), "({ int i=3; int j=0; for (int i=0; i<=10; i=i+1) j=j+i; i;  })");
 
+    assert(5, ({int i=3; i+=2; i;}), "({int i=3; i+=2; i;})");
+    assert(1, ({int i=3; i-=2; i;}), "({int i=3; i-=2; i;})");
+    assert(6, ({int i=3; i*=2; i;}), "({int i=3; i*=2; i;})");
+    assert(3, ({int i=6; i/=2; i;}), "({int i=6; i/=2; i;})");
+
     printf("OK\n");
     return 0;
 }

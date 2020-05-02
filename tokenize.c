@@ -4,6 +4,8 @@ static char *KEYWORDS[] = {"return", "if",     "else",     "for",
                            "while",  "sizeof", "int",      "char",
                            "struct", "union",  "short",    "long",
                            "void",   "signed", "unsigned", "typedef"};
+static char *MULTIPUNCT[] = {"<=", "==", ">=", "!=", "->",
+                             "+=", "-=", "*=", "/="}; // must be length descending order
 // error report
 static char *current_filename;
 static char *current_input;
@@ -61,6 +63,15 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
     tok->len = len;
     cur->next = tok;
     return tok;
+}
+
+static int is_multipunct(char *p) {
+    for (int i = 0; i < sizeof(MULTIPUNCT) / sizeof(*MULTIPUNCT); i++) {
+        if (startswith(p, MULTIPUNCT[i])) {
+            return strlen(MULTIPUNCT[i]);
+        }
+    }
+    return 0;
 }
 
 static bool is_keyword(Token *tok) {
@@ -219,10 +230,10 @@ Token *tokenize(char *filename, char *p) {
             p = q + 2;
             continue;
         }
-        if (startswith(p, "==") || startswith(p, ">=") || startswith(p, "<=") ||
-            startswith(p, "!=") || startswith(p, "->")) {
-            cur = new_token(cur, TK_RESERVED, p, 2);
-            p += 2;
+        if (is_multipunct(p)) {
+            int l = is_multipunct(p);
+            cur = new_token(cur, TK_RESERVED, p, l);
+            p += l;
             continue;
         }
         if (*p == '"') {
