@@ -314,6 +314,14 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(6, ({int i=3; i*=2; i;}), "({int i=3; i*=2; i;})");
     assert(3, ({int i=6; i/=2; i;}), "({int i=6; i/=2; i;})");
 
+    assert(42, ({int x[6]; x[0] = 3; x[2] = 42; int *y = x; y+=2; *y;}), "({int x[6]; x[0] = 3; x[2] = 42; int *y = x; y+=2; *y;})");
+
+    assert(2, ({int i=1; ++i;}), "({int i=1; ++i;})");
+    assert(0, ({int i=1; --i;}), "({int i=1; --i;})");
+
+    assert(2, ({int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p = a+1; ++*p;}), "({int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p = a+1; ++*p;})");
+    assert(0, ({int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p = a+1; --*p;}), "({int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p = a+1; --*p;})");
+
     printf("OK\n");
     return 0;
 }
