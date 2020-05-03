@@ -99,6 +99,8 @@ typedef enum {
     ND_NE,        // !=
     ND_LT,        // <
     ND_LE,        // <=
+    ND_LOGAND,    // &&
+    ND_LOGOR,     // ||
     ND_COMMA,     // ,
     ND_ASSIGN,    // =
     ND_MEMBER,    // . (struct member)

@@ -15,6 +15,8 @@ static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
+static Node *logical_or(Token **rest, Token *tok);
+static Node *logical_and(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
@@ -751,10 +753,10 @@ static Node *expr(Token **rest, Token *tok) {
     return node;
 }
 
-// assign = equality ( assign-op assign )*
+// assign = logical_or ( assign-op assign )*
 // assign-op = "=" | "+=" | "-=" | "*=" | "/="
 static Node *assign(Token **rest, Token *tok) {
-    Node *node = equality(&tok, tok);
+    Node *node = logical_or(&tok, tok);
     for (;;) {
         if (equal(tok, "=")) {
             Token *op = tok;
@@ -788,6 +790,28 @@ static Node *assign(Token **rest, Token *tok) {
         *rest = tok;
         return node;
     }
+}
+
+// logical-or = logical-and ("||" logical-and)*
+static Node *logical_or(Token **rest, Token *tok) {
+    Node *node = logical_and(&tok, tok);
+    while (equal(tok, "||")) {
+        Token *op = tok;
+        node = new_binary_node(ND_LOGOR, node, logical_and(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+
+// logical-and = equality ("&&" equality)*
+static Node *logical_and(Token **rest, Token *tok) {
+    Node *node = equality(&tok, tok);
+    while (equal(tok, "&&")) {
+        Token *op = tok;
+        node = new_binary_node(ND_LOGAND, node, equality(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
 }
 
 // equality = relational ( "==" relational | "!=" relational )*

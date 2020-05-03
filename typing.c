@@ -99,6 +99,8 @@ void add_type(Node *node) {
     case ND_LT:
     case ND_LE:
     case ND_NUM:
+    case ND_LOGAND:
+    case ND_LOGOR:
     case ND_FUNCALL:
         node->ty = ty_long;
         return;

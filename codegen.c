@@ -178,6 +178,46 @@ static void gen_expr(Node *node) {
         gen_addr(node->lhs);
         store(node->ty);
         return;
+    case ND_LOGOR: {
+        int label = next_label();
+
+        gen_expr(node->lhs);
+        char *rs = reg_pop();
+        printf("\tcmp %s, 0\n", rs);
+        printf("\tjne .L.true.%d\n", label);
+        gen_expr(node->rhs);
+        char *rd = reg_pop();
+        printf("\tcmp %s, 0\n", rd);
+        printf("\tjne .L.true.%d\n", label);
+
+        printf("\tmov %s, 0\n", rd);
+        printf("\tjmp .L.end.%d\n", label);
+        printf(".L.true.%d:\n", label);
+        printf("\tmov %s, 1\n", rd);
+        printf(".L.end.%d:\n", label);
+        reg_push();
+        return;
+    }
+    case ND_LOGAND: {
+        int label = next_label();
+
+        gen_expr(node->lhs);
+        char *rs = reg_pop();
+        printf("\tcmp %s, 0\n", rs);
+        printf("\tje .L.false.%d\n", label);
+        gen_expr(node->rhs);
+        char *rd = reg_pop();
+        printf("\tcmp %s, 0\n", rd);
+        printf("\tje .L.false.%d\n", label);
+
+        printf("\tmov %s, 1\n", rd);
+        printf("\tjmp .L.end.%d\n", label);
+        printf(".L.false.%d:\n", label);
+        printf("\tmov %s, 0\n", rd);
+        printf(".L.end.%d:\n", label);
+        reg_push();
+        return;
+    }
     case ND_COMMA:
         gen_expr(node->lhs);
         reg_pop();
@@ -350,7 +390,7 @@ static void emit_string_literal(char *contents, int len) {
     printf("\t.ascii \"");
     for (int i = 0; i < len; i++) {
         char c = contents[i];
-        if (iscntrl(c) ||  c == '\"') {
+        if (iscntrl(c) || c == '\"') {
             char d1 = c / 64;
             char d2 = (c % 64) / 8;
             char d3 = (c % 8);

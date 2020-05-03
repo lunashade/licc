@@ -4,9 +4,9 @@ static char *KEYWORDS[] = {"return", "if",     "else",     "for",
                            "while",  "sizeof", "int",      "char",
                            "struct", "union",  "short",    "long",
                            "void",   "signed", "unsigned", "typedef"};
-static char *MULTIPUNCT[] = {
-    "<=", "==", ">=", "!=", "->", "+=",
-    "-=", "*=", "/=", "++", "--"}; // must be length descending order
+static char *MULTIPUNCT[] = { // must be length descending order
+    "<=", "==", ">=", "!=", "->", "+=", "-=",
+    "*=", "/=", "++", "--", "&&", "||"};
 // error report
 static char *current_filename;
 static char *current_input;
