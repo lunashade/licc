@@ -339,6 +339,13 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, 2||0, "2||0");
     assert(0, 0||0, "0||0");
 
+    assert(4, sizeof(int), "sizeof(int)");
+    assert(2, sizeof(short int), "sizeof(short int)");
+    assert(8, sizeof(int*), "sizeof(int*)");
+    assert(24, sizeof(int*[3]), "sizeof(int*[3])");
+    assert(8, sizeof(int(*)[3]), "sizeof(int(*)[3])");
+    assert(8, sizeof(struct {int a, b;}), "sizeof(struct {int a, b;})");
+
     printf("OK\n");
     return 0;
 }

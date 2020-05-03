@@ -5,6 +5,8 @@ static Function *funcdef(Token **rest, Token *tok);
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
+static Type *typename(Token **rest, Token *tok);
+static Type *abstract_declarator(Token **rest, Token *tok, Type *ty);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
@@ -607,6 +609,27 @@ static Member *struct_decl(Token **rest, Token *tok) {
     return head.next;
 }
 
+// abstract-declarator = ("*")* ("(" declarator ")")? type-suffix?
+static Type *abstract_declarator(Token **rest, Token *tok, Type *ty) {
+    for (Token *t = tok; equal(t, "*"); t = t->next) {
+        ty = pointer_to(ty);
+        tok = t->next;
+    }
+    if (equal(tok, "(")) {
+        Type *placeholder = calloc(1, sizeof(Type));
+        Type *new_ty = abstract_declarator(&tok, tok->next, placeholder);
+        tok = skip(tok, ")");
+        *placeholder = *type_suffix(rest, tok, ty);
+        return new_ty;
+    }
+    return type_suffix(rest, tok, ty);
+}
+// typename = type-specifier abstract-declarator
+static Type *typename(Token **rest, Token *tok) {
+    Type *ty = decl_specifier(&tok, tok, NULL);
+    return abstract_declarator(rest, tok, ty);
+}
+
 // declarator = ("*")* ("(" declarator ")" | ident) type-suffix?
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
     for (Token *t = tok; equal(t, "*"); t = t->next) {
@@ -797,7 +820,8 @@ static Node *logical_or(Token **rest, Token *tok) {
     Node *node = logical_and(&tok, tok);
     while (equal(tok, "||")) {
         Token *op = tok;
-        node = new_binary_node(ND_LOGOR, node, logical_and(&tok, tok->next), op);
+        node =
+            new_binary_node(ND_LOGOR, node, logical_and(&tok, tok->next), op);
     }
     *rest = tok;
     return node;
@@ -909,7 +933,8 @@ static Node *mul(Token **rest, Token *tok) {
     }
 }
 
-// unary = ( "+" | "-" | "*" | "&" | "sizeof" | "++" | "--") unary | postfix
+// unary =  (unary-op)? unary | postfix
+// unary-op = ( "+" | "-" | "*" | "&" | "++" | "--")
 static Node *unary(Token **rest, Token *tok) {
     Token *start = tok;
     if (equal(tok, "+")) {
@@ -924,11 +949,6 @@ static Node *unary(Token **rest, Token *tok) {
     }
     if (equal(tok, "&")) {
         return new_unary_node(ND_ADDR, unary(rest, tok->next), start);
-    }
-    if (equal(tok, "sizeof")) {
-        Node *node = unary(rest, tok->next);
-        add_type(node);
-        return new_number_node(node->ty->size, start);
     }
     if (equal(tok, "++")) {
         Node *node = unary(rest, tok->next);
@@ -995,7 +1015,11 @@ static Node *postfix(Token **rest, Token *tok) {
 
 // primary = "(" "{" compound-stmt ")"
 //         | "(" expr ")"
-//         | num | str | ident func-args?
+//         | "sizeof" unary
+//         | "sizeof" "(" typename ")"
+//         | num
+//         | str
+//         | ident func-args?
 static Node *primary(Token **rest, Token *tok) {
     if (equal(tok, "(") && equal(tok->next, "{")) {
         Node *node = new_node(ND_STMT_EXPR, tok);
@@ -1014,6 +1038,18 @@ static Node *primary(Token **rest, Token *tok) {
         Node *node = expr(&tok, tok->next);
         *rest = skip(tok, ")");
         return node;
+    }
+    if (equal(tok, "sizeof") && equal(tok->next, "(") &&
+        is_typename(tok->next->next)) {
+        Token *op = tok;
+        Type *ty = typename(&tok, tok->next->next);
+        *rest = skip(tok, ")");
+        return new_number_node(size_of(ty), op);
+    }
+    if (equal(tok, "sizeof")) {
+        Node *node = unary(rest, tok->next);
+        add_type(node);
+        return new_number_node(size_of(node->ty), tok);
     }
     if (tok->kind == TK_IDENT) {
         if (equal(tok->next, "(")) {
