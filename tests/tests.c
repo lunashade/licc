@@ -12,7 +12,6 @@ int exit();
 int g1, g2[4];
 int testno;
 
-
 int assert(int want, int got, char *code) {
     testno = testno + 1;
     if (want == got) {
@@ -60,9 +59,9 @@ int main() {
     assert(42, (50 - 10 + 2), "(50 - 10 + 2)");
     assert(42, ((2 + 4) * 7), "((2 + 4) * 7)");
     assert(5, (300 / 60), "(300 / 60)");
-    assert(15, (-+-5 * - -3), "(-+-5 * - -3)");
+    assert(15, (-+-5 * - ( -3 )), "(-+-5 * - ( -3 ))");
     assert(1, (3 + 2 == 5), "(3 + 2 == 5)");
-    assert(0, (3 + 2 != 5 * - -1), "(3 + 2 != 5 * - -1)");
+    assert(0, (3 + 2 != 5 * - ( -1 )), "(3 + 2 != 5 * - ( -1 ))");
     assert(1, (1 < 2), "(1 < 2)");
     assert(0, (1 >= 2), "(1 >= 2)");
     assert(1, (1 <= 2), "(1 <= 2)");
@@ -138,7 +137,6 @@ int main() {
                x;
            }),
            "{ int x=3; int *y=&x; *y=5;  x;  }");
-    assert(8, ({ sizeof(12); }), "({ sizeof(12); })");
     assert(8, ({
                int x = 29;
                int *y = &x;
@@ -354,6 +352,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(5, ({ int x=5; long y=(long)&x; *(int*)y;  }), "({ int x=5; long y=(long)&x; *(int*)y;  })");
 
     (void)1;
+
+    assert(131585, ({ int x; x=8590066177; x;} ), "({ int x; x=8590066177; x;} )");
+    assert(513, ({ short x; x=8590066177; x;} ), "({ short x; x=8590066177; x;} )");
+    assert(1, ({ char x; x = 8590066177; x;} ), "({ char x; x = 8590066177; x;} )");
 
     printf("OK\n");
     return 0;

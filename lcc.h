@@ -162,6 +162,7 @@ struct Program {
     Function *fns;
 };
 
+Node *new_cast(Node *node, Type *ty);
 Program *parse(Token *tok);
 
 //

@@ -108,10 +108,8 @@ static void load(Type *ty) {
 static void store(Type *ty) {
     char *rd = reg_pop();
     if (ty->kind == TY_STRUCT) {
-        // TODO: if size<8, load on reg
-        // TODO: use alignment
         char *rs = reg_pop();
-        for (int i = 0; i < ty->size; i++) {
+        for (int i = 0; i < size_of(ty); i++) {
             printf("\tmov al, [%s+%d]\n", rs, i);
             printf("\tmov [%s+%d], al\n", rd, i);
         }
@@ -124,14 +122,23 @@ static void store(Type *ty) {
     return;
 }
 
-static void cast(Type *ty) {
-    if (ty->kind == TY_VOID)
+// cast a type
+static void cast(Type *from, Type *to) {
+    if (to->kind == TY_VOID)
+        return;
+    if (to->kind == TY_STRUCT)
         return;
 
-    int sz = size_of(ty);
-    char *rs = reg_pop_sz(sz);
+    int sz = size_of(to);
+    char *rs = reg_pop();
     char *rd = reg_push();
-    if (sz == 1 || sz == 2 || sz == 4) {
+    if (size_of(to) == 1) {
+        printf("\tmovsx %s, %sb\n", rd, rs);
+    } else if (size_of(to) == 2) {
+        printf("\tmovsx %s, %sw\n", rd, rs);
+    } else if (size_of(to) == 4) {
+        printf("\tmovsx %s, %sd\n", rd, rs);
+    } else if (is_integer(from) && size_of(from) < 8) {
         printf("\tmovsx %s, %s\n", rd, rs);
     }
 }
@@ -177,7 +184,7 @@ static void gen_expr(Node *node) {
         return;
     case ND_CAST:
         gen_expr(node->lhs);
-        cast(node->ty);
+        cast(node->lhs->ty, node->ty);
         return;
     case ND_ADDR:
         gen_addr(node->lhs);
@@ -406,7 +413,7 @@ static void emit_string_literal(char *contents, int len) {
     printf("\t.ascii \"");
     for (int i = 0; i < len; i++) {
         char c = contents[i];
-        if (iscntrl(c) || c == '\"') {
+        if (iscntrl(c) || c == '\"' || c == '\\') {
             char d1 = c / 64;
             char d2 = (c % 64) / 8;
             char d3 = (c % 8);

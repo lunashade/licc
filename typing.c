@@ -1,8 +1,6 @@
 #include "lcc.h"
 
-int align_to(int n, int align) {
-    return (n + align - 1) & ~(align - 1);
-}
+int align_to(int n, int align) { return (n + align - 1) & ~(align - 1); }
 
 Type *ty_void = &(Type){TY_VOID, 1, 1};
 Type *ty_long = &(Type){TY_LONG, 8, 8};
@@ -10,12 +8,12 @@ Type *ty_int = &(Type){TY_INT, 4, 4};
 Type *ty_short = &(Type){TY_SHORT, 2, 2};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 
-
 bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
             ty->kind == TY_LONG);
 }
 bool is_pointing(Type *ty) { return ty->base; }
+
 int size_of(Type *ty) {
     if (ty->kind == TY_VOID) {
         error_tok(ty->name, "type: void has no size");
@@ -84,11 +82,18 @@ void add_type(Node *node) {
     }
 
     switch (node->kind) {
+    case ND_NUM:
+        //node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
+        node->ty = ty_long;
+        return;
     case ND_ADD:
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
+        node->ty = node->lhs->ty;
+        return;
     case ND_ASSIGN:
+        node->rhs = new_cast(node->rhs, node->lhs->ty);
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
@@ -98,7 +103,6 @@ void add_type(Node *node) {
     case ND_NE:
     case ND_LT:
     case ND_LE:
-    case ND_NUM:
     case ND_LOGAND:
     case ND_LOGOR:
     case ND_FUNCALL:
