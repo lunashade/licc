@@ -23,6 +23,7 @@ static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
+static Node *cast(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
@@ -912,19 +913,19 @@ static Node *add(Token **rest, Token *tok) {
     }
 }
 
-// mul = unary ( "*" unary | "/" unary )*
+// mul = cast ( "*" cast | "/" cast )*
 static Node *mul(Token **rest, Token *tok) {
-    Node *node = unary(&tok, tok);
+    Node *node = cast(&tok, tok);
     for (;;) {
         if (equal(tok, "*")) {
             Token *op = tok;
-            Node *rhs = unary(&tok, tok->next);
+            Node *rhs = cast(&tok, tok->next);
             node = new_binary_node(ND_MUL, node, rhs, op);
             continue;
         }
         if (equal(tok, "/")) {
             Token *op = tok;
-            Node *rhs = unary(&tok, tok->next);
+            Node *rhs = cast(&tok, tok->next);
             node = new_binary_node(ND_DIV, node, rhs, op);
             continue;
         }
@@ -932,32 +933,58 @@ static Node *mul(Token **rest, Token *tok) {
         return node;
     }
 }
+// cast = "(" typename ")" cast | unary
+static Node *cast(Token **rest, Token *tok) {
+    if (equal(tok, "(") && is_typename(tok->next)) {
+        Type *ty = typename(&tok, tok->next);
+        tok = skip(tok, ")");
+        Node *node = new_unary_node(ND_CAST, cast(rest, tok), tok);
+        node->ty = ty;
+        add_type(node->lhs);
+        return node;
+    }
+    return unary(rest, tok);
+}
 
-// unary =  (unary-op)? unary | postfix
+// unary =  (unary-op)? cast | postfix
+//       | "sizeof" unary
+//       | "sizeof" "(" typename ")"
 // unary-op = ( "+" | "-" | "*" | "&" | "++" | "--")
 static Node *unary(Token **rest, Token *tok) {
     Token *start = tok;
     if (equal(tok, "+")) {
-        return unary(rest, tok->next);
+        return cast(rest, tok->next);
     }
     if (equal(tok, "-")) {
         return new_binary_node(ND_SUB, new_number_node(0, tok),
-                               unary(rest, tok->next), start);
+                               cast(rest, tok->next), start);
     }
     if (equal(tok, "*")) {
-        return new_unary_node(ND_DEREF, unary(rest, tok->next), start);
+        return new_unary_node(ND_DEREF, cast(rest, tok->next), start);
     }
     if (equal(tok, "&")) {
-        return new_unary_node(ND_ADDR, unary(rest, tok->next), start);
+        return new_unary_node(ND_ADDR, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "sizeof") && equal(tok->next, "(") &&
+        is_typename(tok->next->next)) {
+        Token *op = tok;
+        Type *ty = typename(&tok, tok->next->next);
+        *rest = skip(tok, ")");
+        return new_number_node(size_of(ty), op);
+    }
+    if (equal(tok, "sizeof")) {
+        Node *node = unary(rest, tok->next);
+        add_type(node);
+        return new_number_node(size_of(node->ty), tok);
     }
     if (equal(tok, "++")) {
-        Node *node = unary(rest, tok->next);
+        Node *node = cast(rest, tok->next);
         return new_binary_node(ND_ASSIGN, node,
                                new_add_node(node, new_number_node(1, tok), tok),
                                tok);
     }
     if (equal(tok, "--")) {
-        Node *node = unary(rest, tok->next);
+        Node *node = cast(rest, tok->next);
         return new_binary_node(ND_ASSIGN, node,
                                new_sub_node(node, new_number_node(1, tok), tok),
                                tok);
@@ -1015,8 +1042,6 @@ static Node *postfix(Token **rest, Token *tok) {
 
 // primary = "(" "{" compound-stmt ")"
 //         | "(" expr ")"
-//         | "sizeof" unary
-//         | "sizeof" "(" typename ")"
 //         | num
 //         | str
 //         | ident func-args?
@@ -1038,18 +1063,6 @@ static Node *primary(Token **rest, Token *tok) {
         Node *node = expr(&tok, tok->next);
         *rest = skip(tok, ")");
         return node;
-    }
-    if (equal(tok, "sizeof") && equal(tok->next, "(") &&
-        is_typename(tok->next->next)) {
-        Token *op = tok;
-        Type *ty = typename(&tok, tok->next->next);
-        *rest = skip(tok, ")");
-        return new_number_node(size_of(ty), op);
-    }
-    if (equal(tok, "sizeof")) {
-        Node *node = unary(rest, tok->next);
-        add_type(node);
-        return new_number_node(size_of(node->ty), tok);
     }
     if (tok->kind == TK_IDENT) {
         if (equal(tok->next, "(")) {

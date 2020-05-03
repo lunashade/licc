@@ -124,6 +124,18 @@ static void store(Type *ty) {
     return;
 }
 
+static void cast(Type *ty) {
+    if (ty->kind == TY_VOID)
+        return;
+
+    int sz = size_of(ty);
+    char *rs = reg_pop_sz(sz);
+    char *rd = reg_push();
+    if (sz == 1 || sz == 2 || sz == 4) {
+        printf("\tmovsx %s, %s\n", rd, rs);
+    }
+}
+
 // code generation
 static void gen_addr(Node *node);
 static void gen_expr(Node *node);
@@ -162,6 +174,10 @@ static void gen_expr(Node *node) {
     case ND_MEMBER:
         gen_addr(node);
         load(node->ty);
+        return;
+    case ND_CAST:
+        gen_expr(node->lhs);
+        cast(node->ty);
         return;
     case ND_ADDR:
         gen_addr(node->lhs);

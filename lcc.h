@@ -99,6 +99,7 @@ typedef enum {
     ND_NE,        // !=
     ND_LT,        // <
     ND_LE,        // <=
+    ND_CAST,      // (type-name)
     ND_LOGAND,    // &&
     ND_LOGOR,     // ||
     ND_COMMA,     // ,
