@@ -273,6 +273,14 @@ static Var *new_gvar(char *name, Type *ty) {
     globals = gvar;
     return gvar;
 }
+static Var *new_func(char *name, Type *ty) {
+    Var *gvar = calloc(1, sizeof(Var));
+    gvar->name = name;
+    gvar->ty = ty;
+    gvar->is_local = false;
+    push_scope(name)->var = gvar;
+    return gvar;
+}
 static char *new_label(void) {
     static int cnt = 0;
     char *buf = malloc(20);
@@ -330,11 +338,10 @@ Program *parse(Token *tok) {
             continue;
         }
         if (ty->kind == TY_FUNC) {
-            if (equal(tok, ";")) {
-                tok = skip(tok, ";");
-                continue;
+            new_func(get_ident(ty->name), ty);
+            if (!consume(&tok, tok, ";")) {
+                cur = cur->next = funcdef(&tok, start);
             }
-            cur = cur->next = funcdef(&tok, start);
             continue;
         }
         for (;;) {
@@ -1078,8 +1085,19 @@ static Node *primary(Token **rest, Token *tok) {
     if (tok->kind == TK_IDENT) {
         if (equal(tok->next, "(")) {
             Node *node = new_node(ND_FUNCALL, tok);
+            VarScope *sc = find_var(tok);
             node->funcname = get_ident(tok);
             node->args = func_args(rest, tok->next);
+            add_type(node);
+
+            if (sc) {
+                if (!sc->var || sc->var->ty->kind != TY_FUNC)
+                    error_tok(tok, "parse: primary: not a function");
+                node->ty = sc->var->ty->return_ty;
+            } else {
+                warn_tok(tok, "parse: implicit declaration of a function");
+                node->ty = ty_int;
+            }
             return node;
         }
         VarScope *sc = find_var(tok);

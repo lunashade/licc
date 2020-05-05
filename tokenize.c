@@ -32,7 +32,6 @@ static void verror_at(int lineno, char *loc, char *fmt, va_list ap) {
     fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    exit(1);
 }
 void error_at(char *loc, char *fmt, ...) {
     int lineno = 1;
@@ -42,13 +41,23 @@ void error_at(char *loc, char *fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
+    printf("error: ");
     verror_at(lineno, loc, fmt, ap);
+    exit(1);
 }
 
+void warn_tok(Token *tok, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    printf("warn: ");
+    verror_at(tok->lineno, tok->loc, fmt, ap);
+}
 void error_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
+    printf("error: ");
     verror_at(tok->lineno, tok->loc, fmt, ap);
+    exit(1);
 }
 
 // utility
