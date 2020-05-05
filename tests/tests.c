@@ -29,6 +29,8 @@ int div_long(long a, long b) {return a/b;}
 _Bool bool_incl(_Bool x) { return ++x; }
 _Bool bool_decl(_Bool x) { return --x; }
 
+static int static_fn() { return 3; }
+
 int ret3() {
     return 3;
     return 5;
@@ -406,6 +408,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, bool_decl(0), "bool_decl(0)");
     assert(0, bool_decl(1), "bool_decl(1)");
     assert(0, bool_decl(2), "bool_decl(2)");
+
+    assert(3, static_fn(), "static_fn()");
 
     printf("OK\n");
     return 0;

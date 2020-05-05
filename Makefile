@@ -11,7 +11,8 @@ $(OBJS): lcc.h
 test: lcc fmt
 	# tests/old_test.sh
 	./lcc tests/tests.c > tmp.s
-	cc -static -o tmp tmp.s
+	echo 'int static_fn() {return 5;}' | gcc -xc -c -o tmp2.o -
+	cc -static -o tmp tmp.s tmp2.o
 	./tmp
 
 longtest: clean lcc test

@@ -156,6 +156,8 @@ struct Function {
     Node *node;    // body statements
     Var *locals;   // linked list of locals
     int stacksize; // local variable stack size
+
+    bool is_static; // file scope
 };
 
 typedef struct Program Program;

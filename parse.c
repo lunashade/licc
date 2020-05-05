@@ -303,7 +303,7 @@ bool is_typename(Token *tok) {
     }
 
     char *tn[] = {"int",   "char", "struct", "union", "_Bool",
-                  "short", "long", "void",   "typedef"};
+                  "short", "long", "void",   "typedef", "static"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -366,11 +366,13 @@ Program *parse(Token *tok) {
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
 
-    Type *ty = decl_specifier(&tok, tok, NULL);
+    DeclContext ctx = {};
+    Type *ty = decl_specifier(&tok, tok, &ctx);
     ty = declarator(&tok, tok, ty);
 
     Function *fn = calloc(1, sizeof(Function));
     fn->name = get_ident(ty->name);
+    fn->is_static = ctx.is_static;
     enter_scope();
     for (Type *t = ty->params; t; t = t->next) {
         new_lvar(get_ident(t->name), t);
@@ -475,6 +477,14 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             if (ctx->type_def)
                 error_tok(tok, "parse: decl-specifier: duplicate `typedef`");
             ctx->type_def = true;
+            continue;
+        } else if (consume(&tok, tok, "static")) {
+            if (!ctx)
+                error_tok(tok, "parse: decl-specifier: storage-class-specifier "
+                               "not allowed in this context");
+            if (ctx->is_static)
+                error_tok(tok, "parse: decl-specifier: duplicate `static`");
+            ctx->is_static = true;
             continue;
         }
 
