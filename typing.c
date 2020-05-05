@@ -12,6 +12,9 @@ bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
             ty->kind == TY_LONG);
 }
+bool is_scalar(Type *ty) {
+    return (is_integer(ty) || ty->kind == TY_PTR);
+}
 bool is_pointing(Type *ty) { return ty->base; }
 
 int size_of(Type *ty) {
@@ -83,7 +86,7 @@ void add_type(Node *node) {
 
     switch (node->kind) {
     case ND_NUM:
-        //node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
+        // node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
         node->ty = ty_long;
         return;
     case ND_ADD:
@@ -93,7 +96,8 @@ void add_type(Node *node) {
         node->ty = node->lhs->ty;
         return;
     case ND_ASSIGN:
-        node->rhs = new_cast(node->rhs, node->lhs->ty);
+        if (is_scalar(node->rhs->ty))
+            node->rhs = new_cast(node->rhs, node->lhs->ty);
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
