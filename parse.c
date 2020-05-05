@@ -192,8 +192,9 @@ Node *new_cast(Node *expr, Type *ty) {
 static Var *globals;
 static Var *locals;
 
-static VarScope *var_scope;
-static TagScope *tag_scope;
+static VarScope *var_scope; // variable scope stack top
+static TagScope *tag_scope; // tag scope stack top
+static Var *current_fn;     // function currently parsing
 static int scope_depth;
 
 static void enter_scope(void) { scope_depth++; }
@@ -338,7 +339,7 @@ Program *parse(Token *tok) {
             continue;
         }
         if (ty->kind == TY_FUNC) {
-            new_func(get_ident(ty->name), ty);
+            current_fn = new_func(get_ident(ty->name), ty);
             if (!consume(&tok, tok, ";")) {
                 cur = cur->next = funcdef(&tok, start);
             }
@@ -720,8 +721,11 @@ static Node *stmt(Token **rest, Token *tok) {
     }
     if (equal(tok, "return")) {
         Node *node = new_node(ND_RETURN, tok);
-        node->lhs = expr(&tok, tok->next);
+        Node *exp = expr(&tok, tok->next);
         *rest = skip(tok, ";");
+
+        add_type(exp);
+        node->lhs = new_cast(exp, current_fn->ty->return_ty);
         return node;
     }
     if (equal(tok, "while")) {

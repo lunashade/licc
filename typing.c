@@ -126,9 +126,6 @@ void add_type(Node *node) {
         usual_arithmetic_conversion(&node->lhs, &node->rhs);
         node->ty = ty_int;
         return;
-    case ND_FUNCALL:
-        node->ty = ty_long;
-        return;
     case ND_VAR:
         node->ty = node->var->ty;
         return;
