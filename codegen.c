@@ -90,14 +90,16 @@ static void load(Type *ty) {
         return;
     }
     char *rs = reg_pop();
-    char *rd = reg_push();
+    // When we load value of size <4, always extend to the size of int,
+    // so that we can assume that the lower half of register contains valid value.
+    char *rd = reg_push_x(ty);
     int sz = size_of(ty);
     if (sz == 1) {
         printf("\tmovsx %s, byte ptr [%s]\n", rd, rs);
     } else if (sz == 2) {
         printf("\tmovsx %s, word ptr [%s]\n", rd, rs);
     } else if (sz == 4) {
-        printf("\tmovsx %s, dword ptr [%s]\n", rd, rs);
+        printf("\tmov %s, dword ptr [%s]\n", rd, rs);
     } else {
         assert(sz == 8);
         printf("\tmov %s, [%s]\n", rd, rs);
@@ -137,9 +139,9 @@ static void cast(Type *from, Type *to) {
     } else if (size_of(to) == 2) {
         printf("\tmovsx %s, %sw\n", rd, rs);
     } else if (size_of(to) == 4) {
-        printf("\tmovsx %s, %sd\n", rd, rs);
+        printf("\tmov %sd, %sd\n", rd, rs);
     } else if (is_integer(from) && size_of(from) < 8) {
-        printf("\tmovsx %s, %s\n", rd, rs);
+        printf("\tmovsx %s, %sd\n", rd, rs);
     }
 }
 
@@ -205,40 +207,40 @@ static void gen_expr(Node *node) {
         int label = next_label();
 
         gen_expr(node->lhs);
-        char *rs = reg_pop();
+        char *rs = reg_pop_x(node->lhs->ty);
         printf("\tcmp %s, 0\n", rs);
         printf("\tjne .L.true.%d\n", label);
         gen_expr(node->rhs);
-        char *rd = reg_pop();
+        char *rd = reg_pop_x(node->rhs->ty);
         printf("\tcmp %s, 0\n", rd);
         printf("\tjne .L.true.%d\n", label);
 
+        rd = reg_push();
         printf("\tmov %s, 0\n", rd);
         printf("\tjmp .L.end.%d\n", label);
         printf(".L.true.%d:\n", label);
         printf("\tmov %s, 1\n", rd);
         printf(".L.end.%d:\n", label);
-        reg_push();
         return;
     }
     case ND_LOGAND: {
         int label = next_label();
 
         gen_expr(node->lhs);
-        char *rs = reg_pop();
+        char *rs = reg_pop_x(node->lhs->ty);
         printf("\tcmp %s, 0\n", rs);
         printf("\tje .L.false.%d\n", label);
         gen_expr(node->rhs);
-        char *rd = reg_pop();
+        char *rd = reg_pop_x(node->rhs->ty);
         printf("\tcmp %s, 0\n", rd);
         printf("\tje .L.false.%d\n", label);
 
+        rd = reg_push();
         printf("\tmov %s, 1\n", rd);
         printf("\tjmp .L.end.%d\n", label);
         printf(".L.false.%d:\n", label);
         printf("\tmov %s, 0\n", rd);
         printf(".L.end.%d:\n", label);
-        reg_push();
         return;
     }
     case ND_COMMA:
@@ -299,8 +301,8 @@ static void gen_expr(Node *node) {
     gen_expr(node->lhs);
     gen_expr(node->rhs);
 
-    char *rs = reg_pop();
-    char *rd = reg_pop();
+    char *rs = reg_pop_x(node->lhs->ty);
+    char *rd = reg_pop_x(node->lhs->ty);
     reg_push();
 
     if (node->kind == ND_ADD) {
@@ -316,38 +318,41 @@ static void gen_expr(Node *node) {
         return;
     }
     if (node->kind == ND_DIV) {
-        printf("\tmov rax, %s\n", rd);
-        printf("\tcqo\n");
-        printf("\tidiv %s\n", rs);
-        printf("\tmov %s, rax\n", rd);
+        if (size_of(node->ty) == 8) {
+            printf("\tmov rax, %s\n", rd);
+            printf("\tcqo\n");
+            printf("\tidiv %s\n", rs);
+            printf("\tmov %s, rax\n", rd);
+        } else {
+            printf("\tmov eax, %s\n", rd);
+            printf("\tcdq\n");
+            printf("\tidiv %s\n", rs);
+            printf("\tmov %s, eax\n", rd);
+        }
         return;
     }
     if (node->kind == ND_EQ) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsete al\n");
-        printf("\tmovzb rax, al\n");
-        printf("\tmov %s, rax\n", rd);
+        printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_NE) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsetne al\n");
-        printf("\tmovzb rax, al\n");
-        printf("\tmov %s, rax\n", rd);
+        printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_LT) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsetl al\n");
-        printf("\tmovzb rax, al\n");
-        printf("\tmov %s, rax\n", rd);
+        printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_LE) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsetle al\n");
-        printf("\tmovzb rax, al\n");
-        printf("\tmov %s, rax\n", rd);
+        printf("\tmovzx %s, al\n", rd);
         return;
     }
     error_tok(node->tok, "codegen: gen_expr: invalid expression");

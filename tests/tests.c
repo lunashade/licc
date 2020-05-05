@@ -357,6 +357,30 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(513, ({ short x; x=8590066177; x;} ), "({ short x; x=8590066177; x;} )");
     assert(1, ({ char x; x = 8590066177; x;} ), "({ char x; x = 8590066177; x;} )");
 
+    assert(4, sizeof(-10+5), "sizeof(-10+5)");
+    assert(4, sizeof(-10-5), "sizeof(-10-5)");
+    assert(4, sizeof(-10*5), "sizeof(-10*5)");
+    assert(4, sizeof(-10/5), "sizeof(-10/5)");
+
+    assert(8, sizeof(-10+(long)5), "sizeof(-10+(long)5)");
+    assert(8, sizeof(-10-(long)5), "sizeof(-10-(long)5)");
+    assert(8, sizeof(-10*(long)5), "sizeof(-10*(long)5)");
+    assert(8, sizeof(-10/(long)5), "sizeof(-10/(long)5)");
+    assert(8, sizeof((long)-10+5), "sizeof((long)-10+5)");
+    assert(8, sizeof((long)-10-5), "sizeof((long)-10-5)");
+    assert(8, sizeof((long)-10*5), "sizeof((long)-10*5)");
+    assert(8, sizeof((long)-10/5), "sizeof((long)-10/5)");
+
+    assert((long)-5, -10 + (long)5, "-10 + (long)5");
+    assert((long)-15, -10 - (long)5, "-10 - (long)5");
+    assert((long)-50, -10 * (long)5, "-10 * (long)5");
+    assert((long)-2, -10 / (long)5, "-10 / (long)5");
+    assert((int)-5, -10 + 5, "-10 + 5");
+
+    assert(0, 2147483647 + 2147483647 + 2, "2147483647 + 2147483647 + 2");
+    assert(1, ({ char x[3]; x[0]=0; x[1]=1; x[2]=2; char *y=x+1; y[0];  }), "({ char x[3]; x[0]=0; x[1]=1; x[2]=2; char *y=x+1; y[0];  })");
+    assert(0, ({ char x[3]; x[0]=0; x[1]=1; x[2]=2; char *y=x+1; y[-1];  }), "({ char x[3]; x[0]=0; x[1]=1; x[2]=2; char *y=x+1; y[-1];  })");
+
     printf("OK\n");
     return 0;
 }

@@ -12,9 +12,7 @@ bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
             ty->kind == TY_LONG);
 }
-bool is_scalar(Type *ty) {
-    return (is_integer(ty) || ty->kind == TY_PTR);
-}
+bool is_scalar(Type *ty) { return (is_integer(ty) || ty->kind == TY_PTR); }
 bool is_pointing(Type *ty) { return ty->base; }
 
 int size_of(Type *ty) {
@@ -66,6 +64,22 @@ Member *new_member(Type *ty) {
     return mem;
 }
 
+static Type *common_type(Type *ty1, Type *ty2) {
+    if (ty1->base)
+        return pointer_to(ty1->base);
+
+    if (size_of(ty1) == 8 || size_of(ty2) == 8) {
+        return ty_long;
+    }
+    return ty_int;
+}
+
+static void usual_arithmetic_conversion(Node **lhs, Node **rhs) {
+    Type *ty = common_type((*lhs)->ty, (*rhs)->ty);
+    *lhs = new_cast(*lhs, ty);
+    *rhs = new_cast(*rhs, ty);
+}
+
 void add_type(Node *node) {
     if (!node || node->ty)
         return;
@@ -86,13 +100,13 @@ void add_type(Node *node) {
 
     switch (node->kind) {
     case ND_NUM:
-        // node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
-        node->ty = ty_long;
+        node->ty = (node->val == (int)node->val) ? ty_int : ty_long;
         return;
     case ND_ADD:
     case ND_SUB:
     case ND_MUL:
     case ND_DIV:
+        usual_arithmetic_conversion(&node->lhs, &node->rhs);
         node->ty = node->lhs->ty;
         return;
     case ND_ASSIGN:
@@ -109,6 +123,9 @@ void add_type(Node *node) {
     case ND_LE:
     case ND_LOGAND:
     case ND_LOGOR:
+        usual_arithmetic_conversion(&node->lhs, &node->rhs);
+        node->ty = ty_int;
+        return;
     case ND_FUNCALL:
         node->ty = ty_long;
         return;
