@@ -302,7 +302,7 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",   "char", "struct", "union",
+    char *tn[] = {"int",   "char", "struct", "union", "_Bool",
                   "short", "long", "void",   "typedef"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
@@ -456,11 +456,12 @@ struct TypeSpec {
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     enum {
         VOID = 1 << 0,
-        CHAR = 1 << 2,
-        SHORT = 1 << 4,
-        INT = 1 << 6,
-        LONG = 1 << 8,
-        OTHER = 1 << 10,
+        BOOL = 1 << 2,
+        CHAR = 1 << 4,
+        SHORT = 1 << 6,
+        INT = 1 << 8,
+        LONG = 1 << 10,
+        OTHER = 1 << 12,
     };
     TypeSpec spec = {};
     spec.ty = ty_int;
@@ -506,6 +507,8 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         // built-in types
         if (consume(&tok, tok, "void")) {
             spec.cnt += VOID;
+        } else if (consume(&tok, tok, "_Bool")) {
+            spec.cnt += BOOL;
         } else if (consume(&tok, tok, "int")) {
             spec.cnt += INT;
         } else if (consume(&tok, tok, "short")) {
@@ -520,6 +523,9 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         switch (spec.cnt) {
         case VOID:
             spec.ty = ty_void;
+            break;
+        case BOOL:
+            spec.ty = ty_bool;
             break;
         case CHAR:
             spec.ty = ty_char;

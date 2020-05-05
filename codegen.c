@@ -124,7 +124,7 @@ static void store(Type *ty) {
     return;
 }
 
-// cast a type
+// cast a type of stack top
 static void cast(Type *from, Type *to) {
     if (to->kind == TY_VOID)
         return;
@@ -134,7 +134,11 @@ static void cast(Type *from, Type *to) {
     int sz = size_of(to);
     char *rs = reg_pop();
     char *rd = reg_push();
-    if (size_of(to) == 1) {
+    if (to->kind == TY_BOOL) {
+        printf("\tcmp %s, 0\n", rs);
+        printf("\tsetne %sb\n", rd);
+        printf("\tmovzx %s, %sb\n", rd, rd);
+    } else if (size_of(to) == 1) {
         printf("\tmovsx %s, %sb\n", rd, rs);
     } else if (size_of(to) == 2) {
         printf("\tmovsx %s, %sw\n", rd, rs);

@@ -26,6 +26,8 @@ char int_to_char(int x) {return x;}
 int *g1ptr() { return &g1; }
 int add_as_char(char a, char b) {return a+b;}
 int div_long(long a, long b) {return a/b;}
+_Bool bool_incl(_Bool x) { return ++x; }
+_Bool bool_decl(_Bool x) { return --x; }
 
 int ret3() {
     return 3;
@@ -390,6 +392,20 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(10, add_as_char(261, 261), "add_as_char(261, 261)");
     assert(-5, div_long(-10, 2), "div_long(-10, 2)");
+
+    assert(0, ({_Bool x=0; x;}), "({_Bool x=0; x;})");
+    assert(1, ({_Bool x=1; x;}), "({_Bool x=1; x;})");
+    assert(1, ({_Bool x=100; x;}), "({_Bool x=100; x;})");
+    assert(0, (_Bool)0, "(_Bool)0");
+    assert(1, (_Bool)1, "(_Bool)1");
+    assert(1, (_Bool)10, "(_Bool)10");
+
+    assert(1, bool_incl(0), "bool_incl(0)");
+    assert(1, bool_incl(1), "bool_incl(1)");
+    assert(1, bool_incl(2), "bool_incl(2)");
+    assert(1, bool_decl(0), "bool_decl(0)");
+    assert(0, bool_decl(1), "bool_decl(1)");
+    assert(0, bool_decl(2), "bool_decl(2)");
 
     printf("OK\n");
     return 0;
