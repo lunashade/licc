@@ -335,6 +335,20 @@ static void gen_expr(Node *node) {
         }
         return;
     }
+    if (node->kind == ND_MOD) {
+        if (size_of(node->ty) == 8) {
+            printf("\tmov rax, %s\n", rd);
+            printf("\tcqo\n");
+            printf("\tidiv %s\n", rs);
+            printf("\tmov %s, rdx\n", rd);
+        } else {
+            printf("\tmov eax, %s\n", rd);
+            printf("\tcdq\n");
+            printf("\tidiv %s\n", rs);
+            printf("\tmov %s, edx\n", rd);
+        }
+        return;
+    }
     if (node->kind == ND_EQ) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsete al\n");

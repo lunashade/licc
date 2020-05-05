@@ -427,6 +427,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(4, ({enum {zero, one, two}; sizeof two;}), "({enum {zero, one, two}; sizeof two;})");
     assert(4, ({enum T {zero, one, two}; enum T y; sizeof(y);}), "({enum T {zero, one, two}; enum T y; sizeof(y);})");
 
+    assert(1, 10%3, "10%3");
+    assert(1, ({int x=10; x%=3; x;}), "({int x=10; x%=3; x;})");
+
     printf("OK\n");
     return 0;
 }

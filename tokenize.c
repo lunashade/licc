@@ -1,12 +1,12 @@
 #include "lcc.h"
 
-static char *KEYWORDS[] = {"return",  "if",    "else",  "for",    "while",
-                           "sizeof",  "int",   "char",  "struct", "union",
-                           "short",   "long",  "void",  "signed", "unsigned",
+static char *KEYWORDS[] = {"return",  "if",    "else",   "for",    "while",
+                           "sizeof",  "int",   "char",   "struct", "union",
+                           "short",   "long",  "void",   "signed", "unsigned",
                            "typedef", "_Bool", "static", "enum"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "<=", "==", ">=", "!=", "->", "+=", "-=",
-    "*=", "/=", "++", "--", "&&", "||"};
+    "*=", "/=", "%=", "++", "--", "&&", "||"};
 // error report
 static char *current_filename;
 static char *current_input;
