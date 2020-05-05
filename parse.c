@@ -1092,15 +1092,14 @@ static Node *primary(Token **rest, Token *tok) {
             VarScope *sc = find_var(tok);
             node->funcname = get_ident(tok);
             node->args = func_args(rest, tok->next);
-            add_type(node);
 
             if (sc) {
                 if (!sc->var || sc->var->ty->kind != TY_FUNC)
                     error_tok(tok, "parse: primary: not a function");
-                node->ty = sc->var->ty->return_ty;
+                node->func_ty = sc->var->ty;
             } else {
                 warn_tok(tok, "parse: implicit declaration of a function");
-                node->ty = ty_int;
+                node->func_ty = func_type(ty_int);
             }
             return node;
         }

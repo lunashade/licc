@@ -24,6 +24,8 @@ int assert(int want, int got, char *code) {
 }
 char int_to_char(int x) {return x;}
 int *g1ptr() { return &g1; }
+int add_as_char(char a, char b) {return a+b;}
+int div_long(long a, long b) {return a/b;}
 
 int ret3() {
     return 3;
@@ -385,6 +387,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(5, int_to_char(261), "int_to_char(261)");
     assert(3, ({g1 = 3; *g1ptr(); }), "({g1 = 3; *g1ptr(); })");
+
+    assert(10, add_as_char(261, 261), "add_as_char(261, 261)");
+    assert(-5, div_long(-10, 2), "div_long(-10, 2)");
 
     printf("OK\n");
     return 0;

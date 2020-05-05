@@ -129,6 +129,7 @@ struct Node {
 
     char *funcname; // function call
     Node *args;     // function args
+    Type *func_ty;  // function type info
 
     Node *cond; // condition
     Node *then; // then
