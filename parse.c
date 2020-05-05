@@ -3,6 +3,7 @@
 static Function *funcdef(Token **rest, Token *tok);
 
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx);
+static Type *enum_spec(Token **rest, Token *tok);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
 static Type *typename(Token **rest, Token *tok);
@@ -302,7 +303,7 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",   "char", "struct", "union", "_Bool",
+    char *tn[] = {"int",   "char", "struct", "union",   "_Bool", "enum",
                   "short", "long", "void",   "typedef", "static"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
@@ -447,13 +448,8 @@ static Node *declaration(Token **rest, Token *tok) {
     return node;
 }
 
-typedef struct TypeSpec TypeSpec;
-struct TypeSpec {
-    int cnt;
-    Type *ty;
-};
 // decl-specifier = (storage-class-specifier | type-specifier | type-qualifier)*
-// type-specifier = builtin-type | struct-union-spec | typedef-name
+// type-specifier = builtin-type | struct-union-spec | enum-spec | typedef-name
 // storage-class-specifier = "typedef" #| "extern" | "static"
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     enum {
@@ -465,8 +461,8 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         LONG = 1 << 10,
         OTHER = 1 << 12,
     };
-    TypeSpec spec = {};
-    spec.ty = ty_int;
+    int cnt = 0;
+    Type *spec_ty = ty_int;
 
     while (is_typename(tok)) {
         // storage-class
@@ -492,66 +488,75 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
 
         // if IDENT && is_typename, it is typedef-name
         if (tok->kind == TK_IDENT) {
-            if (spec.cnt) {
+            if (cnt) {
                 break;
             }
             Type *ty = find_typedef(tok);
             if (!ty) {
-                error_tok(tok, "parse: internal error");
+                error_tok(tok, "parse: decl-specifier: internal error");
             }
             tok = tok->next;
-            spec.ty = ty;
-            spec.cnt += OTHER;
+            spec_ty = ty;
+            cnt += OTHER;
             continue;
         }
         if (equal(tok, "struct") || equal(tok, "union")) {
-            if (spec.cnt) {
+            if (cnt) {
                 break;
             }
             Type *ty = struct_spec(&tok, tok);
-            spec.ty = ty;
-            spec.cnt += OTHER;
+            spec_ty = ty;
+            cnt += OTHER;
+            continue;
+        }
+        if (equal(tok, "enum")) {
+            if (cnt) {
+                break;
+            }
+            Type *ty = enum_spec(&tok, tok);
+            spec_ty = ty;
+            cnt += OTHER;
             continue;
         }
 
         // built-in types
         if (consume(&tok, tok, "void")) {
-            spec.cnt += VOID;
+            cnt += VOID;
         } else if (consume(&tok, tok, "_Bool")) {
-            spec.cnt += BOOL;
+            cnt += BOOL;
         } else if (consume(&tok, tok, "int")) {
-            spec.cnt += INT;
+            cnt += INT;
         } else if (consume(&tok, tok, "short")) {
-            spec.cnt += SHORT;
+            cnt += SHORT;
         } else if (consume(&tok, tok, "long")) {
-            spec.cnt += LONG;
+            cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
-            spec.cnt += CHAR;
+            cnt += CHAR;
         }
 
         // validation check
-        switch (spec.cnt) {
+        switch (cnt) {
         case VOID:
-            spec.ty = ty_void;
+            spec_ty = ty_void;
             break;
         case BOOL:
-            spec.ty = ty_bool;
+            spec_ty = ty_bool;
             break;
         case CHAR:
-            spec.ty = ty_char;
+            spec_ty = ty_char;
             break;
         case SHORT:
         case SHORT + INT:
-            spec.ty = ty_short;
+            spec_ty = ty_short;
             break;
         case INT:
-            spec.ty = ty_int;
+            spec_ty = ty_int;
             break;
         case LONG:
         case LONG + INT:
         case LONG + LONG:
         case LONG + LONG + INT:
-            spec.ty = ty_long;
+            spec_ty = ty_long;
             break;
         default:
             error_tok(tok, "parse: unsupported type-specifier");
@@ -559,10 +564,58 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     }
     // epilogue
     *rest = tok;
-    return spec.ty;
+    return spec_ty;
 }
 
-// struct-union-spec = ("struct" | "union") (ident)? "{" struct-decl
+// enum-spec = "enum" ident? "{" enum-list | "enum" ident
+// enum-list = ident ("=" num)? ("," ident ("=" num)?)* ","? "}"
+static Type *enum_spec(Token **rest, Token *tok) {
+    Type *ty = enum_type();
+    tok = skip(tok, "enum");
+    Token *tag = NULL;
+    if (tok->kind == TK_IDENT) {
+        tag = tok;
+        tok = tok->next;
+    }
+    if (tag && !equal(tok, "{")) {
+        TagScope *sc = find_tag(tag);
+        if (!sc) {
+            error_tok(tag, "parse: enum-spec: unknown enum");
+        }
+        if (sc->kind != TAG_ENUM) {
+            error_tok(tag, "parse: enum-spec: not an enum tag");
+        }
+        *rest = tok;
+        return sc->ty;
+    }
+    tok = skip(tok, "{");
+
+    // Parse enum-list
+    int val = 0;
+
+    while (!consume(&tok, tok, "}")) {
+        char *name = get_ident(tok);
+        tok = tok->next;
+        if (equal(tok, "=")) {
+            val = get_number(tok->next);
+            tok = tok->next->next;
+        }
+
+        VarScope *vsc = push_scope(name);
+        vsc->enum_ty = ty;
+        vsc->enum_val = val++;
+        if (consume(&tok, tok, "}"))
+            break;
+        tok = skip(tok, ",");
+    }
+    if (tag)
+        push_tag_scope(tag, ty, TAG_ENUM);
+
+    *rest = tok;
+    return ty;
+}
+
+// struct-union-spec = ("struct" | "union") (ident? "{" struct-decl | ident)
 static Type *struct_spec(Token **rest, Token *tok) {
     TagKind kind;
     if (equal(tok, "struct")) {
@@ -1104,6 +1157,7 @@ static Node *primary(Token **rest, Token *tok) {
         return node;
     }
     if (tok->kind == TK_IDENT) {
+        // function call
         if (equal(tok->next, "(")) {
             Node *node = new_node(ND_FUNCALL, tok);
             VarScope *sc = find_var(tok);
@@ -1120,13 +1174,21 @@ static Node *primary(Token **rest, Token *tok) {
             }
             return node;
         }
+        // variable or enum constant
         VarScope *sc = find_var(tok);
-        if (!sc) {
+        if (!sc || (!sc->var && !sc->enum_ty)) {
             error_tok(tok, "parse: var: undeclared variable: %s",
                       get_ident(tok));
         }
+        Node *node;
+        if (sc->var) {
+            node = new_var_node(sc->var, tok);
+        } else {
+            assert(sc->enum_ty);
+            node = new_number_node(sc->enum_val, tok);
+        }
         *rest = tok->next;
-        return new_var_node(sc->var, tok);
+        return node;
     }
     if (tok->kind == TK_STR) {
         Var *var = new_string_literal(tok->contents, tok->contents_len);

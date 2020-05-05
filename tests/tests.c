@@ -415,6 +415,18 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(10, '\n', "'\\n'");
     assert(4, sizeof('\n'), "sizeof('\\n')");
 
+    assert(0, ({enum {zero, one, two}; zero;}), "({enum {zero, one, two}; zero;})");
+    assert(1, ({enum {zero, one, two}; one;}), "({enum {zero, one, two}; one;})");
+    assert(2, ({enum {zero, one, two}; two;}), "({enum {zero, one, two}; two;})");
+    assert(10, ({enum {ten=10, eleven, twelve}; ten;}), "({enum {ten=10, eleven, twelve}; ten;})");
+    assert(11, ({enum {ten=10, eleven, twelve}; eleven;}), "({enum {ten=10, eleven, twelve}; eleven;})");
+    assert(12, ({enum {ten=10, eleven, twelve}; twelve;}), "({enum {ten=10, eleven, twelve}; twelve;})");
+    assert(0, ({enum {zero, one, two, five=5, three=3, four}; zero;}), "({enum {zero, one, two, five=5, three=3, four}; zero;})");
+    assert(5, ({enum {zero, one, two, five=5, three=3, four}; five;}), "({enum {zero, one, two, five=5, three=3, four}; five;})");
+    assert(4, ({enum {zero, one, two, five=5, three=3, four}; four;}), "({enum {zero, one, two, five=5, three=3, four}; four;})");
+    assert(4, ({enum {zero, one, two}; sizeof two;}), "({enum {zero, one, two}; sizeof two;})");
+    assert(4, ({enum T {zero, one, two}; enum T y; sizeof(y);}), "({enum T {zero, one, two}; enum T y; sizeof(y);})");
+
     printf("OK\n");
     return 0;
 }

@@ -75,11 +75,14 @@ struct VarScope {
     int depth;
     Var *var;
     Type *type_def;
+    Type *enum_ty;
+    int enum_val;
 };
 
 typedef enum {
     TAG_STRUCT,
     TAG_UNION,
+    TAG_ENUM,
 } TagKind;
 
 typedef struct TagScope TagScope;
@@ -187,6 +190,7 @@ typedef enum {
     TY_FUNC,
     TY_ARRAY,
     TY_STRUCT,
+    TY_ENUM,
 } TypeKind;
 
 struct Type {
@@ -231,6 +235,7 @@ Type *new_type(TypeKind kind, int size, int align);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);
+Type *enum_type(void);
 Type *copy_type(Type *ty);
 
 //

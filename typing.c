@@ -57,6 +57,10 @@ Type *func_type(Type *return_ty) {
     return ty;
 }
 
+Type *enum_type(void) {
+    return new_type(TY_ENUM, 4, 4);
+}
+
 Member *new_member(Type *ty) {
     Member *mem = calloc(1, sizeof(Member));
     mem->ty = ty;
