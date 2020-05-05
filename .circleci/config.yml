@@ -5,7 +5,7 @@ jobs:
       - image: cimg/base:stable
     steps:
       - checkout
-      - run: make longtest
+      - run: make test
       - "slack/status":
           fail_only: false
 
