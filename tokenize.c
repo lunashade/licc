@@ -1,8 +1,8 @@
 #include "lcc.h"
 
-static char *KEYWORDS[] = {"return",  "if",   "else", "for",    "while",
-                           "sizeof",  "int",  "char", "struct", "union",
-                           "short",   "long", "void", "signed", "unsigned",
+static char *KEYWORDS[] = {"return",  "if",    "else",  "for",    "while",
+                           "sizeof",  "int",   "char",  "struct", "union",
+                           "short",   "long",  "void",  "signed", "unsigned",
                            "typedef", "_Bool", "static"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "<=", "==", ">=", "!=", "->", "+=", "-=",
@@ -184,6 +184,28 @@ static char *read_escape_char(char *ret, char *p) {
     }
 }
 
+static Token *read_char_literal(Token *cur, char *start) {
+    char *p = start + 1;
+    if (*p == '\0') {
+        error_at(start, "tokenize: unclosed char literal.");
+    }
+
+    char c;
+    if (*p == '\\') {
+        p = read_escape_char(&c, p + 1);
+    } else {
+        c = *p;
+        p++;
+    }
+    if (*p != '\'') {
+        error_at(start, "tokenize: char literal too long.");
+    }
+
+    cur = new_token(cur, TK_NUM, start, p - start + 1);
+    cur->val = c;
+    return cur;
+}
+
 static Token *read_string_literal(Token *cur, char *start) {
     char *p = start + 1;
     char *end = p;
@@ -248,6 +270,11 @@ Token *tokenize(char *filename, char *p) {
         }
         if (*p == '"') {
             cur = read_string_literal(cur, p);
+            p += cur->len;
+            continue;
+        }
+        if (*p == '\'') {
+            cur = read_char_literal(cur, p);
             p += cur->len;
             continue;
         }

@@ -1082,6 +1082,7 @@ static Node *postfix(Token **rest, Token *tok) {
 //         | "(" expr ")"
 //         | num
 //         | str
+//         | char
 //         | ident func-args?
 static Node *primary(Token **rest, Token *tok) {
     if (equal(tok, "(") && equal(tok->next, "{")) {

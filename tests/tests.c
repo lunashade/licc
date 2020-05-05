@@ -411,6 +411,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(3, static_fn(), "static_fn()");
 
+    assert(97, 'a', "'a'");
+    assert(10, '\n', "'\\n'");
+    assert(4, sizeof('\n'), "sizeof('\\n')");
+
     printf("OK\n");
     return 0;
 }
