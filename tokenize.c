@@ -205,6 +205,26 @@ static Token *read_char_literal(Token *cur, char *start) {
     cur->val = c;
     return cur;
 }
+static Token *read_int_literal(Token *cur, char *start) {
+    char *p = start;
+    int base = 10;
+    if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+        p += 2;
+        base = 16;
+    } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+        p += 2;
+        base = 2;
+    } else if (*p == '0') {
+        base = 8;
+    }
+    long val = strtoul(p, &p, base);
+    if (isalnum(*p) || *p == '_')
+        error_at(p, "tokenize: invalid digit");
+
+    cur = new_token(cur, TK_NUM, start, p - start);
+    cur->val = val;
+    return cur;
+}
 
 static Token *read_string_literal(Token *cur, char *start) {
     char *p = start + 1;
@@ -293,10 +313,8 @@ Token *tokenize(char *filename, char *p) {
             continue;
         }
         if (isdigit(*p)) {
-            cur = new_token(cur, TK_NUM, p, 0);
-            char *q = p;
-            cur->val = strtoul(p, &p, 10);
-            cur->len = p - q;
+            cur = read_int_literal(cur, p);
+            p += cur->len;
             continue;
         }
         error_at(p, "tokenize: invalid token character");

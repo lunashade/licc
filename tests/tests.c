@@ -459,6 +459,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(-2, ~1, "~1");
     assert(0, ~-1, "~-1");
 
+    assert(3, 0b11, "0b11");
+    assert(17, 0x11, "0x11");
+    assert(171, 0xab, "0xab");
+    assert(9, 011, "011");
+
     printf("OK\n");
     return 0;
 }
