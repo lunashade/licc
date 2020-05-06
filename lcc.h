@@ -119,6 +119,7 @@ typedef enum {
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
+    ND_BREAK,     // break
     ND_GOTO,      // goto
     ND_LABEL,     // Labeled statement
     ND_FUNCALL,   // function call
@@ -152,9 +153,9 @@ struct Node {
     Node *lhs; // binary node left-hand side
     Node *rhs; // binary node right-hand side
 
-    Var *var;       // ND_VAR, local variable
-    long val;       // ND_NUM, value
-    Member *member; // ND_MEMBER, struct member
+    Var *var;        // ND_VAR, local variable
+    long val;        // ND_NUM, value
+    Member *member;  // ND_MEMBER, struct member
     char *labelname; // label
 
     Token *tok; // Debug info: representative token

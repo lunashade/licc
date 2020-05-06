@@ -789,9 +789,15 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 //      | "{" compound_stmt
 //      | "goto" ident ";"
 //      | ident ":" stmt
+//      | "break" ";"
 static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "{")) {
         return compound_stmt(rest, tok->next);
+    }
+    if (equal(tok, "break")) {
+        Node *node = new_node(ND_BREAK, tok);
+        *rest = skip(tok->next, ";");
+        return node;
     }
     if (equal(tok, "return")) {
         Node *node = new_node(ND_RETURN, tok);
