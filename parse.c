@@ -20,6 +20,9 @@ static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *logical_or(Token **rest, Token *tok);
 static Node *logical_and(Token **rest, Token *tok);
+static Node *bit_or(Token **rest, Token *tok);
+static Node *bit_xor(Token **rest, Token *tok);
+static Node *bit_and(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
 static Node *add(Token **rest, Token *tok);
@@ -925,12 +928,43 @@ static Node *logical_or(Token **rest, Token *tok) {
     return node;
 }
 
-// logical-and = equality ("&&" equality)*
+// logical-and = inclusive-or ("&&" inclusive-or)*
 static Node *logical_and(Token **rest, Token *tok) {
-    Node *node = equality(&tok, tok);
+    Node *node = bit_or(&tok, tok);
     while (equal(tok, "&&")) {
         Token *op = tok;
-        node = new_binary_node(ND_LOGAND, node, equality(&tok, tok->next), op);
+        node = new_binary_node(ND_LOGAND, node, bit_or(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+
+// or = xor ("|" xor)*
+static Node *bit_or(Token **rest, Token *tok) {
+    Node *node = bit_xor(&tok, tok);
+    while (equal(tok, "|")) {
+        Token *op = tok;
+        node = new_binary_node(ND_OR, node, bit_xor(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+// xor = and ("^" and)*
+static Node *bit_xor(Token **rest, Token *tok) {
+    Node *node = bit_and(&tok, tok);
+    while (equal(tok, "^")) {
+        Token *op = tok;
+        node = new_binary_node(ND_XOR, node, bit_and(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+// and = equality ("&" equality)*
+static Node *bit_and(Token **rest, Token *tok) {
+    Node *node = equality(&tok, tok);
+    while (equal(tok, "&")) {
+        Token *op = tok;
+        node = new_binary_node(ND_AND, node, equality(&tok, tok->next), op);
     }
     *rest = tok;
     return node;

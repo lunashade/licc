@@ -112,6 +112,9 @@ void add_type(Node *node) {
     case ND_MUL:
     case ND_DIV:
     case ND_MOD:
+    case ND_OR:
+    case ND_XOR:
+    case ND_AND:
         usual_arithmetic_conversion(&node->lhs, &node->rhs);
         node->ty = node->lhs->ty;
         return;

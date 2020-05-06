@@ -349,6 +349,18 @@ static void gen_expr(Node *node) {
         }
         return;
     }
+    if (node->kind == ND_OR) {
+        printf("\tor %s, %s\n", rd, rs);
+        return;
+    }
+    if (node->kind == ND_AND) {
+        printf("\tand %s, %s\n", rd, rs);
+        return;
+    }
+    if (node->kind == ND_XOR) {
+        printf("\txor %s, %s\n", rd, rs);
+        return;
+    }
     if (node->kind == ND_EQ) {
         printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsete al\n");

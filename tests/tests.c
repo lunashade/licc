@@ -430,6 +430,16 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, 10%3, "10%3");
     assert(1, ({int x=10; x%=3; x;}), "({int x=10; x%=3; x;})");
 
+    assert(3, 7&3, "7&3");
+    assert(7, 7|3, "7|3");
+    assert(4, 7^3, "7^3");
+    assert(4, sizeof(7&3), "sizeof(7&3)");
+    assert(4, sizeof(7|3), "sizeof(7|3)");
+    assert(4, sizeof(7^3), "sizeof(7^3)");
+    assert(8, sizeof(7&(long)3), "sizeof(7&(long)3)");
+    assert(8, sizeof(7|(long)3), "sizeof(7|(long)3)");
+    assert(8, sizeof(7^(long)3), "sizeof(7^(long)3)");
+
     printf("OK\n");
     return 0;
 }
