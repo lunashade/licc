@@ -77,6 +77,7 @@ static char *reg_pop_x(Type *ty) { return regx(ty, --top); }
 static int labelcnt;
 static int next_label() { return ++labelcnt; }
 static int breaklabel;
+static int continuelabel;
 
 static Function *current_fn;
 
@@ -421,7 +422,8 @@ static void gen_stmt(Node *node) {
     if (node->kind == ND_FOR) {
         int lfor = next_label();
         int pastbrk = breaklabel;
-        breaklabel = lfor;
+        int pastcnt = continuelabel;
+        continuelabel = breaklabel = lfor;
         if (node->init)
             gen_stmt(node->init);
         printf(".L.begin.%d:\n", lfor);
@@ -431,15 +433,25 @@ static void gen_stmt(Node *node) {
             printf("\tje .L.break.%d\n", lfor);
         }
         gen_stmt(node->then);
+        printf(".L.continue.%d:\n", lfor);
         if (node->inc)
             gen_stmt(node->inc);
         printf("\tjmp .L.begin.%d\n", lfor);
         printf(".L.break.%d:\n", lfor);
+        continuelabel = pastcnt;
+        breaklabel = pastbrk;
+        return;
+    }
+    if (node->kind == ND_CONTINUE) {
+        if (continuelabel == 0) {
+            error_tok(node->tok, "codegen: stray continue");
+        }
+        printf("\tjmp .L.continue.%d\n", continuelabel);
         return;
     }
     if (node->kind == ND_BREAK) {
         if (breaklabel == 0) {
-            error_tok(node->tok, "codegen: stray breal");
+            error_tok(node->tok, "codegen: stray break");
         }
         printf("\tjmp .L.break.%d\n", breaklabel);
         return;

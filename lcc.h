@@ -120,6 +120,7 @@ typedef enum {
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
     ND_BREAK,     // break
+    ND_CONTINUE,  // continue
     ND_GOTO,      // goto
     ND_LABEL,     // Labeled statement
     ND_FUNCALL,   // function call

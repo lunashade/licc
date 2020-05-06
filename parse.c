@@ -790,12 +790,18 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 //      | "goto" ident ";"
 //      | ident ":" stmt
 //      | "break" ";"
+//      | "continue" ";"
 static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "{")) {
         return compound_stmt(rest, tok->next);
     }
     if (equal(tok, "break")) {
         Node *node = new_node(ND_BREAK, tok);
+        *rest = skip(tok->next, ";");
+        return node;
+    }
+    if (equal(tok, "continue")) {
+        Node *node = new_node(ND_CONTINUE, tok);
         *rest = skip(tok->next, ";");
         return node;
     }
@@ -827,6 +833,8 @@ static Node *stmt(Token **rest, Token *tok) {
             node->init = declaration(&tok, tok);
         } else if (!equal(tok, ";")) {
             node->init = expr_stmt(&tok, tok);
+            tok = skip(tok, ";");
+        } else {
             tok = skip(tok, ";");
         }
 
