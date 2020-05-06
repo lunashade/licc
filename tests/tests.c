@@ -520,6 +520,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(8, sizeof(int(*)[10]), "sizeof(int(*)[10])");
     assert(8, sizeof(int(*)[]), "sizeof(int(*)[])");
 
+    assert(8, ({struct foo *bar; sizeof(bar);}), "({struct foo *bar; sizeof(bar);})");
+    assert(4, ({struct T *bar; struct T {int x;}; sizeof(struct T);}), "({struct T *bar; struct T {int x;}; sizeof(struct T);})");
+    assert(4, ({typedef struct T T; struct T {int x;}; sizeof(T);}), "({typedef struct T T; struct T {int x;}; sizeof(T);})");
+    assert(1, ({struct T {struct T *next; int x;} a; struct T b; b.x = 1; a.next=&b; a.next->x;}), "({struct T {struct T *next; int x;} a; struct T b; b.x = 1; a.next=&b; a.next->x;})");
+
     printf("OK\n");
     return 0;
 }

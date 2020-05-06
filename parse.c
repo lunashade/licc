@@ -622,7 +622,7 @@ static Type *enum_spec(Token **rest, Token *tok) {
     return ty;
 }
 
-// struct-union-spec = ("struct" | "union") (ident? "{" struct-decl | ident)
+// struct-union-spec = ("struct" | "union") ident? ("{" struct-decl)?
 static Type *struct_spec(Token **rest, Token *tok) {
     TagKind kind;
     if (equal(tok, "struct")) {
@@ -639,20 +639,22 @@ static Type *struct_spec(Token **rest, Token *tok) {
         tok = tok->next;
     }
     if (tag && !equal(tok, "{")) {
-        TagScope *sc = find_tag(tag);
-        if (!sc) {
-            error_tok(tag, "parse: struct-spec: unknown struct type");
-        }
-        if (sc->kind != kind)
-            error_tok(tag,
-                      "parse: tag kind mismatch from previous declaration");
         *rest = tok;
-        return sc->ty;
+        TagScope *sc = find_tag(tag);
+        if (sc) {
+            if (sc->kind != kind)
+                error_tok(tag,
+                          "parse: tag kind mismatch from previous declaration");
+            return sc->ty;
+        }
+        Type *ty = struct_type();
+        ty->is_incomplete = true;
+        push_tag_scope(tag, ty, kind);
+        return ty;
     }
 
     tok = skip(tok, "{");
-    Type *ty = calloc(1, sizeof(Type));
-    ty->kind = TY_STRUCT;
+    Type *ty = struct_type();
     ty->member = struct_decl(rest, tok);
 
     if (kind == TAG_STRUCT) {
@@ -675,9 +677,14 @@ static Type *struct_spec(Token **rest, Token *tok) {
         }
         ty->size = align_to(ty->size, ty->align);
     }
-
-    if (tag)
+    if (tag) {
+        TagScope *sc = find_tag(tag);
+        if (sc && sc->depth == scope_depth) {
+            *sc->ty = *ty;
+            return sc->ty;
+        }
         push_tag_scope(tag, ty, kind);
+    }
     return ty;
 }
 

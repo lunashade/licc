@@ -261,6 +261,7 @@ Type *new_type(TypeKind kind, int size, int align);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);
+Type *struct_type(void);
 Type *enum_type(void);
 Type *copy_type(Type *ty);
 
