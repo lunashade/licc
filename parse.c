@@ -872,7 +872,7 @@ static Node *expr(Token **rest, Token *tok) {
 }
 
 // assign = logical_or ( assign-op assign )*
-// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&="
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^="
 static Node *assign(Token **rest, Token *tok) {
     Node *node = logical_or(&tok, tok);
     for (;;) {
@@ -910,6 +910,24 @@ static Node *assign(Token **rest, Token *tok) {
             Node *rhs = assign(&tok, tok->next);
             node = new_binary_node(ND_ASSIGN, node,
                                    new_binary_node(ND_MOD, node, rhs, op), op);
+        }
+        if (equal(tok, "&=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_AND, node, rhs, op), op);
+        }
+        if (equal(tok, "^=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_XOR, node, rhs, op), op);
+        }
+        if (equal(tok, "|=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_OR, node, rhs, op), op);
         }
         *rest = tok;
         return node;

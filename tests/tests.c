@@ -428,7 +428,13 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(4, ({enum T {zero, one, two}; enum T y; sizeof(y);}), "({enum T {zero, one, two}; enum T y; sizeof(y);})");
 
     assert(1, 10%3, "10%3");
+    assert(4, sizeof( 10%3 ), "sizeof( 10%3 )");
     assert(1, ({int x=10; x%=3; x;}), "({int x=10; x%=3; x;})");
+    assert(4, ({int x=10; x%=3; sizeof x;}), "({int x=10; x%=3; sizeof x;})");
+    assert(1, ({long x=10; x%=3; x;}), "({long x=10; x%=3; x;})");
+    assert(8, ({long x=10; x%=3; sizeof x;}), "({long x=10; x%=3; sizeof x;})");
+    assert(2, ({short int x=10; x%=3; sizeof x;}), "({short int x=10; x%=3; sizeof x;})");
+    assert(1, ({char x=10; x%=3; sizeof x;}), "({char x=10; x%=3; sizeof x;})");
 
     assert(3, 7&3, "7&3");
     assert(7, 7|3, "7|3");
@@ -439,6 +445,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(8, sizeof(7&(long)3), "sizeof(7&(long)3)");
     assert(8, sizeof(7|(long)3), "sizeof(7|(long)3)");
     assert(8, sizeof(7^(long)3), "sizeof(7^(long)3)");
+    assert(2, ({int x=6; x&=3; x;}), "({int x=6; x&=3; x;})");
+    assert(7, ({int x=6; x|=3; x;}), "({int x=6; x|=3; x;})");
+    assert(5, ({int x=6; x^=3; x;}), "({int x=6; x^=3; x;})");
 
     printf("OK\n");
     return 0;
