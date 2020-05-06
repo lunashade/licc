@@ -18,6 +18,7 @@ static Node *declaration(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
+static long const_expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *conditional(Token **rest, Token *tok);
 static Node *logical_or(Token **rest, Token *tok);
@@ -575,7 +576,7 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
 }
 
 // enum-spec = "enum" ident? "{" enum-list | "enum" ident
-// enum-list = ident ("=" num)? ("," ident ("=" num)?)* ","? "}"
+// enum-list = ident ("=" const-expr)? ("," ident ("=" const-expr)?)* ","? "}"
 static Type *enum_spec(Token **rest, Token *tok) {
     Type *ty = enum_type();
     tok = skip(tok, "enum");
@@ -604,8 +605,7 @@ static Type *enum_spec(Token **rest, Token *tok) {
         char *name = get_ident(tok);
         tok = tok->next;
         if (equal(tok, "=")) {
-            val = get_number(tok->next);
-            tok = tok->next->next;
+            val = const_expr(&tok, tok->next);
         }
 
         VarScope *vsc = push_scope(name);
@@ -768,7 +768,7 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     return ty;
 }
 
-// array-dim = num? "]" type-suffix
+// array-dim = const_expr? "]" type-suffix
 static Type *array_dim(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "]")) {
         // imcomplete
@@ -778,8 +778,8 @@ static Type *array_dim(Token **rest, Token *tok, Type *ty) {
         return ty;
     }
 
-    int sz = get_number(tok);
-    tok = skip(tok->next, "]");
+    int sz = const_expr(&tok, tok);
+    tok = skip(tok, "]");
     *rest = tok;
     ty = type_suffix(rest, tok, ty);
     return array_of(ty, sz);
@@ -819,7 +819,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 //      | "break" ";"
 //      | "continue" ";"
 //      | "switch" "(" expr ")" stmt
-//      | "case" num ":" stmt
+//      | "case" const-expr ":" stmt
 //      | "default" ":" stmt
 static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "{")) {
@@ -840,11 +840,9 @@ static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "case")) {
         if (!current_switch)
             error_tok(tok, "parse: stmt: stray `case`");
-        // TODO: support const-expr for case tag
-        // currently `case num : stmt` only
-        long val = get_number(tok->next);
         Node *node = new_node(ND_CASE, tok);
-        tok = skip(tok->next->next, ":");
+        long val = const_expr(&tok, tok->next);
+        tok = skip(tok, ":");
         node->then = stmt(rest, tok);
         node->val = val;
         node->case_next = current_switch->case_next;
@@ -962,6 +960,75 @@ static Node *expr(Token **rest, Token *tok) {
     }
     *rest = tok;
     return node;
+}
+
+static long eval(Node *node) {
+    add_type(node);
+    switch (node->kind) {
+    case ND_NUM:
+        return node->val;
+    case ND_CAST: {
+        if (is_integer(node->ty)) {
+            switch (size_of(node->ty)) {
+            case 1:
+                return (char)eval(node->lhs);
+            case 2:
+                return (short)eval(node->lhs);
+            case 4:
+                return (int)eval(node->lhs);
+            }
+        }
+        return eval(node->lhs);
+    }
+    case ND_ADD:
+        return eval(node->lhs) + eval(node->rhs);
+    case ND_SUB:
+        return eval(node->lhs) - eval(node->rhs);
+    case ND_MUL:
+        return eval(node->lhs) * eval(node->rhs);
+    case ND_DIV:
+        return eval(node->lhs) / eval(node->rhs);
+    case ND_MOD:
+        return eval(node->lhs) % eval(node->rhs);
+    case ND_AND:
+        return eval(node->lhs) & eval(node->rhs);
+    case ND_OR:
+        return eval(node->lhs) | eval(node->rhs);
+    case ND_XOR:
+        return eval(node->lhs) ^ eval(node->rhs);
+    case ND_SHL:
+        return eval(node->lhs) << eval(node->rhs);
+    case ND_SHR:
+        return eval(node->lhs) >> eval(node->rhs);
+    case ND_LOGAND:
+        return eval(node->lhs) && eval(node->rhs);
+    case ND_LOGOR:
+        return eval(node->lhs) || eval(node->rhs);
+    case ND_EQ:
+        return eval(node->lhs) == eval(node->rhs);
+    case ND_NE:
+        return eval(node->lhs) != eval(node->rhs);
+    case ND_LE:
+        return eval(node->lhs) <= eval(node->rhs);
+    case ND_LT:
+        return eval(node->lhs) < eval(node->rhs);
+    case ND_COND:
+        return eval(node->cond) ? eval(node->then) : eval(node->els);
+    case ND_COMMA:
+        return eval(node->rhs);
+    case ND_NOT:
+        return !eval(node->lhs);
+    case ND_BITNOT:
+        return ~eval(node->lhs);
+    default:
+        error_tok(node->tok, "parse: const_expr: not a constant expression");
+    }
+}
+
+// const-expr = conditional
+static long const_expr(Token **rest, Token *tok) {
+    Node *node = conditional(rest, tok);
+    return eval(node);
 }
 
 // assign = conditional ( assign-op assign )*
