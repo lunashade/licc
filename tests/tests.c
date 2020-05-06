@@ -485,6 +485,19 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(11, ({ int i=0; int j=0; while (i++<10) { if (i>5) continue; j++;  } i;  }), "({ int i=0; int j=0; while (i++<10) { if (i>5) continue; j++;  } i;  })");
     assert(5, ({ int i=0; int j=0; while (i++<10) { if (i>5) continue; j++;  } j;  }), "({ int i=0; int j=0; while (i++<10) { if (i>5) continue; j++;  } j;  })");
     assert(11, ({ int i=0; int j=0; while(!i) { while (j++!=10) continue; break;  } j;  }), "({ int i=0; int j=0; while(!i) { while (j++!=10) continue; break;  } j;  })");
+
+    assert(8, 1<<3, "1<<3");
+    assert(1, 8>>3, "8>>3");
+    assert(-1, -8>>3, "-8>>3");
+    assert(4, sizeof( -8>>3 ), "sizeof( -8>>3 )");
+    assert(4, sizeof( -8>>(long)3 ), "sizeof( -8>>(long)3 )");
+    assert(4, sizeof( -8>>(char)3 ), "sizeof( -8>>(char)3 )");
+    assert(8, sizeof( (long)-8>>3 ), "sizeof( (long)-8>>3 )");
+    assert(1, sizeof( (char)-8>>3 ), "sizeof( (char)-8>>3 )");
+
+    assert(-8, ({int i=-1; i<<=3; i;}), "({int i=-1; i<<=3; i;})");
+    assert(-1, ({int i=-8; i>>=3; i;}), "({int i=-8; i>>=3; i;})");
+
     printf("OK\n");
     return 0;
 }

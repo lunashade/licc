@@ -110,6 +110,8 @@ typedef enum {
     ND_OR,        // |
     ND_AND,       // &
     ND_XOR,       // ^
+    ND_SHL,       // <<
+    ND_SHR,       // >>
     ND_CAST,      // (type-name)
     ND_LOGAND,    // &&
     ND_LOGOR,     // ||
