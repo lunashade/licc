@@ -789,6 +789,11 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
             tok = skip(tok, ",");
         Type *basety = decl_specifier(&tok, tok, NULL);
         Type *ty = declarator(&tok, tok, basety);
+        if (ty->kind == TY_ARRAY) {
+            Token *name = ty->name;
+            ty = pointer_to(ty->base);
+            ty->name = name;
+        }
         cur = cur->next = copy_type(ty);
     }
     *rest = skip(tok, ")");

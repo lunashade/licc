@@ -15,8 +15,13 @@ test: lcc fmt
 	cc -static -o tmp tmp.s tmp2.o
 	./tmp
 
-longtest: clean lcc test
-	tests/old_test.sh
+test-nqueen: lcc
+	./lcc examples/nqueen.c > tmp-nqueen.s
+	cc -static -o tmp-nqueen tmp-nqueen.s
+	./tmp-nqueen
+
+test-dp: lcc
+	@examples/dp_a.sh
 
 fmt:
 	@bash fmt.sh
