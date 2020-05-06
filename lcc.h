@@ -104,6 +104,8 @@ typedef enum {
     ND_NE,        // !=
     ND_LT,        // <
     ND_LE,        // <=
+    ND_BITNOT,    // ~
+    ND_NOT,       // !
     ND_OR,        // |
     ND_AND,       // &
     ND_XOR,       // ^

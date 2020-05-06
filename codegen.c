@@ -91,7 +91,8 @@ static void load(Type *ty) {
     }
     char *rs = reg_pop();
     // When we load value of size <4, always extend to the size of int,
-    // so that we can assume that the lower half of register contains valid value.
+    // so that we can assume that the lower half of register contains valid
+    // value.
     char *rd = reg_push_x(ty);
     int sz = size_of(ty);
     if (sz == 1) {
@@ -207,6 +208,20 @@ static void gen_expr(Node *node) {
         gen_addr(node->lhs);
         store(node->ty);
         return;
+    case ND_BITNOT:
+        gen_expr(node->lhs);
+        printf("\tnot %s\n", reg_pop());
+        reg_push();
+        return;
+    case ND_NOT: {
+        gen_expr(node->lhs);
+        char *rs = reg_pop();
+        char *rd = reg_push();
+        printf("\tcmp %s, 0\n", rs);
+        printf("\tsete %sb\n", rd);
+        printf("\tmovzx %s, %sb\n", rd, rs);
+        return;
+    }
     case ND_LOGOR: {
         int label = next_label();
 

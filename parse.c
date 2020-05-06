@@ -1104,7 +1104,7 @@ static Node *cast(Token **rest, Token *tok) {
 // unary =  (unary-op)? cast | postfix
 //       | "sizeof" unary
 //       | "sizeof" "(" typename ")"
-// unary-op = ( "+" | "-" | "*" | "&" | "++" | "--")
+// unary-op = ( "+" | "-" | "*" | "&" | "++" | "--" | "~" | "!")
 static Node *unary(Token **rest, Token *tok) {
     Token *start = tok;
     if (equal(tok, "+")) {
@@ -1119,6 +1119,12 @@ static Node *unary(Token **rest, Token *tok) {
     }
     if (equal(tok, "&")) {
         return new_unary_node(ND_ADDR, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "!")) {
+        return new_unary_node(ND_NOT, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "~")) {
+        return new_unary_node(ND_BITNOT, cast(rest, tok->next), start);
     }
     if (equal(tok, "sizeof") && equal(tok->next, "(") &&
         is_typename(tok->next->next)) {

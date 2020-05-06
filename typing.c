@@ -148,6 +148,12 @@ void add_type(Node *node) {
             node->ty = pointer_to(node->lhs->ty);
         }
         return;
+    case ND_BITNOT:
+        node->ty = node->lhs->ty;
+        return;
+    case ND_NOT:
+        node->ty = ty_int;
+        return;
     case ND_DEREF:
         if (!is_pointing(node->lhs->ty)) {
             error_tok(node->tok, "type: invalid pointer dereference");

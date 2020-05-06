@@ -449,6 +449,16 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(7, ({int x=6; x|=3; x;}), "({int x=6; x|=3; x;})");
     assert(5, ({int x=6; x^=3; x;}), "({int x=6; x^=3; x;})");
 
+    assert(1, !0, "!0");
+    assert(0, !1, "!1");
+    assert(0, !2, "!2");
+    assert(4, sizeof(!0), "sizeof(!0)");
+    assert(4, sizeof(!(char)0), "sizeof(!(char)0)");
+    assert(4, sizeof(!(long)0), "sizeof(!(long)0)");
+    assert(-1, ~0, "~0");
+    assert(-2, ~1, "~1");
+    assert(0, ~-1, "~-1");
+
     printf("OK\n");
     return 0;
 }
