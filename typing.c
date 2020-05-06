@@ -83,6 +83,19 @@ static void usual_arithmetic_conversion(Node **lhs, Node **rhs) {
     *rhs = new_cast(*rhs, ty);
 }
 
+static void assert_same_type(Node *lhs, Node *rhs) {
+    if (is_integer(lhs->ty)) {
+        if (lhs->ty->kind != rhs->ty->kind)
+            error_tok(rhs->tok, "type: must have same scalar type");
+    } else if (is_pointing(lhs->ty)) {
+        if (!is_pointing(rhs->ty))
+            error_tok(rhs->tok, "type: must have same scalar type");
+    } else {
+        if (lhs->ty != rhs->ty)
+            error_tok(rhs->tok, "type: must have same type");
+    }
+}
+
 void add_type(Node *node) {
     if (!node || node->ty)
         return;
@@ -119,6 +132,7 @@ void add_type(Node *node) {
     case ND_ASSIGN:
         if (is_scalar(node->rhs->ty))
             node->rhs = new_cast(node->rhs, node->lhs->ty);
+        assert_same_type(node->lhs, node->rhs);
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
@@ -131,6 +145,7 @@ void add_type(Node *node) {
     case ND_LOGAND:
     case ND_LOGOR:
         usual_arithmetic_conversion(&node->lhs, &node->rhs);
+        assert_same_type(node->lhs, node->rhs);
         node->ty = ty_int;
         return;
     case ND_VAR:
@@ -151,6 +166,18 @@ void add_type(Node *node) {
     case ND_SHR:
         node->ty = node->lhs->ty;
         return;
+    case ND_COND: {
+        if (node->then->ty->kind == TY_VOID || node->els->ty->kind == TY_VOID) {
+            node->ty = ty_void;
+            return;
+        }
+        if (is_scalar(node->then->ty) || is_scalar(node->els->ty)) {
+            usual_arithmetic_conversion(&node->then, &node->els);
+        }
+        assert_same_type(node->then, node->els);
+        node->ty = node->then->ty;
+        return;
+    }
     case ND_NOT:
         node->ty = ty_int;
         return;

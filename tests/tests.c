@@ -504,6 +504,19 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, ({int i=3; int j=0; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;}), "({int i=3; int j=0; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;})");
     assert(7, ({int i=3; int j; switch(i){case 0:j=5;break;case 1:j=6;break;default:j=7;break;} j;}), "({int i=3; int j; switch(i){case 0:j=5;break;case 1:j=6;break;default:j=7;break;} j;})");
 
+    assert(2, 0?1:2, "0?1:2");
+    assert(1, 1?1:2, "1?1:2");
+    assert(-1, 0?-2:-1, "0?-2:-1");
+    assert(-2, 1?-2:-1, "1?-2:-1");
+    assert(4, sizeof(0?1:2), "sizeof(0?1:2)");
+    assert(8, sizeof(0?(long)1:(long)2), "sizeof(0?(long)1:(long)2)");
+    assert(-1, 0?(long)-2:-1, "0?(long)-2:-1");
+    assert(-1, 0?-2:(long)-1, "0?-2:(long)-1");
+    assert(-2, 1?(long)-2:-1, "1?(long)-2:-1");
+    assert(-2, 1?-2:(long)-1, "1?-2:(long)-1");
+
+1 ? -2 : (void)-1;
+
     printf("OK\n");
     return 0;
 }

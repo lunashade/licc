@@ -191,6 +191,19 @@ static void gen_expr(Node *node) {
         gen_addr(node);
         load(node->ty);
         return;
+    case ND_COND: {
+        int label = next_label();
+        gen_expr(node->cond);
+        printf("\tcmp %s, 0\n", reg_pop());
+        printf("\tje .L.else.%d\n", label);
+        gen_expr(node->then);
+        top--;
+        printf("\tjmp .L.end.%d\n", label);
+        printf(".L.else.%d:\n", label);
+        gen_expr(node->els);
+        printf(".L.end.%d:\n", label);
+        return;
+    }
     case ND_CAST:
         gen_expr(node->lhs);
         cast(node->lhs->ty, node->ty);
@@ -433,7 +446,7 @@ static void gen_stmt(Node *node) {
         gen_expr(node->cond);
         char *rd = reg_pop();
 
-        for (Node *n = node->case_next; n; n=n->case_next) {
+        for (Node *n = node->case_next; n; n = n->case_next) {
             n->case_label = next_label();
             n->case_end_label = label;
             printf("\tcmp %s, %ld\n", rd, n->val);

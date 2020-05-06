@@ -18,6 +18,7 @@ static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
+static Node *conditional(Token **rest, Token *tok);
 static Node *logical_or(Token **rest, Token *tok);
 static Node *logical_and(Token **rest, Token *tok);
 static Node *bit_or(Token **rest, Token *tok);
@@ -939,10 +940,10 @@ static Node *expr(Token **rest, Token *tok) {
     return node;
 }
 
-// assign = logical_or ( assign-op assign )*
-// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^="
+// assign = conditional ( assign-op assign )*
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^=" | "<<=" | ">>="
 static Node *assign(Token **rest, Token *tok) {
-    Node *node = logical_or(&tok, tok);
+    Node *node = conditional(&tok, tok);
     for (;;) {
         if (equal(tok, "=")) {
             Token *op = tok;
@@ -1012,6 +1013,21 @@ static Node *assign(Token **rest, Token *tok) {
         *rest = tok;
         return node;
     }
+}
+
+// conditional = logical-or ("?" expr ":" conditional)?
+static Node *conditional(Token **rest, Token *tok) {
+    Node *node = logical_or(&tok, tok);
+    if (!equal(tok, "?")) {
+        *rest = tok;
+        return node;
+    }
+    Node *cond = new_node(ND_COND, tok);
+    cond->cond = node;
+    cond->then = expr(&tok, tok->next);
+    tok = skip(tok, ":");
+    cond->els = conditional(rest, tok);
+    return cond;
 }
 
 // logical-or = logical-and ("||" logical-and)*

@@ -117,6 +117,7 @@ typedef enum {
     ND_LOGOR,     // ||
     ND_COMMA,     // ,
     ND_ASSIGN,    // =
+    ND_COND,      // cond ? then : else
     ND_MEMBER,    // . (struct member)
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
@@ -167,8 +168,8 @@ struct Node {
     // ND_SWITCH, ND_CASE
     Node *case_next;    // switch-case-list
     Node *default_case; // switch-default
-    int case_label;      // codegen label for case node
-    int case_end_label;      // codegen label for case node
+    int case_label;     // codegen label for case node
+    int case_end_label; // codegen label for case node
 
     Token *tok; // Debug info: representative token
 };
