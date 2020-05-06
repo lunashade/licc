@@ -20,6 +20,9 @@ int size_of(Type *ty) {
     if (ty->kind == TY_VOID) {
         error_tok(ty->name, "type: void has no size");
     }
+    if (ty->is_incomplete) {
+        error_tok(ty->name, "type: incomplete type");
+    }
     return ty->size;
 }
 

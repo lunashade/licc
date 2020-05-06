@@ -230,6 +230,8 @@ struct Type {
     Type *next;      // next parameter
     // TY_STRUCT
     Member *member;
+    // ARRAY or STRUCT
+    bool is_incomplete;
 };
 
 struct Member {

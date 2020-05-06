@@ -10,6 +10,7 @@ static Type *typename(Token **rest, Token *tok);
 static Type *abstract_declarator(Token **rest, Token *tok, Type *ty);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Type *type_suffix(Token **rest, Token *tok, Type *ty);
+static Type *array_dim(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
 
 static Node *compound_stmt(Token **rest, Token *tok);
@@ -746,9 +747,7 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
     return ty;
 }
 
-// type-suffix = ("(" func-params)?
-//             | "[" num "]" type-suffix
-//             | e
+// type-suffix = ("(" func-params | "[" array-dim)?
 static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "(")) {
         ty = func_type(ty);
@@ -756,14 +755,27 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
         return ty;
     }
     if (equal(tok, "[")) {
-        int sz = get_number(tok->next);
-        tok = skip(tok->next->next, "]");
-        *rest = tok;
-        ty = type_suffix(rest, tok, ty);
-        return array_of(ty, sz);
+        return array_dim(rest, tok->next, ty);
     }
     *rest = tok;
     return ty;
+}
+
+// array-dim = num? "]" type-suffix
+static Type *array_dim(Token **rest, Token *tok, Type *ty) {
+    if (equal(tok, "]")) {
+        // imcomplete
+        ty = type_suffix(rest, tok->next, ty);
+        ty = array_of(ty, 0);
+        ty->is_incomplete = true;
+        return ty;
+    }
+
+    int sz = get_number(tok);
+    tok = skip(tok->next, "]");
+    *rest = tok;
+    ty = type_suffix(rest, tok, ty);
+    return array_of(ty, sz);
 }
 
 // func-params = param ("," param)* ")"
@@ -941,7 +953,8 @@ static Node *expr(Token **rest, Token *tok) {
 }
 
 // assign = conditional ( assign-op assign )*
-// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^=" | "<<=" | ">>="
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^=" |
+// "<<=" | ">>="
 static Node *assign(Token **rest, Token *tok) {
     Node *node = conditional(&tok, tok);
     for (;;) {

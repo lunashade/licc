@@ -515,7 +515,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(-2, 1?(long)-2:-1, "1?(long)-2:-1");
     assert(-2, 1?-2:(long)-1, "1?-2:(long)-1");
 
-1 ? -2 : (void)-1;
+    1 ? -2 : (void)-1;
+
+    assert(8, sizeof(int(*)[10]), "sizeof(int(*)[10])");
+    assert(8, sizeof(int(*)[]), "sizeof(int(*)[])");
 
     printf("OK\n");
     return 0;
