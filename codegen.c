@@ -77,7 +77,7 @@ static char *reg_pop_x(Type *ty) { return regx(ty, --top); }
 static int labelcnt;
 static int next_label() { return ++labelcnt; }
 
-static char *funcname; // currently generating
+static Function *current_fn;
 
 // address
 
@@ -414,7 +414,7 @@ static void gen_stmt(Node *node) {
     if (node->kind == ND_RETURN) {
         gen_expr(node->lhs);
         printf("\tmov rax, %s\n", reg_pop());
-        printf("\tjmp .L.return.%s\n", funcname);
+        printf("\tjmp .L.return.%s\n", current_fn->name);
         return;
     }
     if (node->kind == ND_FOR) {
@@ -449,6 +449,15 @@ static void gen_stmt(Node *node) {
             gen_stmt(node->then);
         }
         printf(".L.end.%d:\n", lif);
+        return;
+    }
+    if (node->kind == ND_GOTO) {
+        printf("\tjmp .L.label.%s.%s\n", current_fn->name, node->labelname);
+        return;
+    }
+    if (node->kind == ND_LABEL) {
+        printf("\t.L.label.%s.%s:\n", current_fn->name, node->labelname);
+        gen_stmt(node->lhs);
         return;
     }
     if (node->kind == ND_EXPR_STMT) {
@@ -493,7 +502,7 @@ static void emit_text(Program *prog) {
         if (!fn->is_static)
             printf(".globl %s\n", fn->name);
         printf("%s:\n", fn->name);
-        funcname = fn->name;
+        current_fn = fn;
 
         // prologue
         // save stack pointer
@@ -522,7 +531,7 @@ static void emit_text(Program *prog) {
 
         // Epilogue
         // recover callee-saved registers
-        printf(".L.return.%s:\n", funcname);
+        printf(".L.return.%s:\n", current_fn->name);
         printf("\tmov r12, [rbp-8]\n");
         printf("\tmov r13, [rbp-16]\n");
         printf("\tmov r14, [rbp-24]\n");

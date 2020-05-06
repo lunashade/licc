@@ -119,6 +119,8 @@ typedef enum {
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
+    ND_GOTO,      // goto
+    ND_LABEL,     // Labeled statement
     ND_FUNCALL,   // function call
     ND_RETURN,    // return statement
     ND_IF,        // if statement
@@ -153,6 +155,7 @@ struct Node {
     Var *var;       // ND_VAR, local variable
     long val;       // ND_NUM, value
     Member *member; // ND_MEMBER, struct member
+    char *labelname; // label
 
     Token *tok; // Debug info: representative token
 };

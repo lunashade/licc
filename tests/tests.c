@@ -464,6 +464,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(171, 0xab, "0xab");
     assert(9, 011, "011");
 
+    assert(3, ({int i=0; goto a; a: i++; b: i++; c: i++; i;}), "({int i=0; goto a; a: i++; b: i++; c: i++; i;})");
+    assert(2, ({int i=0; goto e; d: i++; e: i++; f: i++; i;}), "({int i=0; goto e; d: i++; e: i++; f: i++; i;})");
+    assert(1, ({int i=0; goto i; g: i++; h: i++; i: i++; i;}), "({int i=0; goto i; g: i++; h: i++; i: i++; i;})");
+
     printf("OK\n");
     return 0;
 }

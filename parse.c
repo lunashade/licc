@@ -787,6 +787,8 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr?; expr?; expr?; ")" stmt
 //      | "{" compound_stmt
+//      | "goto" ident ";"
+//      | ident ":" stmt
 static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "{")) {
         return compound_stmt(rest, tok->next);
@@ -847,6 +849,18 @@ static Node *stmt(Token **rest, Token *tok) {
             node->els = stmt(&tok, tok->next);
         }
         *rest = tok;
+        return node;
+    }
+    if (equal(tok, "goto")) {
+        Node *node = new_node(ND_GOTO, tok);
+        node->labelname = get_ident(tok->next);
+        *rest = skip(tok->next->next, ";");
+        return node;
+    }
+    if (tok->kind == TK_IDENT && equal(tok->next, ":")) {
+        Node *node = new_node(ND_LABEL, tok);
+        node->labelname = strndup(tok->loc, tok->len);
+        node->lhs = stmt(rest, tok->next->next);
         return node;
     }
     Node *node = expr_stmt(&tok, tok);

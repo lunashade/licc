@@ -3,7 +3,7 @@
 static char *KEYWORDS[] = {"return",  "if",    "else",   "for",    "while",
                            "sizeof",  "int",   "char",   "struct", "union",
                            "short",   "long",  "void",   "signed", "unsigned",
-                           "typedef", "_Bool", "static", "enum"};
+                           "typedef", "_Bool", "static", "enum", "goto"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "<=", "==", ">=", "!=", "->", "+=", "-=", "*=", "/=",
     "%=", "&=", "|=", "^=", "++", "--", "&&", "||"};
