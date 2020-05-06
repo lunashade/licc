@@ -498,6 +498,12 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(-8, ({int i=-1; i<<=3; i;}), "({int i=-1; i<<=3; i;})");
     assert(-1, ({int i=-8; i>>=3; i;}), "({int i=-8; i>>=3; i;})");
 
+    assert(5, ({int i=0; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;}), "({int i=0; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;})");
+    assert(6, ({int i=1; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;}), "({int i=1; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;})");
+    assert(7, ({int i=2; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;}), "({int i=2; int j; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;})");
+    assert(0, ({int i=3; int j=0; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;}), "({int i=3; int j=0; switch(i){case 0:j=5;break;case 1:j=6;break;case 2:j=7;break;} j;})");
+    assert(7, ({int i=3; int j; switch(i){case 0:j=5;break;case 1:j=6;break;default:j=7;break;} j;}), "({int i=3; int j; switch(i){case 0:j=5;break;case 1:j=6;break;default:j=7;break;} j;})");
+
     printf("OK\n");
     return 0;
 }

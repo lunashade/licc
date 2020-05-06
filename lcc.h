@@ -121,6 +121,8 @@ typedef enum {
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
+    ND_SWITCH,    // switch
+    ND_CASE,      // case
     ND_BREAK,     // break
     ND_CONTINUE,  // continue
     ND_GOTO,      // goto
@@ -143,6 +145,7 @@ struct Node {
     Node *next; // next statement
     Node *body; // block body
 
+    // ND_FUNCALL
     char *funcname; // function call
     Node *args;     // function args
     Type *func_ty;  // function type info
@@ -160,6 +163,12 @@ struct Node {
     long val;        // ND_NUM, value
     Member *member;  // ND_MEMBER, struct member
     char *labelname; // label
+
+    // ND_SWITCH, ND_CASE
+    Node *case_next;    // switch-case-list
+    Node *default_case; // switch-default
+    int case_label;      // codegen label for case node
+    int case_end_label;      // codegen label for case node
 
     Token *tok; // Debug info: representative token
 };

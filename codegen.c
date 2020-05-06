@@ -423,6 +423,40 @@ static void gen_stmt(Node *node) {
         }
         return;
     }
+    if (node->kind == ND_SWITCH) {
+        int label = next_label();
+        int brk = breaklabel;
+        breaklabel = label;
+
+        node->case_label = label;
+
+        gen_expr(node->cond);
+        char *rd = reg_pop();
+
+        for (Node *n = node->case_next; n; n=n->case_next) {
+            n->case_label = next_label();
+            n->case_end_label = label;
+            printf("\tcmp %s, %ld\n", rd, n->val);
+            printf("\tje .L.case.%d\n", n->case_label);
+        }
+        if (node->default_case) {
+            node->default_case->case_label = next_label();
+            node->default_case->case_end_label = label;
+            printf("\tjmp .L.case.%d\n", node->default_case->case_label);
+        }
+
+        printf("\tjmp .L.break.%d\n", label);
+        gen_stmt(node->then);
+        printf("\t.L.break.%d:\n", label);
+
+        breaklabel = brk;
+        return;
+    }
+    if (node->kind == ND_CASE) {
+        printf(".L.case.%d:\n", node->case_label);
+        gen_stmt(node->then);
+        return;
+    }
     if (node->kind == ND_RETURN) {
         gen_expr(node->lhs);
         printf("\tmov rax, %s\n", reg_pop());

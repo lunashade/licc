@@ -197,9 +197,10 @@ Node *new_cast(Node *expr, Type *ty) {
 static Var *globals;
 static Var *locals;
 
-static VarScope *var_scope; // variable scope stack top
-static TagScope *tag_scope; // tag scope stack top
-static Var *current_fn;     // function currently parsing
+static VarScope *var_scope;  // variable scope stack top
+static TagScope *tag_scope;  // tag scope stack top
+static Node *current_switch; // switch statement AST node currently parsing
+static Var *current_fn;      // function currently parsing
 static int scope_depth;
 
 static void enter_scope(void) { scope_depth++; }
@@ -792,9 +793,47 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 //      | ident ":" stmt
 //      | "break" ";"
 //      | "continue" ";"
+//      | "switch" "(" expr ")" stmt
+//      | "case" num ":" stmt
+//      | "default" ":" stmt
 static Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "{")) {
         return compound_stmt(rest, tok->next);
+    }
+    if (equal(tok, "switch")) {
+        Node *node = new_node(ND_SWITCH, tok);
+        tok = skip(tok->next, "(");
+        node->cond = expr(&tok, tok);
+        tok = skip(tok, ")");
+
+        Node *sw = current_switch;
+        current_switch = node;
+        node->then = stmt(rest, tok);
+        current_switch = sw;
+        return node;
+    }
+    if (equal(tok, "case")) {
+        if (!current_switch)
+            error_tok(tok, "parse: stmt: stray `case`");
+        // TODO: support const-expr for case tag
+        // currently `case num : stmt` only
+        long val = get_number(tok->next);
+        Node *node = new_node(ND_CASE, tok);
+        tok = skip(tok->next->next, ":");
+        node->then = stmt(rest, tok);
+        node->val = val;
+        node->case_next = current_switch->case_next;
+        current_switch->case_next = node;
+        return node;
+    }
+    if (equal(tok, "default")) {
+        if (!current_switch)
+            error_tok(tok, "parse: stmt: stray `default`");
+        tok = skip(tok->next, ":");
+        Node *node = new_node(ND_CASE, tok);
+        node->then = stmt(rest, tok);
+        current_switch->default_case = node;
+        return node;
     }
     if (equal(tok, "break")) {
         Node *node = new_node(ND_BREAK, tok);
