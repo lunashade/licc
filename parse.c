@@ -1100,7 +1100,6 @@ static Node *shift(Token **rest, Token *tok) {
         *rest = tok;
         return node;
     }
-
 }
 
 // add = mul ( "+" mul | "-" mul )*

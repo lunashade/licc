@@ -27,7 +27,7 @@ static char *readfile(char *path) {
     if (fp != stdin)
         fclose(fp);
 
-    if (nread == 0 || buf[nread-1] != '\n')
+    if (nread == 0 || buf[nread - 1] != '\n')
         buf[nread++] = '\n';
     buf[nread] = '\0';
 

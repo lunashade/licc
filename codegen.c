@@ -327,15 +327,15 @@ static void gen_expr(Node *node) {
     reg_push();
 
     if (node->kind == ND_SHL) {
-        printf("\tmov rcx, %s\n", reg(top));  // rs with 8-bit register
+        printf("\tmov rcx, %s\n", reg(top)); // rs with 8-bit register
         printf("\tshl %s, cl\n", rd);
         return;
-    } 
+    }
     if (node->kind == ND_SHR) {
-        printf("\tmov rcx, %s\n", reg(top));  // rs with 8-bit register
+        printf("\tmov rcx, %s\n", reg(top)); // rs with 8-bit register
         printf("\tsar %s, cl\n", rd);
         return;
-    } 
+    }
     if (node->kind == ND_ADD) {
         printf("\tadd %s, %s\n", rd, rs);
         return;
