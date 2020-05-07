@@ -470,6 +470,18 @@ struct Designator {
     Var *var;
 };
 
+static Token *skip_excess_element(Token *tok) {
+    while(!is_end(tok)) {
+        tok = skip(tok, ",");
+        if (equal(tok, "{")) {
+            tok = skip_excess_element(tok->next);
+        } else {
+            assign(&tok, tok);
+        }
+    }
+    return tok;
+}
+
 // initializer = "{" initializer ("," initializer)* ","? "}"
 //             | assign
 static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
@@ -480,6 +492,10 @@ static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
             if (i > 0)
                 tok = skip(tok, ",");
             init->children[i] = initializer(&tok, tok, ty->base);
+        }
+        if (!is_end(tok)) {
+            warn_tok(tok, "parse: initializer: skip excess element");
+            tok = skip_excess_element(tok);
         }
         *rest = skip_end(tok);
         return init;
@@ -518,9 +534,10 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
     return cur->next;
 }
 
-// scalar initialization: a = 0;
-// => { a = 0; }
-// array initialization: a[3] = {0, 1, 2};
+// scalar initialization:
+// a = 0; => { a = 0; }
+// array initialization:
+// a[3] = {0, 1, 2};
 // => {a[0] = 0; a[1] = 1; a[2] = 2;}
 // => {*(a+0) = 0; *(a+1) = 1; *(a+2) = 2;}
 static Node *lvar_initializer(Token **rest, Token *tok, Var *var) {
