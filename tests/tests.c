@@ -589,6 +589,15 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, ({int b[2][2] = {{0,1,4}, {2,3,7}}; b[0][0];}), "({int b[2][2] = {{0,1,4}, {2,3,7}}; b[0][0];})");
     assert(3, ({int b[2][2] = {{0,1,4}, {2,3,7}}; b[1][1];}), "({int b[2][2] = {{0,1,4}, {2,3,7}}; b[1][1];})");
 
+    assert(97, ({char a[4] = "abc"; a[0];}), "({char a[4] = \"abc\"; a[0];})");
+    assert(98, ({char a[4] = "abc"; a[1];}), "({char a[4] = \"abc\"; a[1];})");
+    assert(99, ({char a[4] = "abc"; a[2];}), "({char a[4] = \"abc\"; a[2];})");
+    assert(0, ({char a[4] = "abc"; a[3];}), "({char a[4] = \"abc\"; a[3];})");
+
+    assert(97, ({char a[4][4] = {"abc", "def"}; a[0][0];}), "({char a[4][4] = {\"abc\", \"def\"}; a[0][0];})");
+    assert(98, ({char a[4][4] = {"abc", "def"}; a[0][1];}), "({char a[4][4] = {\"abc\", \"def\"}; a[0][1];})");
+    assert(102, ({char a[4][4] = {"abc", "def"}; a[1][2];}), "({char a[4][4] = {\"abc\", \"def\"}; a[1][2];})");
+    assert(0, ({char a[4][4] = {"abc", "def"}; a[0][3];}), "({char a[4][4] = {\"abc\", \"def\"}; a[0][3];})");
 
     printf("OK\n");
     return 0;

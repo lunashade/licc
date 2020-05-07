@@ -193,6 +193,20 @@ struct Program {
     Function *fns;
 };
 
+typedef struct Designator Designator;
+struct Designator {
+    Designator *parent;
+    int index;
+    Var *var;
+};
+typedef struct Initializer Initializer;
+struct Initializer {
+    Type *ty;
+    int len;
+    Node *expr;
+    Initializer **children;
+};
+
 Node *new_cast(Node *node, Type *ty);
 Program *parse(Token *tok);
 

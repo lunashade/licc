@@ -13,6 +13,10 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *array_dim(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
 
+static Initializer *string_initializer(Token **rest, Token *tok, Type *ty);
+static Initializer *array_initializer(Token **rest, Token *tok, Type *ty);
+static Initializer *initializer(Token **rest, Token *tok, Type *ty);
+
 static Node *compound_stmt(Token **rest, Token *tok);
 static Node *declaration(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
@@ -96,6 +100,17 @@ static Token *skip_end(Token *tok) {
 }
 static bool is_end(Token *tok) {
     return equal(tok, "}") || (equal(tok, ",") && equal(tok->next, "}"));
+}
+static Token *skip_excess_element(Token *tok) {
+    while (!is_end(tok)) {
+        tok = skip(tok, ",");
+        if (equal(tok, "{")) {
+            tok = skip_excess_element(tok->next);
+        } else {
+            assign(&tok, tok);
+        }
+    }
+    return tok;
 }
 
 //
@@ -345,6 +360,18 @@ bool is_typename(Token *tok) {
     return false;
 }
 
+// Initializer
+
+static Initializer *new_initializer(Type *ty, int len) {
+    Initializer *init = calloc(1, sizeof(Initializer));
+    init->ty = ty;
+    init->len = len;
+    if (len) {
+        init->children = calloc(len, sizeof(Initializer *));
+    }
+    return init;
+}
+
 //
 // Parser
 //
@@ -445,60 +472,45 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     return node;
 }
 
-typedef struct Initializer Initializer;
-struct Initializer {
-    Type *ty;
-    int len;
-    Node *expr;
-    Initializer **children;
-};
-
-static Initializer *new_initializer(Type *ty, int len) {
-    Initializer *init = calloc(1, sizeof(Initializer));
-    init->ty = ty;
-    init->len = len;
-    if (len) {
-        init->children = calloc(len, sizeof(Initializer *));
+// string-initializer = str
+static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
+    Initializer *init = new_initializer(ty, ty->array_len);
+    int len = (ty->array_len < tok->contents_len) ? ty->array_len
+                                                  : tok->contents_len; // min;
+    for (int i=0; i<len; i++) {
+        init->children[i] = new_initializer(ty->base, 0);
+        init->children[i]->expr = new_number_node(tok->contents[i], tok);
     }
+    *rest = tok->next;
+    return init;
+}
+// array-initializer = "{" initializer ("," initializer)* ","? "}"
+static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
+    tok = skip(tok, "{");
+    Initializer *init = new_initializer(ty, ty->array_len);
+    for (int i = 0; i < ty->array_len && (!is_end(tok)); i++) {
+        if (i > 0)
+            tok = skip(tok, ",");
+        init->children[i] = initializer(&tok, tok, ty->base);
+    }
+    if (!is_end(tok)) {
+        warn_tok(tok, "parse: initializer: skip excess element");
+        tok = skip_excess_element(tok);
+    }
+    *rest = skip_end(tok);
     return init;
 }
 
-typedef struct Designator Designator;
-struct Designator {
-    Designator *parent;
-    int index;
-    Var *var;
-};
-
-static Token *skip_excess_element(Token *tok) {
-    while(!is_end(tok)) {
-        tok = skip(tok, ",");
-        if (equal(tok, "{")) {
-            tok = skip_excess_element(tok->next);
-        } else {
-            assign(&tok, tok);
-        }
-    }
-    return tok;
-}
-
-// initializer = "{" initializer ("," initializer)* ","? "}"
+// initializer = array-initializer
+//             | string-initializer
 //             | assign
 static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
+    if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
+        tok->kind == TK_STR) {
+        return string_initializer(rest, tok, ty);
+    }
     if (ty->kind == TY_ARRAY) {
-        tok = skip(tok, "{");
-        Initializer *init = new_initializer(ty, ty->array_len);
-        for (int i = 0; i < ty->array_len && (!is_end(tok)); i++) {
-            if (i > 0)
-                tok = skip(tok, ",");
-            init->children[i] = initializer(&tok, tok, ty->base);
-        }
-        if (!is_end(tok)) {
-            warn_tok(tok, "parse: initializer: skip excess element");
-            tok = skip_excess_element(tok);
-        }
-        *rest = skip_end(tok);
-        return init;
+        return array_initializer(rest, tok, ty);
     }
     Initializer *init = new_initializer(ty, 0);
     init->expr = assign(rest, tok);
