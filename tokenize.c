@@ -18,7 +18,7 @@ void error(char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     exit(1);
 }
-static void verror_at(int lineno, char *loc, char *fmt, va_list ap) {
+static void verror_at(int lineno, char* kind, char *loc, char *fmt, va_list ap) {
     char *line = loc;
     while (current_input < line && line[-1] != '\n')
         line--;
@@ -26,7 +26,7 @@ static void verror_at(int lineno, char *loc, char *fmt, va_list ap) {
     while (*lineend != '\n')
         lineend++;
 
-    int indent = fprintf(stderr, "%s:%d: ", current_filename, lineno);
+    int indent = fprintf(stderr, "%s:%d:%s: ", current_filename, lineno, kind);
     fprintf(stderr, "%.*s\n", (int)(lineend - line), line);
     int pos = loc - line + indent;
     fprintf(stderr, "%*s", pos, ""); // print pos spaces.
@@ -42,22 +42,19 @@ void error_at(char *loc, char *fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
-    printf("error: ");
-    verror_at(lineno, loc, fmt, ap);
+    verror_at(lineno, "error", loc, fmt, ap);
     exit(1);
 }
 
 void warn_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    printf("warn: ");
-    verror_at(tok->lineno, tok->loc, fmt, ap);
+    verror_at(tok->lineno, "warning", tok->loc, fmt, ap);
 }
 void error_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    printf("error: ");
-    verror_at(tok->lineno, tok->loc, fmt, ap);
+    verror_at(tok->lineno, "error", tok->loc, fmt, ap);
     exit(1);
 }
 
