@@ -357,6 +357,8 @@ Program *parse(Token *tok) {
         DeclContext ctx = {};
         Token *start = tok;
         Type *basety = decl_specifier(&tok, tok, &ctx);
+        if (consume(&tok, tok, ";"))
+            continue;
         Type *ty = declarator(&tok, tok, basety);
 
         if (ctx.type_def) {

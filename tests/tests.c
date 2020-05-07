@@ -8,6 +8,9 @@
  */
 int printf();
 int exit();
+int;
+struct {char a; int b;};
+typedef struct {char a; int b;} Ty1;
 
 int g1, g2[4];
 int testno;
