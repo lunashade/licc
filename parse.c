@@ -547,16 +547,25 @@ static void write_buf(char *buf, unsigned long val, int sz) {
 
 static void write_gvar_data(char *buf, Initializer *init, Type *ty,
                             int offset) {
+    if (ty->kind == TY_STRUCT) {
+        int i = 0;
+        for (Member *m = ty->member; m; m = m->next, i++) {
+            Initializer *child = init->children[i];
+            if (child)
+                write_gvar_data(buf, child, m->ty, offset + m->offset);
+        }
+        return;
+    }
     if (ty->kind == TY_ARRAY) {
         int sz = size_of(ty->base);
-        for (int i=0; i<ty->array_len; i++) {
+        for (int i = 0; i < ty->array_len; i++) {
             Initializer *child = init->children[i];
             if (child)
                 write_gvar_data(buf, child, ty->base, offset + sz * i);
         }
         return;
     }
-    write_buf(buf+offset, eval(init->expr), size_of(ty));
+    write_buf(buf + offset, eval(init->expr), size_of(ty));
 }
 
 static char *gvar_initializer(Token **rest, Token *tok, Type *ty) {

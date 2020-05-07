@@ -14,9 +14,15 @@ typedef struct {char a; int b;} Ty1;
 
 int g1, g2[4];
 
+
 int g3 = 3;
 char g4 = 4;
 int g5[5] = {1,2,3,4,5};
+Ty1 g6 = {'a', 98};
+short g7 = 7;
+long g8 = 8;
+
+struct {int a[2];} g9[2] = {{{9, 10}}};
 
 int testno;
 
@@ -637,6 +643,16 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, g3, "g3");
     assert(4, g4, "g4");
     assert(5, g5[4], "g5[4]");
+    assert(97, g6.a, "g6.a");
+    assert(98, g6.b, "g6.b");
+    assert(7, g7, "g7");
+    assert(8, g8, "g8");
+    assert(8, g8, "g8");
+
+    assert(9, g9[0].a[0], "g9[0].a[0]");
+    assert(10, g9[0].a[1], "g9[0].a[1]");
+    assert(0, g9[1].a[0], "g9[1].a[0]");
+    assert(0, g9[1].a[1], "g9[1].a[1]");
 
     printf("OK\n");
     return 0;
