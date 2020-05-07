@@ -45,9 +45,7 @@ int solve(int board[][10], int row) {
 }
 
 int main() {
-    int board[100];
-    for (int i = 0; i < 100; i++)
-        board[i] = 0;
+    int board[10][10] = {};
     solve(board, 0);
     return 0;
 }
