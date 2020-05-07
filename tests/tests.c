@@ -13,6 +13,11 @@ struct {char a; int b;};
 typedef struct {char a; int b;} Ty1;
 
 int g1, g2[4];
+
+int g3 = 3;
+char g4 = 4;
+int g5[5] = {1,2,3,4,5};
+
 int testno;
 
 int assert(int want, int got, char *code) {
@@ -628,6 +633,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(4, ({int x[] = {1,2,3,4}; x[3];}), "({int x[] = {1,2,3,4}; x[3];})");
     assert(16, ({int x[] = {1,2,3,4}; sizeof(x);}), "({int x[] = {1,2,3,4}; sizeof(x);})");
     assert(4, ({char x[] = "foo"; sizeof(x);}), "({char x[] = \"foo\"; sizeof(x);})");
+
+    assert(3, g3, "g3");
+    assert(4, g4, "g4");
+    assert(5, g5[4], "g5[4]");
 
     printf("OK\n");
     return 0;

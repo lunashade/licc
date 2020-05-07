@@ -65,8 +65,9 @@ struct Var {
     int offset;    // offset from rbp
     bool is_local; // local or not
 
-    char *contents;   // string literal is global variable
-    int contents_len; // string literal length
+    char *contents;   // global initialization
+    int contents_len; // length of contents
+    bool ascii; // can be converted ascii string
 };
 
 typedef struct VarScope VarScope;

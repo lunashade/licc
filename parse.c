@@ -13,6 +13,8 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *array_dim(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
 
+static char *gvar_initializer(Token **rest, Token *tok, Type *ty);
+static Node *lvar_initializer(Token **rest, Token *tok, Var *var);
 static Initializer *initializer(Token **rest, Token *tok, Type *ty);
 
 static Node *compound_stmt(Token **rest, Token *tok);
@@ -20,6 +22,7 @@ static Node *declaration(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
+static long eval(Node *node);
 static long const_expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *conditional(Token **rest, Token *tok);
@@ -341,7 +344,7 @@ static Var *new_string_literal(char *p, int len) {
     Type *ty = array_of(ty_char, len);
     Var *var = new_gvar(new_label(), ty);
     var->contents = p;
-    var->contents_len = len;
+    var->ascii = true;
     return var;
 }
 
@@ -358,7 +361,9 @@ bool is_typename(Token *tok) {
     return false;
 }
 
+//
 // Initializer
+//
 
 static Initializer *new_initializer(Type *ty, int len) {
     Initializer *init = calloc(1, sizeof(Initializer));
@@ -368,106 +373,6 @@ static Initializer *new_initializer(Type *ty, int len) {
         init->children = calloc(len, sizeof(Initializer *));
     }
     return init;
-}
-
-//
-// Parser
-//
-
-// program = ( global-var |  funcdef )*
-// global-var = decl-specifier declarator ("," declarator)* ";"
-Program *parse(Token *tok) {
-    globals = NULL;
-    Function head = {};
-    Function *cur = &head;
-
-    while (tok->kind != TK_EOF) {
-        DeclContext ctx = {};
-        Token *start = tok;
-        Type *basety = decl_specifier(&tok, tok, &ctx);
-        if (consume(&tok, tok, ";"))
-            continue;
-        Type *ty = declarator(&tok, tok, basety);
-
-        if (ctx.type_def) {
-            for (;;) {
-                push_scope(get_ident(ty->name))->type_def = ty;
-                if (equal(tok, ";")) {
-                    tok = skip(tok, ";");
-                    break;
-                }
-                tok = skip(tok, ",");
-                ty = declarator(&tok, tok, basety);
-            }
-            continue;
-        }
-        if (ty->kind == TY_FUNC) {
-            current_fn = new_func(get_ident(ty->name), ty);
-            if (!consume(&tok, tok, ";")) {
-                cur = cur->next = funcdef(&tok, start);
-            }
-            continue;
-        }
-        for (;;) {
-            new_gvar(get_ident(ty->name), ty);
-            if (equal(tok, ";")) {
-                tok = skip(tok, ";");
-                break;
-            }
-            tok = skip(tok, ",");
-            ty = declarator(&tok, tok, basety);
-        }
-    }
-
-    Program *prog = calloc(1, sizeof(Program));
-    prog->globals = globals;
-    prog->fns = head.next;
-    return prog;
-}
-
-// funcdef = decl-specifier declarator "{" compound_stmt
-static Function *funcdef(Token **rest, Token *tok) {
-    locals = NULL;
-
-    DeclContext ctx = {};
-    Type *ty = decl_specifier(&tok, tok, &ctx);
-    ty = declarator(&tok, tok, ty);
-
-    Function *fn = calloc(1, sizeof(Function));
-    fn->name = get_ident(ty->name);
-    fn->is_static = ctx.is_static;
-    enter_scope();
-    for (Type *t = ty->params; t; t = t->next) {
-        new_lvar(get_ident(t->name), t);
-    }
-    fn->params = locals;
-
-    tok = skip(tok, "{");
-    fn->node = compound_stmt(&tok, tok)->body;
-    fn->locals = locals;
-    *rest = tok;
-    leave_scope();
-    return fn;
-}
-
-// compound_stmt = ( declaration | stmt )* "}"
-static Node *compound_stmt(Token **rest, Token *tok) {
-    Node head = {};
-    Node *cur = &head;
-    enter_scope();
-    while (!equal(tok, "}")) {
-        if (is_typename(tok)) {
-            cur = cur->next = declaration(&tok, tok);
-        } else {
-            cur = cur->next = stmt(&tok, tok);
-        }
-    }
-    Node *node = new_node(ND_BLOCK, tok);
-    node->body = head.next;
-    add_type(node);
-    leave_scope();
-    *rest = skip(tok, "}");
-    return node;
 }
 
 // string-initializer = str
@@ -538,8 +443,8 @@ static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
         len++;
 
     Initializer *init = new_initializer(ty, len);
-    int i=0;
-    for (Member *m = ty->member; m && !is_end(tok); m=m->next, i++) {
+    int i = 0;
+    for (Member *m = ty->member; m && !is_end(tok); m = m->next, i++) {
         if (i > 0)
             tok = skip(tok, ",");
         init->children[i] = initializer(&tok, tok, m->ty);
@@ -558,33 +463,14 @@ static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
     return init;
 }
 
-// initializer = array-initializer
-//             | string-initializer
-//             | struct-initializer
-//             | assign
-static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
-    if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
-        tok->kind == TK_STR) {
-        return string_initializer(rest, tok, ty);
-    }
-    if (ty->kind == TY_ARRAY) {
-        return array_initializer(rest, tok, ty);
-    }
-    if (ty->kind == TY_STRUCT) {
-        return struct_initializer(rest, tok, ty);
-    }
-    Initializer *init = new_initializer(ty, 0);
-    init->expr = assign(rest, tok);
-    return init;
-}
-
 static Node *designator_expr(Designator *desg, Token *tok) {
     if (desg->var) {
         return new_var_node(desg->var, tok);
     }
     assert(desg->parent);
     if (desg->member) {
-        Node *node = new_unary_node(ND_MEMBER, designator_expr(desg->parent, tok), tok);
+        Node *node =
+            new_unary_node(ND_MEMBER, designator_expr(desg->parent, tok), tok);
         node->member = desg->member;
         return node;
     }
@@ -619,8 +505,7 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
             Designator desg_child = {desg};
             desg_child.member = m;
             Initializer *child = init ? init->children[i] : NULL;
-            cur =
-                new_lvar_initialization(cur, child, m->ty, &desg_child, tok);
+            cur = new_lvar_initialization(cur, child, m->ty, &desg_child, tok);
         }
         return cur;
     }
@@ -639,6 +524,148 @@ static Node *lvar_initializer(Token **rest, Token *tok, Var *var) {
     new_lvar_initialization(&head, init, var->ty, &desg_head, tok);
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;
+    return node;
+}
+
+static void write_buf(char *buf, unsigned long val, int sz) {
+    switch (sz) {
+    case 1:
+        *(unsigned char *)buf = val;
+        return;
+    case 2:
+        *(unsigned short *)buf = val;
+        return;
+    case 4:
+        *(unsigned int *)buf = val;
+        return;
+    default:
+        assert(sz == 8);
+        *(unsigned long *)buf = val;
+        return;
+    }
+}
+
+static void write_gvar_data(char *buf, Initializer *init, Type *ty,
+                            int offset) {
+    if (ty->kind == TY_ARRAY) {
+        int sz = size_of(ty->base);
+        for (int i=0; i<ty->array_len; i++) {
+            Initializer *child = init->children[i];
+            if (child)
+                write_gvar_data(buf, child, ty->base, offset + sz * i);
+        }
+        return;
+    }
+    write_buf(buf+offset, eval(init->expr), size_of(ty));
+}
+
+static char *gvar_initializer(Token **rest, Token *tok, Type *ty) {
+    Initializer *init = initializer(rest, tok, ty);
+    char *buf = calloc(1, size_of(ty));
+    write_gvar_data(buf, init, ty, 0);
+    return buf;
+}
+
+//
+// Parser
+//
+
+// program = ( global-var |  funcdef )*
+// global-var = decl-specifier init-declarator ("," init-declarator)* ";"
+// !! initializer must be evaluated as compile-time constant.
+Program *parse(Token *tok) {
+    globals = NULL;
+    Function head = {};
+    Function *cur = &head;
+
+    while (tok->kind != TK_EOF) {
+        DeclContext ctx = {};
+        Token *start = tok;
+        Type *basety = decl_specifier(&tok, tok, &ctx);
+        if (consume(&tok, tok, ";"))
+            continue;
+        Type *ty = declarator(&tok, tok, basety);
+
+        if (ctx.type_def) {
+            for (;;) {
+                push_scope(get_ident(ty->name))->type_def = ty;
+                if (equal(tok, ";")) {
+                    tok = skip(tok, ";");
+                    break;
+                }
+                tok = skip(tok, ",");
+                ty = declarator(&tok, tok, basety);
+            }
+            continue;
+        }
+        if (ty->kind == TY_FUNC) {
+            current_fn = new_func(get_ident(ty->name), ty);
+            if (!consume(&tok, tok, ";")) {
+                cur = cur->next = funcdef(&tok, start);
+            }
+            continue;
+        }
+        for (;;) {
+            Var *var = new_gvar(get_ident(ty->name), ty);
+            if (equal(tok, "=")) {
+                var->contents = gvar_initializer(&tok, tok->next, ty);
+            }
+            if (consume(&tok, tok, ";")) {
+                break;
+            }
+            tok = skip(tok, ",");
+            ty = declarator(&tok, tok, basety);
+        }
+    }
+
+    Program *prog = calloc(1, sizeof(Program));
+    prog->globals = globals;
+    prog->fns = head.next;
+    return prog;
+}
+
+// funcdef = decl-specifier declarator "{" compound_stmt
+static Function *funcdef(Token **rest, Token *tok) {
+    locals = NULL;
+
+    DeclContext ctx = {};
+    Type *ty = decl_specifier(&tok, tok, &ctx);
+    ty = declarator(&tok, tok, ty);
+
+    Function *fn = calloc(1, sizeof(Function));
+    fn->name = get_ident(ty->name);
+    fn->is_static = ctx.is_static;
+    enter_scope();
+    for (Type *t = ty->params; t; t = t->next) {
+        new_lvar(get_ident(t->name), t);
+    }
+    fn->params = locals;
+
+    tok = skip(tok, "{");
+    fn->node = compound_stmt(&tok, tok)->body;
+    fn->locals = locals;
+    *rest = tok;
+    leave_scope();
+    return fn;
+}
+
+// compound_stmt = ( declaration | stmt )* "}"
+static Node *compound_stmt(Token **rest, Token *tok) {
+    Node head = {};
+    Node *cur = &head;
+    enter_scope();
+    while (!equal(tok, "}")) {
+        if (is_typename(tok)) {
+            cur = cur->next = declaration(&tok, tok);
+        } else {
+            cur = cur->next = stmt(&tok, tok);
+        }
+    }
+    Node *node = new_node(ND_BLOCK, tok);
+    node->body = head.next;
+    add_type(node);
+    leave_scope();
+    *rest = skip(tok, "}");
     return node;
 }
 
@@ -676,6 +703,25 @@ static Node *declaration(Token **rest, Token *tok) {
     node->body = head.next;
     *rest = skip(tok, ";");
     return node;
+}
+// initializer = array-initializer
+//             | string-initializer
+//             | struct-initializer
+//             | assign
+static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
+    if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
+        tok->kind == TK_STR) {
+        return string_initializer(rest, tok, ty);
+    }
+    if (ty->kind == TY_ARRAY) {
+        return array_initializer(rest, tok, ty);
+    }
+    if (ty->kind == TY_STRUCT) {
+        return struct_initializer(rest, tok, ty);
+    }
+    Initializer *init = new_initializer(ty, 0);
+    init->expr = assign(rest, tok);
+    return init;
 }
 
 // decl-specifier = (storage-class-specifier | type-specifier | type-qualifier)*

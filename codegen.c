@@ -565,13 +565,21 @@ static void emit_string_literal(char *contents, int len) {
     printf("\"\n");
 }
 
+static void emit_bytes(char *contents, int len) {
+    for (int i = 0; i < len; i++)
+        printf("\t.byte %d\n", contents[i]);
+}
+
 static void emit_data(Program *prog) {
     printf(".data\n");
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         printf("%s:\n", gv->name);
         if (gv->contents)
-            emit_string_literal(gv->contents, gv->contents_len);
+            if (gv->ascii)
+                emit_string_literal(gv->contents, size_of(gv->ty));
+            else
+                emit_bytes(gv->contents, size_of(gv->ty));
         else
             printf("\t.zero %d\n", size_of(gv->ty));
     }
