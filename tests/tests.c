@@ -31,11 +31,11 @@ _Bool bool_decl(_Bool x) { return --x; }
 
 static int static_fn() { return 3; }
 
-int ret3() {
+int ret3(void) {
     return 3;
     return 5;
 }
-int ret5() { return 5; }
+int ret5(void) { return 5; }
 
 int add(int x, int y) { return x + y; }
 int sub(int x, int y) { return x - y; }

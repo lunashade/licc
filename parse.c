@@ -785,9 +785,13 @@ static Type *array_dim(Token **rest, Token *tok, Type *ty) {
     return array_of(ty, sz);
 }
 
-// func-params = param ("," param)* ")"
+// func-params = ("void" | param ("," param)*)? ")"
 // param       = decl_spec declarator
 static Type *func_params(Token **rest, Token *tok, Type *ty) {
+    if (equal(tok, "void") && equal(tok->next, ")")) {
+        *rest = tok->next->next;
+        return ty;
+    }
     Type head = {};
     Type *cur = &head;
     int cnt = 0;
