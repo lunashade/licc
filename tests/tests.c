@@ -561,6 +561,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, ({ char x[(int*)16-(int*)4]; sizeof(x);  }), "({ char x[(int*)16-(int*)4]; sizeof(x);  })");
 
     ret_none();
+    ;
+
     printf("OK\n");
     return 0;
 }
