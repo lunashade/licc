@@ -37,6 +37,8 @@ int ret3(void) {
 }
 int ret5(void) { return 5; }
 
+void ret_none() {return;}
+
 int add(int x, int y) { return x + y; }
 int sub(int x, int y) { return x - y; }
 
@@ -558,6 +560,7 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(12, ({ char x[(int*)16-1]; sizeof(x);  }), "({ char x[(int*)16-1]; sizeof(x);  })");
     assert(3, ({ char x[(int*)16-(int*)4]; sizeof(x);  }), "({ char x[(int*)16-(int*)4]; sizeof(x);  })");
 
+    ret_none();
     printf("OK\n");
     return 0;
 }

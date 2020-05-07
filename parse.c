@@ -837,7 +837,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
 }
 
 // stmt = expr ";"
-//      | "return" expr ";"
+//      | "return" expr? ";"
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr?; expr?; expr?; ")" stmt
@@ -898,6 +898,10 @@ static Node *stmt(Token **rest, Token *tok) {
     }
     if (equal(tok, "return")) {
         Node *node = new_node(ND_RETURN, tok);
+        if (equal(tok->next, ";")) {
+            *rest = skip(tok->next, ";");
+            return node;
+        }
         Node *exp = expr(&tok, tok->next);
         *rest = skip(tok, ";");
 

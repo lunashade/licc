@@ -471,8 +471,10 @@ static void gen_stmt(Node *node) {
         return;
     }
     if (node->kind == ND_RETURN) {
-        gen_expr(node->lhs);
-        printf("\tmov rax, %s\n", reg_pop());
+        if (node->lhs) {
+            gen_expr(node->lhs);
+            printf("\tmov rax, %s\n", reg_pop());
+        }
         printf("\tjmp .L.return.%s\n", current_fn->name);
         return;
     }
