@@ -442,8 +442,95 @@ static Node *compound_stmt(Token **rest, Token *tok) {
     return node;
 }
 
+typedef struct Initializer Initializer;
+struct Initializer {
+    Type *ty;
+    int len;
+    Node *expr;
+    Initializer **children;
+};
+
+static Initializer *new_initializer(Type *ty, int len) {
+    Initializer *init = calloc(1, sizeof(Initializer));
+    init->ty = ty;
+    init->len = len;
+    if (len) {
+        init->children = calloc(len, sizeof(Initializer *));
+    }
+    return init;
+}
+
+typedef struct Designator Designator;
+struct Designator {
+    Designator *parent;
+    int index;
+    Var *var;
+};
+
+// initializer = "{" initializer ("," initializer)* ","? "}"
+//             | assign
+static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
+    if (ty->kind == TY_ARRAY) {
+        tok = skip(tok, "{");
+        Initializer *init = new_initializer(ty, ty->array_len);
+        for (int i = 0; i < ty->array_len; i++) {
+            if (i > 0)
+                tok = skip(tok, ",");
+            init->children[i] = initializer(&tok, tok, ty->base);
+        }
+        *rest = skip_end(tok);
+        return init;
+    }
+    Initializer *init = new_initializer(ty, 0);
+    init->expr = assign(rest, tok);
+    return init;
+}
+
+static Node *designator_expr(Designator *desg, Token *tok) {
+    if (desg->var) {
+        return new_var_node(desg->var, tok);
+    }
+    assert(desg->parent);
+    Node *node = designator_expr(desg->parent, tok);
+    node = new_add_node(node, new_number_node(desg->index, tok), tok),
+    node = new_unary_node(ND_DEREF, node, tok);
+    return node;
+}
+
+static Node *new_lvar_init(Node *cur, Initializer *init, Designator *desg,
+                           Token *tok) {
+    if (init->len) {
+        for (int i = 0; i < init->len; i++) {
+            Designator desg_child = {desg, i};
+            cur = new_lvar_init(cur, init->children[i], &desg_child, tok);
+        }
+        return cur;
+    }
+    assert(init->expr);
+    Node *lhs = designator_expr(desg, tok);
+    Node *rhs = init->expr;
+    cur = cur->next = new_unary_node(
+        ND_EXPR_STMT, new_binary_node(ND_ASSIGN, lhs, rhs, tok), tok);
+    return cur;
+}
+
+// scalar initialization: a = 0;
+// => { a = 0; }
+// array initialization: a[3] = {0, 1, 2};
+// => {a[0] = 0; a[1] = 1; a[2] = 2;}
+// => {*(a+0) = 0; *(a+1) = 1; *(a+2) = 2;}
+static Node *lvar_initializer(Token **rest, Token *tok, Var *var) {
+    Initializer *init = initializer(rest, tok, var->ty);
+    Node head = {};
+    Designator desg_head = {NULL, 0, var};
+    new_lvar_init(&head, init, &desg_head, tok);
+    Node *node = new_node(ND_BLOCK, tok);
+    node->body = head.next;
+    return node;
+}
+
 // declaration = decl-specifier init-declarator ("," init-declarator)* ";"
-// init-declarator = declarator ("=" expr)?
+// init-declarator = declarator ("=" initializer)?
 static Node *declaration(Token **rest, Token *tok) {
     DeclContext ctx = {};
     Type *basety = decl_specifier(&tok, tok, &ctx);
@@ -466,14 +553,10 @@ static Node *declaration(Token **rest, Token *tok) {
         }
         Var *var = new_lvar(get_ident(ty->name), ty);
 
-        // ("=" expr)?
-        if (!equal(tok, "="))
-            continue;
-
-        Node *lhs = new_var_node(var, ty->name);
-        Node *rhs = expr(&tok, tok->next);
-        Node *node = new_binary_node(ND_ASSIGN, lhs, rhs, tok);
-        cur = cur->next = new_unary_node(ND_EXPR_STMT, node, tok);
+        // ("=" initializer)?
+        if (equal(tok, "=")) {
+            cur = cur->next = lvar_initializer(&tok, tok->next, var);
+        }
     }
 
     Node *node = new_node(ND_BLOCK, tok);
