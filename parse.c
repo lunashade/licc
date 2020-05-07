@@ -72,6 +72,29 @@ bool consume(Token **rest, Token *tok, char *s) {
     return false;
 }
 
+// consume ending "}" or "," "}"
+static bool consume_end(Token **rest, Token *tok) {
+    if (equal(tok, "}")) {
+        *rest = tok->next;
+        return true;
+    }
+    if (equal(tok, ",") && equal(tok->next, "}")) {
+        *rest = tok->next->next;
+        return true;
+    }
+    *rest = tok;
+    return false;
+}
+static Token *skip_end(Token *tok) {
+    if (equal(tok, "}")) {
+        return tok->next;
+    }
+    if (equal(tok, ",") && equal(tok->next, "}")) {
+        return tok->next->next;
+    }
+    error_tok(tok, "parse: expected token '}'");
+}
+
 //
 // Node utility
 //
@@ -324,6 +347,7 @@ bool is_typename(Token *tok) {
 //
 
 // program = ( global-var |  funcdef )*
+// global-var = decl-specifier declarator ("," declarator)* ";"
 Program *parse(Token *tok) {
     globals = NULL;
     Function head = {};
@@ -371,7 +395,7 @@ Program *parse(Token *tok) {
     return prog;
 }
 
-// funcdef = decl_spec declarator "{" compound_stmt
+// funcdef = decl-specifier declarator "{" compound_stmt
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
 
@@ -600,8 +624,11 @@ static Type *enum_spec(Token **rest, Token *tok) {
 
     // Parse enum-list
     int val = 0;
+    int cnt = 0;
 
-    while (!consume(&tok, tok, "}")) {
+    while (!consume_end(&tok, tok)) {
+        if (cnt++ > 0)
+            tok = skip(tok, ",");
         char *name = get_ident(tok);
         tok = tok->next;
         if (equal(tok, "=")) {
@@ -611,9 +638,6 @@ static Type *enum_spec(Token **rest, Token *tok) {
         VarScope *vsc = push_scope(name);
         vsc->enum_ty = ty;
         vsc->enum_val = val++;
-        if (consume(&tok, tok, "}"))
-            break;
-        tok = skip(tok, ",");
     }
     if (tag)
         push_tag_scope(tag, ty, TAG_ENUM);
