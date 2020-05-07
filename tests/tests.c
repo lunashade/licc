@@ -624,6 +624,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(5, ({ typedef struct {int a,b,c,d,e,f;} T; T x={1,2,3,4,5,6}; T y; y=x; y.e;  }), "({ typedef struct {int a,b,c,d,e,f;} T; T x={1,2,3,4,5,6}; T y; y=x; y.e;  })");
     assert(2, ({ typedef struct {int a,b;} T; T x={1,2}; T y, z; z=y=x; z.b;  }), "({ typedef struct {int a,b;} T; T x={1,2}; T y, z; z=y=x; z.b;  })");
 
+
+    assert(4, ({int x[] = {1,2,3,4}; x[3];}), "({int x[] = {1,2,3,4}; x[3];})");
+    assert(16, ({int x[] = {1,2,3,4}; sizeof(x);}), "({int x[] = {1,2,3,4}; sizeof(x);})");
+    assert(4, ({char x[] = "foo"; sizeof(x);}), "({char x[] = \"foo\"; sizeof(x);})");
+
     printf("OK\n");
     return 0;
 }

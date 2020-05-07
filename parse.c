@@ -13,8 +13,6 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *array_dim(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
 
-static Initializer *string_initializer(Token **rest, Token *tok, Type *ty);
-static Initializer *array_initializer(Token **rest, Token *tok, Type *ty);
 static Initializer *initializer(Token **rest, Token *tok, Type *ty);
 
 static Node *compound_stmt(Token **rest, Token *tok);
@@ -474,6 +472,11 @@ static Node *compound_stmt(Token **rest, Token *tok) {
 
 // string-initializer = str
 static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
+    if (ty->is_incomplete) {
+        ty->size = tok->contents_len;
+        ty->array_len = tok->contents_len;
+        ty->is_incomplete = false;
+    }
     Initializer *init = new_initializer(ty, ty->array_len);
     int len = (ty->array_len < tok->contents_len) ? ty->array_len
                                                   : tok->contents_len; // min;
@@ -484,9 +487,21 @@ static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
     *rest = tok->next;
     return init;
 }
+
 // array-initializer = "{" initializer ("," initializer)* ","? "}"
 static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
     tok = skip(tok, "{");
+    if (ty->is_incomplete) {
+        int i = 0;
+        for (Token *tok2 = tok; (!is_end(tok2)); i++) {
+            if (i > 0)
+                tok2 = skip(tok2, ",");
+            initializer(&tok2, tok2, ty->base);
+        }
+        ty->array_len = i;
+        ty->size = size_of(ty->base) * i;
+        ty->is_incomplete = false;
+    }
     Initializer *init = new_initializer(ty, ty->array_len);
     for (int i = 0; i < ty->array_len && (!is_end(tok)); i++) {
         if (i > 0)
@@ -579,6 +594,14 @@ static Node *designator_expr(Designator *desg, Token *tok) {
     return node;
 }
 
+// scalar: a = 0; => { a = 0; }
+// array:
+// a[3] = {0, 1, 2};
+// => {a[0] = 0; a[1] = 1; a[2] = 2;}
+// => {*(a+0) = 0; *(a+1) = 1; *(a+2) = 2;}
+// struct:
+// struct {int a; int b;} x = {1, 2};
+// => {x.a = 1; x.b = 2;}
 static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
                                      Designator *desg, Token *tok) {
     if (ty->kind == TY_ARRAY) {
@@ -608,12 +631,6 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
     return cur->next;
 }
 
-// scalar initialization:
-// a = 0; => { a = 0; }
-// array initialization:
-// a[3] = {0, 1, 2};
-// => {a[0] = 0; a[1] = 1; a[2] = 2;}
-// => {*(a+0) = 0; *(a+1) = 1; *(a+2) = 2;}
 static Node *lvar_initializer(Token **rest, Token *tok, Var *var) {
     Initializer *init = initializer(rest, tok, var->ty);
     Node head = {};
