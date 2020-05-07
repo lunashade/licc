@@ -477,7 +477,7 @@ static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
     Initializer *init = new_initializer(ty, ty->array_len);
     int len = (ty->array_len < tok->contents_len) ? ty->array_len
                                                   : tok->contents_len; // min;
-    for (int i=0; i<len; i++) {
+    for (int i = 0; i < len; i++) {
         init->children[i] = new_initializer(ty->base, 0);
         init->children[i]->expr = new_number_node(tok->contents[i], tok);
     }
@@ -501,8 +501,51 @@ static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
     return init;
 }
 
+// struct-initializer = "{" initializer ("," initializer)* ","? "}" | assign
+static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
+    assert(ty->kind == TY_STRUCT);
+    if (!equal(tok, "{")) {
+        Token *tok2;
+        Node *expr = assign(&tok2, tok);
+        add_type(expr);
+        if (expr->ty->kind == TY_STRUCT) {
+            Initializer *init = new_initializer(ty, 0);
+            init->expr = expr;
+            *rest = tok2;
+            return init;
+        }
+        error_tok(expr->tok, "parse: initializer: not a struct");
+    }
+    tok = skip(tok, "{");
+
+    int len = 0;
+    for (Member *m = ty->member; m; m = m->next)
+        len++;
+
+    Initializer *init = new_initializer(ty, len);
+    int i=0;
+    for (Member *m = ty->member; m && !is_end(tok); m=m->next, i++) {
+        if (i > 0)
+            tok = skip(tok, ",");
+        init->children[i] = initializer(&tok, tok, m->ty);
+    }
+    for (int i = 0; i < ty->array_len && (!is_end(tok)); i++) {
+        if (i > 0)
+            tok = skip(tok, ",");
+        init->children[i] = initializer(&tok, tok, ty->base);
+    }
+
+    if (!is_end(tok)) {
+        warn_tok(tok, "parse: initializer: skip excess element");
+        tok = skip_excess_element(tok);
+    }
+    *rest = skip_end(tok);
+    return init;
+}
+
 // initializer = array-initializer
 //             | string-initializer
+//             | struct-initializer
 //             | assign
 static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
     if (ty->kind == TY_ARRAY && ty->base->kind == TY_CHAR &&
@@ -511,6 +554,9 @@ static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
     }
     if (ty->kind == TY_ARRAY) {
         return array_initializer(rest, tok, ty);
+    }
+    if (ty->kind == TY_STRUCT) {
+        return struct_initializer(rest, tok, ty);
     }
     Initializer *init = new_initializer(ty, 0);
     init->expr = assign(rest, tok);
@@ -522,6 +568,11 @@ static Node *designator_expr(Designator *desg, Token *tok) {
         return new_var_node(desg->var, tok);
     }
     assert(desg->parent);
+    if (desg->member) {
+        Node *node = new_unary_node(ND_MEMBER, designator_expr(desg->parent, tok), tok);
+        node->member = desg->member;
+        return node;
+    }
     Node *node = designator_expr(desg->parent, tok);
     node = new_add_node(node, new_number_node(desg->index, tok), tok),
     node = new_unary_node(ND_DEREF, node, tok);
@@ -536,6 +587,17 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
             Initializer *child = init ? init->children[i] : NULL;
             cur =
                 new_lvar_initialization(cur, child, ty->base, &desg_child, tok);
+        }
+        return cur;
+    }
+    if (ty->kind == TY_STRUCT && (!init || init->len)) {
+        int i = 0;
+        for (Member *m = ty->member; m; m = m->next, i++) {
+            Designator desg_child = {desg};
+            desg_child.member = m;
+            Initializer *child = init ? init->children[i] : NULL;
+            cur =
+                new_lvar_initialization(cur, child, m->ty, &desg_child, tok);
         }
         return cur;
     }
@@ -555,7 +617,8 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
 static Node *lvar_initializer(Token **rest, Token *tok, Var *var) {
     Initializer *init = initializer(rest, tok, var->ty);
     Node head = {};
-    Designator desg_head = {NULL, 0, var};
+    Designator desg_head = {};
+    desg_head.var = var;
     new_lvar_initialization(&head, init, var->ty, &desg_head, tok);
     Node *node = new_node(ND_BLOCK, tok);
     node->body = head.next;

@@ -197,6 +197,7 @@ typedef struct Designator Designator;
 struct Designator {
     Designator *parent;
     int index;
+    Member *member;
     Var *var;
 };
 typedef struct Initializer Initializer;
