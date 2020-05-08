@@ -351,9 +351,9 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",    "char",   "struct",  "union", "_Bool",
-                  "enum",   "short",  "long",    "void",  "typedef",
-                  "static", "extern", "_Alignas"};
+    char *tn[] = {"int",    "char",   "struct",   "union",  "_Bool",
+                  "enum",   "short",  "long",     "void",   "typedef",
+                  "static", "extern", "_Alignas", "signed", "unsigned"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -636,7 +636,8 @@ Program *parse(Token *tok) {
             continue;
         }
         for (;;) {
-            Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static, !ctx.is_extern);
+            Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static,
+                                !ctx.is_extern);
             if (ctx.align)
                 var->align = ctx.align;
             if (equal(tok, "=")) {
@@ -772,7 +773,8 @@ static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
 
 // decl-specifier = (storage-class-specifier | type-specifier | type-qualifier)*
 // type-specifier = builtin-type | struct-union-spec | enum-spec | typedef-name
-// storage-class-specifier = "typedef" #| "extern" | "static"
+// storage-class-specifier = "typedef" | "extern" | "static"
+// alignment-specifier = "_Alignas" "(" typename | const-expr ")"
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     enum {
         VOID = 1 << 0,
@@ -878,6 +880,12 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
             cnt += CHAR;
+        }
+        // TODO: skipping unsigned
+        if (consume(&tok, tok, "unsigned")) {
+            continue;
+        } else if (consume(&tok, tok, "signed")) {
+            continue;
         }
 
         // validation check
@@ -1142,7 +1150,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
         if (equal(tok, "...")) {
             is_variadic = true;
             tok = tok->next;
-            skip(tok, ")");  // assertion
+            skip(tok, ")"); // assertion
             break;
         }
         Type *basety = decl_specifier(&tok, tok, NULL);
