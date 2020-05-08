@@ -752,7 +752,12 @@ static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
         return struct_initializer(rest, tok, ty);
     }
     Initializer *init = new_initializer(ty, 0);
-    init->expr = assign(rest, tok);
+    bool has_paren = consume(&tok, tok, "{");
+    init->expr = assign(&tok, tok);
+    if (has_paren) {
+        tok = skip_end(tok);
+    }
+    *rest = tok;
     return init;
 }
 

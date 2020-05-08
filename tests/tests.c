@@ -41,6 +41,8 @@ struct {int a[2];} g30[2] = {{1, 2}, 3, 4};
 struct {int a[2];} g31[2] = {1, 2, 3, 4};
 char g32[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 
+char *g34 = {"foo"};
+
 int testno;
 
 int assert(int want, int got, char *code) {
@@ -709,6 +711,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(0, strcmp(g32[0], "foo"), "strcmp(g32[0], \"foo\")");
     assert(0, strcmp(g32[1], "bar"), "strcmp(g32[1], \"bar\")");
+    assert(0, strcmp(g34, "foo"), "strcmp(g34, \"foo\")");
+
 
     printf("OK\n");
     return 0;
