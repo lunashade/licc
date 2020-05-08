@@ -788,6 +788,8 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         INT = 1 << 8,
         LONG = 1 << 10,
         OTHER = 1 << 12,
+        SIGNED = 1 << 13,
+        UNSIGNED = 1 << 14,
     };
     int cnt = 0;
     Type *spec_ty = ty_int;
@@ -884,14 +886,14 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
             cnt += CHAR;
+        }else if (consume(&tok, tok, "signed")) {
+            cnt |= SIGNED;
         }
+
         // TODO: skipping unsigned
         if (consume(&tok, tok, "unsigned")) {
             continue;
-        } else if (consume(&tok, tok, "signed")) {
-            continue;
-        }
-
+        } 
         // validation check
         switch (cnt) {
         case VOID:
@@ -901,19 +903,28 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             spec_ty = ty_bool;
             break;
         case CHAR:
+        case SIGNED + CHAR:
             spec_ty = ty_char;
             break;
         case SHORT:
         case SHORT + INT:
+        case SIGNED + SHORT + INT:
+        case SIGNED + SHORT:
             spec_ty = ty_short;
             break;
         case INT:
+        case SIGNED:
+        case SIGNED + INT:
             spec_ty = ty_int;
             break;
         case LONG:
+        case SIGNED + LONG:
         case LONG + INT:
+        case SIGNED + LONG + INT:
         case LONG + LONG:
+        case SIGNED + LONG + LONG:
         case LONG + LONG + INT:
+        case SIGNED + LONG + LONG + INT:
             spec_ty = ty_long;
             break;
         default:

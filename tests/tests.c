@@ -812,6 +812,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf);  }), "({ char buf[100]; fmt(buf, \"%d %d %s\", 1, 2, \"foo\"); strcmp(\"1 2 foo\", buf);  })");
 
+    assert(-1, ({signed char x = -1; x;}), "({signed char x = -1; x;})");
+
     printf("OK\n");
     return 0;
 }
