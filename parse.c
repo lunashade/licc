@@ -605,6 +605,9 @@ static char *gvar_initializer(Token **rest, Token *tok, Var *var) {
 // !! initializer must be evaluated as compile-time constant.
 Program *parse(Token *tok) {
     globals = NULL;
+    // Add builtin function
+    new_gvar("__builtin_va_start", func_type(ty_void), false, false);
+
     Function head = {};
     Function *cur = &head;
 
@@ -677,6 +680,7 @@ static Function *funcdef(Token **rest, Token *tok) {
     tok = skip(tok, "{");
     fn->node = compound_stmt(&tok, tok)->body;
     fn->locals = locals;
+    fn->is_variadic = ty->is_variadic;
     *rest = tok;
     leave_scope();
     return fn;

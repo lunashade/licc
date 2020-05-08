@@ -191,6 +191,7 @@ struct Function {
     int stacksize; // local variable stack size
 
     bool is_static; // file scope
+    bool is_variadic; // variadic
 };
 
 typedef struct Program Program;

@@ -295,6 +295,16 @@ static void gen_expr(Node *node) {
         reg_push();
         return;
     case ND_FUNCALL: {
+        if (!strcmp(node->funcname, "__builtin_va_start")) {
+            gen_expr(node->args);
+            int n = 0;
+            for (Var *var = current_fn->params; var; var = var->next)
+                n++;
+            printf("\tmov DWORD PTR [%s], %d\n", reg(top - 1), n * 8);
+            printf("\tlea rax, [rbp-80]\n");
+            printf("\tmov [%s+16], rax\n", reg(top - 1));
+            return;
+        }
         int top_orig = top;
         top = 0;
         printf("\tpush r10\n");
@@ -636,6 +646,15 @@ static void emit_text(Program *prog) {
         printf("\tmov [rbp-24], r14\n");
         printf("\tmov [rbp-32], r15\n");
 
+        if (fn->is_variadic) {
+            printf("\tmov [rbp-80], rdi\n");
+            printf("\tmov [rbp-72], rsi\n");
+            printf("\tmov [rbp-64], rdx\n");
+            printf("\tmov [rbp-56], rcx\n");
+            printf("\tmov [rbp-48], r8\n");
+            printf("\tmov [rbp-40], r9\n");
+        }
+        // push arguments to the stack
         int i = 0;
         for (Var *v = fn->params; v; v = v->next) {
             i++;

@@ -45,7 +45,9 @@ int main(int argc, char **argv) {
     Token *tok = tokenize(argv[1], input);
     Program *prog = parse(tok);
     for (Function *fn = prog->fns; fn; fn = fn->next) {
-        int offset = 32; // for callee-saved registers
+        // calle-saved registers take 32 bytes
+        // and variable-argument save area takes 48 bytes.
+        int offset = fn->is_variadic ? 80 : 32;
         for (Var *v = fn->locals; v; v = v->next) {
             offset = align_to(offset, v->align);
             offset += v->ty->size;

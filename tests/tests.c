@@ -8,11 +8,26 @@
  */
 int printf();
 int exit();
+typedef struct {
+    int gp_offset;
+    int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+} va_list[1];
 int;
 struct {char a; int b;};
 typedef struct {char a; int b;} Ty1;
 int add_all1(int x, ...);
 int add_all3(int x, int y, int z,...);
+int strcmp(char *p, char *q);
+int memcmp(char *p, char *q);
+int sprintf(char *buf, char *fmt, ...);
+int vsprintf(char *buf, char *fmt, va_list ap);
+char *fmt(char *buf, char *fmt, ...) {
+    va_list ap;
+    __builtin_va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+}
 
 int _Alignas(512) g_aligned1;
 int _Alignas(512) g_aligned2;
@@ -792,6 +807,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(9, add_all3(1,2,3,4,-1,0), "add_all3(1,2,3,4,-1,0)");
 
     assert(0, ({char connected[] = "foo" "bar"; strcmp(connected, "foobar");}), "({char connected[] = \"foo\" \"bar\"; strcmp(connected, \"foobar\");})");
+
+    assert(0, ({ char buf[100]; sprintf(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf);  }), "({ char buf[100]; sprintf(buf, \"%d %d %s\", 1, 2, \"foo\"); strcmp(\"1 2 foo\", buf);  })");
+
+    assert(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf);  }), "({ char buf[100]; fmt(buf, \"%d %d %s\", 1, 2, \"foo\"); strcmp(\"1 2 foo\", buf);  })");
 
     printf("OK\n");
     return 0;
