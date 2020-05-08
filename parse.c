@@ -1125,8 +1125,8 @@ static Type *array_dim(Token **rest, Token *tok, Type *ty) {
     return array_of(ty, sz);
 }
 
-// func-params = ("void" | param ("," param)*)? ")"
-// param       = decl_spec declarator
+// func-params = ("void" | param ("," param)* ("," "...")? )? ")"
+// param       = decl-specifier declarator
 static Type *func_params(Token **rest, Token *tok, Type *ty) {
     if (equal(tok, "void") && equal(tok->next, ")")) {
         *rest = tok->next->next;
@@ -1135,9 +1135,16 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
     Type head = {};
     Type *cur = &head;
     int cnt = 0;
+    bool is_variadic = false;
     while (!equal(tok, ")")) {
         if (cnt++ > 0)
             tok = skip(tok, ",");
+        if (equal(tok, "...")) {
+            is_variadic = true;
+            tok = tok->next;
+            skip(tok, ")");  // assertion
+            break;
+        }
         Type *basety = decl_specifier(&tok, tok, NULL);
         Type *ty = declarator(&tok, tok, basety);
         if (ty->kind == TY_ARRAY) {
@@ -1149,6 +1156,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
     }
     *rest = skip(tok, ")");
     ty->params = head.next;
+    ty->is_variadic = is_variadic;
     return ty;
 }
 

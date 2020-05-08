@@ -11,12 +11,13 @@ int exit();
 int;
 struct {char a; int b;};
 typedef struct {char a; int b;} Ty1;
+int add_all1(int x, ...);
+int add_all3(int x, int y, int z,...);
 
 int _Alignas(512) g_aligned1;
 int _Alignas(512) g_aligned2;
 
 int g1, g2[4];
-
 
 int g3 = 3;
 char g4 = 4;
@@ -784,6 +785,11 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(1, true_fn(), "true_fn()");
     assert(0, false_fn(), "false_fn()");
+
+    assert(10, add_all1(1,2,3,4,0), "add_all1(1,2,3,4,0)");
+    assert(9, add_all1(1,2,3,4,-1,0), "add_all1(1,2,3,4,-1,0)");
+    assert(10, add_all3(1,2,3,4,0), "add_all3(1,2,3,4,0)");
+    assert(9, add_all3(1,2,3,4,-1,0), "add_all3(1,2,3,4,-1,0)");
 
     printf("OK\n");
     return 0;

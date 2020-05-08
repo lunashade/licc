@@ -61,12 +61,12 @@ struct DeclContext {
 
 typedef struct Var Var;
 struct Var {
-    Var *next;     // next LVar
-    char *name;    // name string
-    Type *ty;      // type
-    int offset;    // offset from rbp
-    int align;     // alignment
-    bool is_local; // local or not
+    Var *next;      // next LVar
+    char *name;     // name string
+    Type *ty;       // type
+    int offset;     // offset from rbp
+    int align;      // alignment
+    bool is_local;  // local or not
     bool is_static; // file-scope
 
     char *contents;    // global initialization
@@ -252,10 +252,11 @@ struct Type {
     Type *base;    // TY_PTR or TY_ARRAY pointer_to
     int array_len; // TY_ARRAY
     // TY_FUNC
-    Type *return_ty; // function return type
-    Token *name;     // function name
-    Type *params;    // params
-    Type *next;      // next parameter
+    Type *return_ty;  // function return type
+    Token *name;      // function name
+    Type *params;     // params
+    Type *next;       // next parameter
+    bool is_variadic; // variadic function
     // TY_STRUCT
     Member *member;
     // ARRAY or STRUCT
