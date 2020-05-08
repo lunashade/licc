@@ -1,10 +1,11 @@
 #include "lcc.h"
 
 static char *KEYWORDS[] = {
-    "return",   "if",      "else",  "for",     "while", "sizeof", "int",
-    "char",     "struct",  "union", "short",   "long",  "void",   "signed",
-    "unsigned", "typedef", "_Bool", "static",  "enum",  "goto",   "break",
-    "continue", "switch",  "case",  "default", "extern"};
+    "return",  "if",     "else",     "for",      "while",  "sizeof",
+    "int",     "char",   "struct",   "union",    "short",  "long",
+    "void",    "signed", "unsigned", "typedef",  "_Bool",  "static",
+    "enum",    "goto",   "break",    "continue", "switch", "case",
+    "default", "extern", "_Alignof", "_Alignas"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=", "/=",
     "%=",  "&=",  "|=", "^=", "++", "--", "&&", "||", "<<", ">>"};

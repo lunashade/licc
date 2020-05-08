@@ -790,18 +790,19 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
                     error_tok(tok,
                               "parse: decl-specifier: duplicate `typedef`");
                 ctx->type_def = true;
-            } 
+            }
             if (equal(tok, "static")) {
                 if (ctx->is_static)
                     error_tok(tok, "parse: decl-specifier: duplicate `static`");
                 ctx->is_static = true;
-            } 
+            }
             if (equal(tok, "extern")) {
                 ctx->is_extern = true;
             }
             // validation
             if (ctx->is_extern + ctx->is_static + ctx->type_def > 1) {
-                error_tok(tok, "parse: decl-specifier: cannot use multiple storage class specifier");
+                error_tok(tok, "parse: decl-specifier: cannot use multiple "
+                               "storage class specifier");
             }
             tok = tok->next;
             continue;
@@ -1661,6 +1662,7 @@ static Node *cast(Token **rest, Token *tok) {
 // unary =  (unary-op)? cast | postfix
 //       | "sizeof" unary
 //       | "sizeof" "(" typename ")"
+//       | "_Alignof" "(" typename ")"
 // unary-op = ( "+" | "-" | "*" | "&" | "++" | "--" | "~" | "!")
 static Node *unary(Token **rest, Token *tok) {
     Token *start = tok;
@@ -1689,6 +1691,12 @@ static Node *unary(Token **rest, Token *tok) {
         Type *ty = typename(&tok, tok->next->next);
         *rest = skip(tok, ")");
         return new_number_node(size_of(ty), op);
+    }
+    if (equal(tok, "_Alignof")) {
+        tok = skip(tok->next, "(");
+        Type *ty = typename(&tok, tok);
+        *rest = skip(tok, ")");
+        return new_number_node(ty->align, tok);
     }
     if (equal(tok, "sizeof")) {
         Node *node = unary(rest, tok->next);

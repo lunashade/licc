@@ -715,6 +715,15 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, strcmp(g34, "foo"), "strcmp(g34, \"foo\")");
     ext1 = 5;
     assert(5, ext1, "ext1");
+    assert(1, _Alignof(char), "_Alignof(char)");
+    assert(2, _Alignof(short), "_Alignof(short)");
+    assert(4, _Alignof(int), "_Alignof(int)");
+    assert(8, _Alignof(long), "_Alignof(long)");
+    assert(8, _Alignof(long long), "_Alignof(long long)");
+    assert(1, _Alignof(char[3]), "_Alignof(char[3])");
+    assert(4, _Alignof(int[3]), "_Alignof(int[3])");
+    assert(1, _Alignof(struct {char a; char b;}[2]), "_Alignof(struct {char a; char b;}[2])");
+    assert(8, _Alignof(struct {char a; long b;}[2]), "_Alignof(struct {char a; long b;}[2])");
 
     printf("OK\n");
     return 0;
