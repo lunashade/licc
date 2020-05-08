@@ -396,7 +396,7 @@ static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
 
 // array-initializer = "{" initializer ("," initializer)* ","? "}"
 static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
-    tok = skip(tok, "{");
+    bool has_paren = consume(&tok, tok, "{");
     if (ty->is_incomplete) {
         int i = 0;
         for (Token *tok2 = tok; (!is_end(tok2)); i++) {
@@ -414,6 +414,10 @@ static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
             tok = skip(tok, ",");
         init->children[i] = initializer(&tok, tok, ty->base);
     }
+    if (!has_paren) {
+        *rest = tok;
+        return init;
+    }
     if (!is_end(tok)) {
         warn_tok(tok, "parse: initializer: skip excess element");
         tok = skip_excess_element(tok);
@@ -424,7 +428,6 @@ static Initializer *array_initializer(Token **rest, Token *tok, Type *ty) {
 
 // struct-initializer = "{" initializer ("," initializer)* ","? "}" | assign
 static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
-    assert(ty->kind == TY_STRUCT);
     if (!equal(tok, "{")) {
         Token *tok2;
         Node *expr = assign(&tok2, tok);
@@ -435,9 +438,8 @@ static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
             *rest = tok2;
             return init;
         }
-        error_tok(expr->tok, "parse: initializer: not a struct");
     }
-    tok = skip(tok, "{");
+    bool has_paren = consume(&tok, tok, "{");
 
     int len = 0;
     for (Member *m = ty->member; m; m = m->next)
@@ -456,6 +458,10 @@ static Initializer *struct_initializer(Token **rest, Token *tok, Type *ty) {
         init->children[i] = initializer(&tok, tok, ty->base);
     }
 
+    if (!has_paren) {
+        *rest = tok;
+        return init;
+    }
     if (!is_end(tok)) {
         warn_tok(tok, "parse: initializer: skip excess element");
         tok = skip_excess_element(tok);

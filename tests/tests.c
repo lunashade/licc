@@ -37,6 +37,10 @@ int *g18 = &g17;
 int g19[3] = {1,2,3};
 int *g20 = g19 + 1;
 
+struct {int a[2];} g30[2] = {{1, 2}, 3, 4};
+struct {int a[2];} g31[2] = {1, 2, 3, 4};
+char g32[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
+
 int testno;
 
 int assert(int want, int got, char *code) {
@@ -686,6 +690,25 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, g17, "g17");
     assert(3, *g18, "*g18");
     assert(2, *g20, "*g20");
+
+    assert(1, g30[0].a[0], "g30[0].a[0]");
+    assert(2, g30[0].a[1], "g30[0].a[1]");
+    assert(3, g30[1].a[0], "g30[1].a[0]");
+    assert(4, g30[1].a[1], "g30[1].a[1]");
+
+    assert(1, g31[0].a[0], "g31[0].a[0]");
+    assert(2, g31[0].a[1], "g31[0].a[1]");
+    assert(3, g31[1].a[0], "g31[1].a[0]");
+    assert(4, g31[1].a[1], "g31[1].a[1]");
+
+    assert(0, ({ int x[2][3]={0,1,2,3,4,5,}; x[0][0];  }), "({ int x[2][3]={0,1,2,3,4,5,}; x[0][0];  })");
+    assert(3, ({ int x[2][3]={0,1,2,3,4,5,}; x[1][0];  }), "({ int x[2][3]={0,1,2,3,4,5,}; x[1][0];  })");
+
+    assert(0, ({ struct {int a; int b;} x[2]={0,1,2,3}; x[0].a;  }), "({ struct {int a; int b;} x[2]={0,1,2,3}; x[0].a;  })");
+    assert(2, ({ struct {int a; int b;} x[2]={0,1,2,3}; x[1].a;  }), "({ struct {int a; int b;} x[2]={0,1,2,3}; x[1].a;  })");
+
+    assert(0, strcmp(g32[0], "foo"), "strcmp(g32[0], \"foo\")");
+    assert(0, strcmp(g32[1], "bar"), "strcmp(g32[1], \"bar\")");
 
     printf("OK\n");
     return 0;
