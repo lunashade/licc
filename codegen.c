@@ -97,10 +97,11 @@ static void load(Type *ty) {
     // value.
     char *rd = reg_push_x(ty);
     int sz = size_of(ty);
+    char *insn = ty->is_unsigned ? "movzx" : "movsx";
     if (sz == 1) {
-        printf("\tmovsx %s, byte ptr [%s]\n", rd, rs);
+        printf("\t%s %s, byte ptr [%s]\n", insn, rd, rs);
     } else if (sz == 2) {
-        printf("\tmovsx %s, word ptr [%s]\n", rd, rs);
+        printf("\t%s %s, word ptr [%s]\n", insn, rd, rs);
     } else if (sz == 4) {
         printf("\tmov %s, dword ptr [%s]\n", rd, rs);
     } else {
@@ -137,17 +138,20 @@ static void cast(Type *from, Type *to) {
     int sz = size_of(to);
     char *rs = reg_pop();
     char *rd = reg_push();
+    char *insn = to->is_unsigned ? "movzx" : "movsx";
     if (to->kind == TY_BOOL) {
         printf("\tcmp %s, 0\n", rs);
         printf("\tsetne %sb\n", rd);
         printf("\tmovzx %s, %sb\n", rd, rd);
-    } else if (size_of(to) == 1) {
-        printf("\tmovsx %s, %sb\n", rd, rs);
+        return;
+    }
+    if (size_of(to) == 1) {
+        printf("\t%s %s, %sb\n", insn, rd, rs);
     } else if (size_of(to) == 2) {
-        printf("\tmovsx %s, %sw\n", rd, rs);
+        printf("\t%s %s, %sw\n", insn, rd, rs);
     } else if (size_of(to) == 4) {
         printf("\tmov %sd, %sd\n", rd, rs);
-    } else if (is_integer(from) && size_of(from) < 8) {
+    } else if (is_integer(from) && size_of(from) < 8 && !from->is_unsigned) {
         printf("\tmovsx %s, %sd\n", rd, rs);
     }
 }
@@ -364,7 +368,11 @@ static void gen_expr(Node *node) {
     }
     if (node->kind == ND_SHR) {
         printf("\tmov rcx, %s\n", reg(top)); // rs with 8-bit register
-        printf("\tsar %s, cl\n", rd);
+        if (node->ty->is_unsigned)
+            printf("\tshr %s, cl\n", rd);
+        else
+            printf("\tsar %s, cl\n", rd);
+
         return;
     }
     if (node->kind == ND_ADD) {
@@ -382,13 +390,24 @@ static void gen_expr(Node *node) {
     if (node->kind == ND_DIV) {
         if (size_of(node->ty) == 8) {
             printf("\tmov rax, %s\n", rd);
-            printf("\tcqo\n");
-            printf("\tidiv %s\n", rs);
+            if (node->ty->is_unsigned) {
+                printf("\tmov rdx, 0\n");
+                printf("\tdiv %s\n", rs);
+            } else {
+                printf("\tcqo\n");
+                printf("\tidiv %s\n", rs);
+            }
+
             printf("\tmov %s, rax\n", rd);
         } else {
             printf("\tmov eax, %s\n", rd);
-            printf("\tcdq\n");
-            printf("\tidiv %s\n", rs);
+            if (node->ty->is_unsigned) {
+                printf("\tmov edx, 0\n");
+                printf("\tdiv %s\n", rs);
+            } else {
+                printf("\tcdq\n");
+                printf("\tidiv %s\n", rs);
+            }
             printf("\tmov %s, eax\n", rd);
         }
         return;
@@ -396,13 +415,23 @@ static void gen_expr(Node *node) {
     if (node->kind == ND_MOD) {
         if (size_of(node->ty) == 8) {
             printf("\tmov rax, %s\n", rd);
-            printf("\tcqo\n");
-            printf("\tidiv %s\n", rs);
+            if (node->ty->is_unsigned) {
+                printf("\tmov rdx, 0\n");
+                printf("\tdiv %s\n", rs);
+            } else {
+                printf("\tcqo\n");
+                printf("\tidiv %s\n", rs);
+            }
             printf("\tmov %s, rdx\n", rd);
         } else {
             printf("\tmov eax, %s\n", rd);
-            printf("\tcdq\n");
-            printf("\tidiv %s\n", rs);
+            if (node->ty->is_unsigned) {
+                printf("\tmov edx, 0\n");
+                printf("\tdiv %s\n", rs);
+            } else {
+                printf("\tcdq\n");
+                printf("\tidiv %s\n", rs);
+            }
             printf("\tmov %s, edx\n", rd);
         }
         return;
@@ -433,13 +462,21 @@ static void gen_expr(Node *node) {
     }
     if (node->kind == ND_LT) {
         printf("\tcmp %s, %s\n", rd, rs);
-        printf("\tsetl al\n");
+        if (node->lhs->ty->is_unsigned) {
+            printf("\tsetb al\n");
+        } else {
+            printf("\tsetl al\n");
+        }
         printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_LE) {
         printf("\tcmp %s, %s\n", rd, rs);
-        printf("\tsetle al\n");
+        if (node->lhs->ty->is_unsigned) {
+            printf("\tsetbe al\n");
+        } else {
+            printf("\tsetle al\n");
+        }
         printf("\tmovzx %s, al\n", rd);
         return;
     }

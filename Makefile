@@ -12,9 +12,9 @@ lcc-stage3: lcc-stage2
 	./self.sh tmp-stage3 $$PWD/lcc-stage2 $@
 
 test-stage2: lcc-stage2 tests/extern.o
-	./lcc-stage2 tests/tests.c > tmp.s
-	cc -static -o tmp tmp.s tests/extern.o
-	./tmp
+	./lcc-stage2 tests/tests.c > tmp2.s
+	cc -static -o tmp2 tmp2.s tests/extern.o
+	./tmp2
 
 test-stage3: lcc-stage3
 	@diff lcc-stage2 lcc-stage3 && echo "stage3 OK"

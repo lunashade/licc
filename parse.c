@@ -886,14 +886,11 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
             cnt += CHAR;
-        }else if (consume(&tok, tok, "signed")) {
+        } else if (consume(&tok, tok, "signed")) {
             cnt |= SIGNED;
+        } else if (consume(&tok, tok, "unsigned")) {
+            cnt |= UNSIGNED;
         }
-
-        // TODO: skipping unsigned
-        if (consume(&tok, tok, "unsigned")) {
-            continue;
-        } 
         // validation check
         switch (cnt) {
         case VOID:
@@ -901,6 +898,9 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             break;
         case BOOL:
             spec_ty = ty_bool;
+            break;
+        case UNSIGNED + CHAR:
+            spec_ty = ty_uchar;
             break;
         case CHAR:
         case SIGNED + CHAR:
@@ -912,20 +912,34 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         case SIGNED + SHORT:
             spec_ty = ty_short;
             break;
+        case UNSIGNED + SHORT + INT:
+        case UNSIGNED + SHORT:
+            spec_ty = ty_ushort;
+            break;
         case INT:
         case SIGNED:
         case SIGNED + INT:
             spec_ty = ty_int;
             break;
+        case UNSIGNED:
+        case UNSIGNED + INT:
+            spec_ty = ty_uint;
+            break;
         case LONG:
-        case SIGNED + LONG:
         case LONG + INT:
-        case SIGNED + LONG + INT:
         case LONG + LONG:
-        case SIGNED + LONG + LONG:
         case LONG + LONG + INT:
+        case SIGNED + LONG:
+        case SIGNED + LONG + INT:
+        case SIGNED + LONG + LONG:
         case SIGNED + LONG + LONG + INT:
             spec_ty = ty_long;
+            break;
+        case UNSIGNED + LONG:
+        case UNSIGNED + LONG + INT:
+        case UNSIGNED + LONG + LONG:
+        case UNSIGNED + LONG + LONG + INT:
+            spec_ty = ty_ulong;
             break;
         default:
             error_tok(tok, "parse: unsupported type-specifier");

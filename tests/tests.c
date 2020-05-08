@@ -813,6 +813,52 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf);  }), "({ char buf[100]; fmt(buf, \"%d %d %s\", 1, 2, \"foo\"); strcmp(\"1 2 foo\", buf);  })");
 
     assert(-1, ({signed char x = -1; x;}), "({signed char x = -1; x;})");
+    assert(255, ({unsigned char x = -1; (int)x;}), "({unsigned char x = -1; (int)x;})");
+    assert(1, sizeof(char), "sizeof(char)");
+    assert(1, sizeof(signed char), "sizeof(signed char)");
+    assert(1, sizeof(signed char signed), "sizeof(signed char signed)");
+    assert(1, sizeof(unsigned char), "sizeof(unsigned char)");
+    assert(1, sizeof(unsigned char unsigned), "sizeof(unsigned char unsigned)");
+
+    assert(2, sizeof(short), "sizeof(short)");
+    assert(2, sizeof(int short), "sizeof(int short)");
+    assert(2, sizeof(short int), "sizeof(short int)");
+    assert(2, sizeof(signed short), "sizeof(signed short)");
+    assert(2, sizeof(int short signed), "sizeof(int short signed)");
+    assert(2, sizeof(unsigned short), "sizeof(unsigned short)");
+    assert(2, sizeof(int short unsigned), "sizeof(int short unsigned)");
+
+    assert(4, sizeof(int), "sizeof(int)");
+    assert(4, sizeof(signed int), "sizeof(signed int)");
+    assert(4, sizeof(signed), "sizeof(signed)");
+    assert(4, sizeof(signed signed), "sizeof(signed signed)");
+    assert(4, sizeof(unsigned int), "sizeof(unsigned int)");
+    assert(4, sizeof(unsigned), "sizeof(unsigned)");
+    assert(4, sizeof(unsigned unsigned), "sizeof(unsigned unsigned)");
+
+    assert(8, sizeof(long), "sizeof(long)");
+    assert(8, sizeof(signed long), "sizeof(signed long)");
+    assert(8, sizeof(signed long int), "sizeof(signed long int)");
+    assert(8, sizeof(unsigned long), "sizeof(unsigned long)");
+    assert(8, sizeof(unsigned long int), "sizeof(unsigned long int)");
+
+    assert(8, sizeof(long long), "sizeof(long long)");
+    assert(8, sizeof(signed long long), "sizeof(signed long long)");
+    assert(8, sizeof(signed long long int), "sizeof(signed long long int)");
+    assert(8, sizeof(unsigned long long), "sizeof(unsigned long long)");
+    assert(8, sizeof(unsigned long long int), "sizeof(unsigned long long int)");
+
+    assert(1, sizeof((char)1), "sizeof((char)1)");
+    assert(2, sizeof((short)1), "sizeof((short)1)");
+    assert(4, sizeof((int)1), "sizeof((int)1)");
+    assert(8, sizeof((long)1), "sizeof((long)1)");
+    assert(-1, (char)255, "(char)255");
+    assert(-1, (signed char)255, "(signed char)255");
+    assert(255, (unsigned char)255, "(unsigned char)255");
+    assert(-1, (short)65535, "(short)65535");
+    assert(65535, (unsigned short)65535, "(unsigned short)65535");
+    assert(-1, (int)0xffffffff, "(int)0xffffffff");
+    assert(0xffffffff, (unsigned)0xffffffff, "(unsigned)0xffffffff");
 
     printf("OK\n");
     return 0;

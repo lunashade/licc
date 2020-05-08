@@ -250,7 +250,10 @@ struct Type {
     TypeKind kind;
     int size;
     int align;
-    Type *base;    // TY_PTR or TY_ARRAY pointer_to
+    // NUMBER
+    bool is_unsigned;
+    // TY_PTR / TY_ARRAY
+    Type *base;    // pointer_to
     int array_len; // TY_ARRAY
     // TY_FUNC
     Type *return_ty;  // function return type
@@ -278,9 +281,13 @@ extern Type *ty_void;
 extern Type *ty_bool;
 
 extern Type *ty_int;
+extern Type *ty_uint;
 extern Type *ty_char;
+extern Type *ty_uchar;
 extern Type *ty_short;
+extern Type *ty_ushort;
 extern Type *ty_long;
+extern Type *ty_ulong;
 
 bool is_integer(Type *ty);
 bool is_pointing(Type *ty);

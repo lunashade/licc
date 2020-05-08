@@ -5,9 +5,13 @@ int align_to(int n, int align) { return (n + align - 1) & ~(align - 1); }
 Type *ty_void = &(Type){TY_VOID, 1, 1};
 Type *ty_bool = &(Type){TY_BOOL, 1, 1};
 Type *ty_long = &(Type){TY_LONG, 8, 8};
+Type *ty_ulong = &(Type){TY_LONG, 8, 8, true};
 Type *ty_int = &(Type){TY_INT, 4, 4};
+Type *ty_uint = &(Type){TY_INT, 4, 4, true};
 Type *ty_short = &(Type){TY_SHORT, 2, 2};
+Type *ty_ushort = &(Type){TY_SHORT, 2, 2, true};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
+Type *ty_uchar = &(Type){TY_CHAR, 1, 1, true};
 
 bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
@@ -75,10 +79,17 @@ static Type *common_type(Type *ty1, Type *ty2) {
     if (ty1->base)
         return pointer_to(ty1->base);
 
-    if (size_of(ty1) == 8 || size_of(ty2) == 8) {
-        return ty_long;
+    if (size_of(ty1) < 4)
+        ty1 = ty_int;
+    if (size_of(ty2) < 4)
+        ty1 = ty_int;
+
+    if (size_of(ty1) != size_of(ty2)) {
+        return (size_of(ty1) < size_of(ty2)) ? ty2 : ty1;
     }
-    return ty_int;
+    if (ty2->is_unsigned)
+        return ty2;
+    return ty1;
 }
 
 static void usual_arithmetic_conversion(Node **lhs, Node **rhs) {
