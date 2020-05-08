@@ -13,6 +13,7 @@
 
 typedef struct Type Type;
 typedef struct Member Member;
+typedef struct Relocation Relocation;
 
 //
 // Tokenizer
@@ -67,6 +68,7 @@ struct Var {
 
     char *contents;   // global initialization
     int contents_len; // length of contents
+    Relocation *reloc; // relocation
     bool ascii; // can be converted ascii string
 };
 
@@ -207,6 +209,13 @@ struct Initializer {
     int len;
     Node *expr;
     Initializer **children;
+};
+
+struct Relocation {
+    Relocation *next;
+    int offset;
+    char *label;
+    long addend;
 };
 
 Node *new_cast(Node *node, Type *ty);

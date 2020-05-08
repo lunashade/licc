@@ -13,7 +13,7 @@ static Type *type_suffix(Token **rest, Token *tok, Type *ty);
 static Type *array_dim(Token **rest, Token *tok, Type *ty);
 static Type *func_params(Token **rest, Token *tok, Type *ty);
 
-static char *gvar_initializer(Token **rest, Token *tok, Type *ty);
+static char *gvar_initializer(Token **rest, Token *tok, Var *var);
 static Node *lvar_initializer(Token **rest, Token *tok, Var *var);
 static Initializer *initializer(Token **rest, Token *tok, Type *ty);
 
@@ -23,6 +23,7 @@ static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static long eval(Node *node);
+static long eval2(Node *node, Var **var);
 static long const_expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *conditional(Token **rest, Token *tok);
@@ -545,33 +546,49 @@ static void write_buf(char *buf, unsigned long val, int sz) {
     }
 }
 
-static void write_gvar_data(char *buf, Initializer *init, Type *ty,
-                            int offset) {
+static Relocation *write_gvar_data(Relocation *cur, char *buf,
+                                   Initializer *init, Type *ty, int offset) {
     if (ty->kind == TY_STRUCT) {
         int i = 0;
         for (Member *m = ty->member; m; m = m->next, i++) {
             Initializer *child = init->children[i];
             if (child)
-                write_gvar_data(buf, child, m->ty, offset + m->offset);
+                cur =
+                    write_gvar_data(cur, buf, child, m->ty, offset + m->offset);
         }
-        return;
+        return cur;
     }
     if (ty->kind == TY_ARRAY) {
         int sz = size_of(ty->base);
         for (int i = 0; i < ty->array_len; i++) {
             Initializer *child = init->children[i];
             if (child)
-                write_gvar_data(buf, child, ty->base, offset + sz * i);
+                cur =
+                    write_gvar_data(cur, buf, child, ty->base, offset + sz * i);
         }
-        return;
+        return cur;
     }
-    write_buf(buf + offset, eval(init->expr), size_of(ty));
+    Var *var = NULL;
+    long val = eval2(init->expr, &var);
+    if (var) {
+        Relocation *reloc = calloc(1, sizeof(Relocation));
+        reloc->offset = offset;
+        reloc->label = var->name;
+        reloc->addend = val;
+        cur->next = reloc;
+        return cur->next;
+    }
+    write_buf(buf + offset, val, size_of(ty));
+    return cur;
 }
 
-static char *gvar_initializer(Token **rest, Token *tok, Type *ty) {
-    Initializer *init = initializer(rest, tok, ty);
-    char *buf = calloc(1, size_of(ty));
-    write_gvar_data(buf, init, ty, 0);
+static char *gvar_initializer(Token **rest, Token *tok, Var *var) {
+    Initializer *init = initializer(rest, tok, var->ty);
+    char *buf = calloc(1, size_of(var->ty));
+    Relocation head = {};
+    write_gvar_data(&head, buf, init, var->ty, 0);
+    var->contents = buf;
+    var->reloc = head.next;
     return buf;
 }
 
@@ -617,7 +634,7 @@ Program *parse(Token *tok) {
         for (;;) {
             Var *var = new_gvar(get_ident(ty->name), ty);
             if (equal(tok, "=")) {
-                var->contents = gvar_initializer(&tok, tok->next, ty);
+                gvar_initializer(&tok, tok->next, var);
             }
             if (consume(&tok, tok, ";")) {
                 break;
@@ -1253,7 +1270,10 @@ static Node *expr(Token **rest, Token *tok) {
     return node;
 }
 
-static long eval(Node *node) {
+// evaluate constant expression
+static long eval(Node *node) { return eval2(node, NULL); }
+// evaluate for initializer evaluation
+static long eval2(Node *node, Var **var) {
     add_type(node);
     switch (node->kind) {
     case ND_NUM:
@@ -1269,12 +1289,30 @@ static long eval(Node *node) {
                 return (int)eval(node->lhs);
             }
         }
-        return eval(node->lhs);
+        return eval2(node->lhs, var);
     }
+    case ND_ADDR:
+        if (!var)
+            error_tok(node->tok,
+                      "parse: const_expr: not a constant expression");
+        // int g1; int *g2 = &g1 + 3;
+        if (*var || node->lhs->kind != ND_VAR)
+            error_tok(node->tok, "parse: invalid initializer");
+        *var = node->lhs->var;
+        return 0;
+    case ND_VAR:
+        if (!var)
+            error_tok(node->tok,
+                      "parse: const_expr: not a constant expression");
+        // int g1[3]; int *g2 = g1 + 3;
+        if (*var || node->var->ty->kind != TY_ARRAY)
+            error_tok(node->tok, "parse: invalid initializer");
+        *var = node->var;
+        return 0;
     case ND_ADD:
-        return eval(node->lhs) + eval(node->rhs);
+        return eval2(node->lhs, var) + eval(node->rhs);
     case ND_SUB:
-        return eval(node->lhs) - eval(node->rhs);
+        return eval2(node->lhs, var) - eval(node->rhs);
     case ND_MUL:
         return eval(node->lhs) * eval(node->rhs);
     case ND_DIV:

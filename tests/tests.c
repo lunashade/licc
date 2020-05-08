@@ -24,6 +24,19 @@ long g8 = 8;
 
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
+char g10[] = "foobar";
+char g11[10] = "foobar";
+char g12[3] = "foobar";
+
+char *g13 = g10 + 0;
+char *g14 = g10 + 3;
+char *g15 = &g10 - 3;
+char *g16[] = {g10+0, g10+3, g10-3};
+int g17 = 3;
+int *g18 = &g17;
+int g19[3] = {1,2,3};
+int *g20 = g19 + 1;
+
 int testno;
 
 int assert(int want, int got, char *code) {
@@ -653,6 +666,26 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(10, g9[0].a[1], "g9[0].a[1]");
     assert(0, g9[1].a[0], "g9[1].a[0]");
     assert(0, g9[1].a[1], "g9[1].a[1]");
+
+    assert(7, sizeof(g10), "sizeof(g10)");
+    assert(10, sizeof(g11), "sizeof(g11)");
+    assert(3, sizeof(g12), "sizeof(g12)");
+
+    assert(0, memcmp(g10, "foobar", 7), "memcmp(g10, \"foobar\", 7)");
+    assert(0, memcmp(g11, "foobar\0\0\0", 10), "memcmp(g11, \"foobar\\0\\0\\0\", 10)");
+    assert(0, memcmp(g12, "foo", 3), "memcmp(g12, \"foo\", 3)");
+
+    assert(0, strcmp(g13, "foobar"), "strcmp(g13, \"foobar\")");
+    assert(0, strcmp(g14, "bar"), "strcmp(g14, \"bar\")");
+    assert(0, strcmp(g15+3, "foobar"), "strcmp(g15+3, \"foobar\")");
+
+    assert(0, strcmp(g16[0], "foobar"), "strcmp(g16[0], \"foobar\")");
+    assert(0, strcmp(g16[1], "bar"), "strcmp(g16[1], \"bar\")");
+    assert(0, strcmp(g16[2]+3, "foobar"), "strcmp(g16[2]+3, \"foobar\")");
+
+    assert(3, g17, "g17");
+    assert(3, *g18, "*g18");
+    assert(2, *g20, "*g20");
 
     printf("OK\n");
     return 0;

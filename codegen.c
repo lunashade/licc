@@ -565,9 +565,18 @@ static void emit_string_literal(char *contents, int len) {
     printf("\"\n");
 }
 
-static void emit_bytes(char *contents, int len) {
-    for (int i = 0; i < len; i++)
-        printf("\t.byte %d\n", contents[i]);
+static void emit_init_data(Var *var) {
+    Relocation *reloc = var->reloc;
+    int pos = 0;
+    while(pos < size_of(var->ty)) {
+        if (reloc && reloc->offset == pos) {
+            printf("\t.quad %s+%ld\n", reloc->label, reloc->addend);
+            reloc = reloc->next;
+            pos += 8;
+        } else {
+            printf("\t.byte %d\n", var->contents[pos++]);
+        }
+    }
 }
 
 static void emit_data(Program *prog) {
@@ -579,7 +588,7 @@ static void emit_data(Program *prog) {
             if (gv->ascii)
                 emit_string_literal(gv->contents, size_of(gv->ty));
             else
-                emit_bytes(gv->contents, size_of(gv->ty));
+                emit_init_data(gv);
         else
             printf("\t.zero %d\n", size_of(gv->ty));
     }
