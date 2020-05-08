@@ -5,7 +5,7 @@ jobs:
       - image: cimg/base:stable
     steps:
       - checkout
-      - run: make test
+      - run: make test-all
       - "slack/status":
           fail_only: false
   nqueen:
@@ -31,5 +31,3 @@ workflows:
   wfs:
     jobs:
       - test
-      - nqueen
-      - dp

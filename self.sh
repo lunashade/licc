@@ -1,8 +1,11 @@
 #!/bin/bash
 set -e
 
-TMP=tmp-stage2
+TMP=$1
+CC=$2
+OUT=$3
 
+rm -rf $TMP
 mkdir -p $TMP
 
 lcc() {
@@ -59,7 +62,7 @@ EOF
     sed -i 's/\bNULL\b/0/g' $TMP/$1
     sed -i 's/\bva_start\b/__builtin_va_start/g' $TMP/$1
 
-    ./lcc $TMP/$1 > $TMP/${1%.c}.s
+    (cd $TMP; $CC $1 > ${1%.c}.s)
     gcc -c -o $TMP/${1%.c}.o $TMP/${1%.c}.s
 }
 
@@ -73,4 +76,4 @@ lcc parse.c
 lcc codegen.c
 lcc tokenize.c
 
-gcc -static -o lcc-stage2 $TMP/*.o
+(cd $TMP; gcc -static -o ../$OUT *.o)

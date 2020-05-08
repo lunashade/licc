@@ -2,17 +2,23 @@ CFLAGS=-std=c11 -g -static -fno-common
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-all: fmt test test-stage2
+test-all: fmt test test-stage2 test-stage3
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
 
 lcc-stage2: lcc $(SRCS) lcc.h self.sh
-	./self.sh
+	./self.sh tmp-stage2 $$PWD/lcc $@
+lcc-stage3: lcc-stage2
+	./self.sh tmp-stage3 $$PWD/lcc-stage2 $@
 
 test-stage2: lcc-stage2 tests/extern.o
 	./lcc-stage2 tests/tests.c > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
+
+test-stage3: lcc-stage3
+	@diff lcc-stage2 lcc-stage3 && echo "stage3 OK"
+
 
 $(OBJS): lcc.h
 
