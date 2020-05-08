@@ -1,18 +1,16 @@
-CFLAGS=-std=c11 -g -static
+CFLAGS=-std=c11 -g -static -fno-common
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-all: test
+all: fmt test
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
 
 $(OBJS): lcc.h
 
-test: lcc fmt
-	# tests/old_test.sh
+test: lcc tests/extern.o
 	./lcc tests/tests.c > tmp.s
-	echo 'int static_fn() {return 5;} int ext1; int *ext2; int ext3=5;' | gcc -xc -c -fno-common -o tmp2.o -
-	cc -static -o tmp tmp.s tmp2.o
+	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
 
 test-nqueen: lcc
@@ -24,7 +22,7 @@ test-dp: lcc
 	@examples/dp_a.sh
 
 fmt:
-	@bash fmt.sh
+	@tests/fmt.sh
 clean:
 	git clean -fX
 
