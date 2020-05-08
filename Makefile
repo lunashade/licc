@@ -2,9 +2,17 @@ CFLAGS=-std=c11 -g -static -fno-common
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
-all: fmt test
+all: fmt test test-stage2
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
+
+lcc-stage2: lcc $(SRCS) lcc.h self.sh
+	./self.sh
+
+test-stage2: lcc-stage2 tests/extern.o
+	./lcc-stage2 tests/tests.c > tmp.s
+	cc -static -o tmp tmp.s tests/extern.o
+	./tmp
 
 $(OBJS): lcc.h
 
@@ -25,5 +33,6 @@ fmt:
 	@tests/fmt.sh
 clean:
 	git clean -fX
+	rm tmp-* -rf
 
 .PHONY: clean test longtest fmt

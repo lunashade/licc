@@ -136,7 +136,7 @@ void add_type(Node *node) {
     case ND_ASSIGN:
         if (is_scalar(node->rhs->ty))
             node->rhs = new_cast(node->rhs, node->lhs->ty);
-        assert_same_type(node->lhs, node->rhs);
+        //assert_same_type(node->lhs, node->rhs);
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
