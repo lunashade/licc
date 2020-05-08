@@ -26,6 +26,8 @@ short g7 = 7;
 long g8 = 8;
 
 extern int ext1;
+extern int *ext2;
+static int ext3 = 3;
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 char g10[] = "foobar";
@@ -737,7 +739,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, strcmp(g32[1], "bar"), "strcmp(g32[1], \"bar\")");
     assert(0, strcmp(g34, "foo"), "strcmp(g34, \"foo\")");
     ext1 = 5;
+    ext2 = &ext1;
     assert(5, ext1, "ext1");
+    assert(5, *ext2, "*ext2");
     assert(1, _Alignof(char), "_Alignof(char)");
     assert(2, _Alignof(short), "_Alignof(short)");
     assert(4, _Alignof(int), "_Alignof(int)");
@@ -772,6 +776,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, counter(), "counter()");
     assert(2, counter(), "counter()");
     assert(3, counter(), "counter()");
+
+    assert(3, ext3, "ext3");
 
     printf("OK\n");
     return 0;

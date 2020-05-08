@@ -577,6 +577,8 @@ static void emit_bss(Program *prog) {
         if (gv->contents)
             continue;
         printf(".align %d\n", gv->align);
+        if (!gv->is_static)
+            printf(".globl %s\n", gv->name);
         printf("%s:\n", gv->name);
         printf("\t.zero %d\n", size_of(gv->ty));
     }
@@ -603,6 +605,8 @@ static void emit_data(Program *prog) {
         if (!gv->contents)
             continue;
         printf(".align %d\n", gv->align);
+        if (!gv->is_static)
+            printf(".globl %s\n", gv->name);
         printf("%s:\n", gv->name);
         if (gv->ascii)
             emit_string_literal(gv->contents, size_of(gv->ty));

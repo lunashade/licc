@@ -317,23 +317,18 @@ static Var *new_lvar(char *name, Type *ty) {
     return lvar;
 }
 
-static Var *new_gvar(char *name, Type *ty) {
+static Var *new_gvar(char *name, Type *ty, bool is_static, bool emit) {
     Var *gvar = calloc(1, sizeof(Var));
-    gvar->next = globals;
     gvar->name = name;
     gvar->ty = ty;
+    gvar->is_static = is_static;
     gvar->align = ty->align;
     gvar->is_local = false;
     push_scope(name)->var = gvar;
-    globals = gvar;
-    return gvar;
-}
-static Var *new_func(char *name, Type *ty) {
-    Var *gvar = calloc(1, sizeof(Var));
-    gvar->name = name;
-    gvar->ty = ty;
-    gvar->is_local = false;
-    push_scope(name)->var = gvar;
+    if (emit) {
+        gvar->next = globals;
+        globals = gvar;
+    }
     return gvar;
 }
 static char *new_label(void) {
@@ -345,7 +340,7 @@ static char *new_label(void) {
 
 static Var *new_string_literal(char *p, int len) {
     Type *ty = array_of(ty_char, len);
-    Var *var = new_gvar(new_label(), ty);
+    Var *var = new_gvar(new_label(), ty, true, true);
     var->contents = p;
     var->ascii = true;
     return var;
@@ -634,14 +629,14 @@ Program *parse(Token *tok) {
             continue;
         }
         if (ty->kind == TY_FUNC) {
-            current_fn = new_func(get_ident(ty->name), ty);
+            current_fn = new_gvar(get_ident(ty->name), ty, true, false);
             if (!consume(&tok, tok, ";")) {
                 cur = cur->next = funcdef(&tok, start);
             }
             continue;
         }
         for (;;) {
-            Var *var = new_gvar(get_ident(ty->name), ty);
+            Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static, !ctx.is_extern);
             if (ctx.align)
                 var->align = ctx.align;
             if (equal(tok, "=")) {
@@ -729,7 +724,7 @@ static Node *declaration(Token **rest, Token *tok) {
             continue;
         }
         if (ctx.is_static) {
-            Var *var = new_gvar(new_label(), ty);
+            Var *var = new_gvar(new_label(), ty, ctx.is_static, true);
             push_scope(get_ident(ty->name))->var = var;
             if (equal(tok, "="))
                 gvar_initializer(&tok, tok->next, var);
@@ -1680,7 +1675,7 @@ static Node *mul(Token **rest, Token *tok) {
 static Node *compound_literal(Token **rest, Token *tok, Type *ty,
                               Token *start) {
     if (scope_depth == 0) {
-        Var *var = new_gvar(new_label(), ty);
+        Var *var = new_gvar(new_label(), ty, true, true);
         gvar_initializer(&tok, tok, var);
         *rest = skip_end(tok);
         return new_var_node(var, start);
