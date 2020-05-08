@@ -22,6 +22,7 @@ Ty1 g6 = {'a', 98};
 short g7 = 7;
 long g8 = 8;
 
+extern int ext1;
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 char g10[] = "foobar";
@@ -712,7 +713,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, strcmp(g32[0], "foo"), "strcmp(g32[0], \"foo\")");
     assert(0, strcmp(g32[1], "bar"), "strcmp(g32[1], \"bar\")");
     assert(0, strcmp(g34, "foo"), "strcmp(g34, \"foo\")");
-
+    ext1 = 5;
+    assert(5, ext1, "ext1");
 
     printf("OK\n");
     return 0;

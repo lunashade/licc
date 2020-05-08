@@ -354,8 +354,8 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",   "char", "struct", "union",   "_Bool", "enum",
-                  "short", "long", "void",   "typedef", "static"};
+    char *tn[] = {"int",   "char", "struct", "union",   "_Bool",  "enum",
+                  "short", "long", "void",   "typedef", "static", "extern"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -779,21 +779,31 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
 
     while (is_typename(tok)) {
         // storage-class
-        if (consume(&tok, tok, "typedef")) {
+        if (equal(tok, "typedef") || equal(tok, "static") ||
+            equal(tok, "extern")) {
             if (!ctx)
                 error_tok(tok, "parse: decl-specifier: storage-class-specifier "
                                "not allowed in this context");
-            if (ctx->type_def)
-                error_tok(tok, "parse: decl-specifier: duplicate `typedef`");
-            ctx->type_def = true;
-            continue;
-        } else if (consume(&tok, tok, "static")) {
-            if (!ctx)
-                error_tok(tok, "parse: decl-specifier: storage-class-specifier "
-                               "not allowed in this context");
-            if (ctx->is_static)
-                error_tok(tok, "parse: decl-specifier: duplicate `static`");
-            ctx->is_static = true;
+
+            if (equal(tok, "typedef")) {
+                if (ctx->type_def)
+                    error_tok(tok,
+                              "parse: decl-specifier: duplicate `typedef`");
+                ctx->type_def = true;
+            } 
+            if (equal(tok, "static")) {
+                if (ctx->is_static)
+                    error_tok(tok, "parse: decl-specifier: duplicate `static`");
+                ctx->is_static = true;
+            } 
+            if (equal(tok, "extern")) {
+                ctx->is_extern = true;
+            }
+            // validation
+            if (ctx->is_extern + ctx->is_static + ctx->type_def > 1) {
+                error_tok(tok, "parse: decl-specifier: cannot use multiple storage class specifier");
+            }
+            tok = tok->next;
             continue;
         }
 

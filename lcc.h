@@ -54,7 +54,7 @@ void warn_tok(Token *tok, char *fmt, ...);
 typedef struct DeclContext DeclContext;
 struct DeclContext {
     bool type_def;
-    bool external;
+    bool is_extern;
     bool is_static;
 };
 

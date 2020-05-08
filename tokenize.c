@@ -1,10 +1,10 @@
 #include "lcc.h"
 
-static char *KEYWORDS[] = {"return",  "if",      "else",   "for",    "while",
-                           "sizeof",  "int",     "char",   "struct", "union",
-                           "short",   "long",    "void",   "signed", "unsigned",
-                           "typedef", "_Bool",   "static", "enum",   "goto",
-                           "break",   "continue", "switch", "case", "default"};
+static char *KEYWORDS[] = {
+    "return",   "if",      "else",  "for",     "while", "sizeof", "int",
+    "char",     "struct",  "union", "short",   "long",  "void",   "signed",
+    "unsigned", "typedef", "_Bool", "static",  "enum",  "goto",   "break",
+    "continue", "switch",  "case",  "default", "extern"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=", "/=",
     "%=",  "&=",  "|=", "^=", "++", "--", "&&", "||", "<<", ">>"};
@@ -18,7 +18,8 @@ void error(char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     exit(1);
 }
-static void verror_at(int lineno, char* kind, char *loc, char *fmt, va_list ap) {
+static void verror_at(int lineno, char *kind, char *loc, char *fmt,
+                      va_list ap) {
     char *line = loc;
     while (current_input < line && line[-1] != '\n')
         line--;
