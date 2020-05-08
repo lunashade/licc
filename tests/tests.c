@@ -791,6 +791,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(10, add_all3(1,2,3,4,0), "add_all3(1,2,3,4,0)");
     assert(9, add_all3(1,2,3,4,-1,0), "add_all3(1,2,3,4,-1,0)");
 
+    assert(0, ({char connected[] = "foo" "bar"; strcmp(connected, "foobar");}), "({char connected[] = \"foo\" \"bar\"; strcmp(connected, \"foobar\");})");
+
     printf("OK\n");
     return 0;
 }

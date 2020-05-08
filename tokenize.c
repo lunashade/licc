@@ -112,6 +112,22 @@ static void add_lineno(Token *tok) {
     }
 }
 
+static void concat_string_literals(Token *tok) {
+    for (Token *t = tok; t->kind != TK_EOF;t = t->next) {
+        if (t->kind != TK_STR) {
+            continue;
+        }
+        while (t->next->kind == TK_STR) {
+            long len = t->contents_len - 1 + t->next->contents_len;
+            t->contents = realloc(t->contents, len);
+            strncat(t->contents, t->next->contents, t->next->contents_len);
+            t->len = t->len + t->next->len;
+            t->contents_len = len;
+            t->next = t->next->next;
+        }
+    }
+}
+
 static char *read_escape_char(char *ret, char *p) {
     switch (*p) {
     case 'a':
@@ -321,6 +337,7 @@ Token *tokenize(char *filename, char *p) {
     }
     new_token(cur, TK_EOF, p, 0);
     add_lineno(head.next);
+    concat_string_literals(head.next);
     convert_keywords(head.next);
     return head.next;
 }
