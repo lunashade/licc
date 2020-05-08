@@ -565,10 +565,20 @@ static void emit_string_literal(char *contents, int len) {
     printf("\"\n");
 }
 
+static void emit_bss(Program *prog) {
+    printf(".bss\n");
+    for (Var *gv = prog->globals; gv; gv = gv->next) {
+        if (gv->contents)
+            continue;
+        printf("%s:\n", gv->name);
+        printf("\t.zero %d\n", size_of(gv->ty));
+    }
+}
+
 static void emit_init_data(Var *var) {
     Relocation *reloc = var->reloc;
     int pos = 0;
-    while(pos < size_of(var->ty)) {
+    while (pos < size_of(var->ty)) {
         if (reloc && reloc->offset == pos) {
             printf("\t.quad %s+%ld\n", reloc->label, reloc->addend);
             reloc = reloc->next;
@@ -583,14 +593,13 @@ static void emit_data(Program *prog) {
     printf(".data\n");
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
+        if (!gv->contents)
+            continue;
         printf("%s:\n", gv->name);
-        if (gv->contents)
-            if (gv->ascii)
-                emit_string_literal(gv->contents, size_of(gv->ty));
-            else
-                emit_init_data(gv);
+        if (gv->ascii)
+            emit_string_literal(gv->contents, size_of(gv->ty));
         else
-            printf("\t.zero %d\n", size_of(gv->ty));
+            emit_init_data(gv);
     }
 }
 
@@ -643,6 +652,7 @@ static void emit_text(Program *prog) {
 
 void codegen(Program *prog) {
     printf(".intel_syntax noprefix\n");
+    emit_bss(prog);
     emit_data(prog);
     emit_text(prog);
 }
