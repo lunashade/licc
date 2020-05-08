@@ -15,7 +15,7 @@ Type *ty_uchar = &(Type){TY_CHAR, 1, 1, true};
 
 bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
-            ty->kind == TY_LONG || ty->kind == TY_BOOL);
+            ty->kind == TY_LONG || ty->kind == TY_BOOL || ty->kind == TY_ENUM);
 }
 bool is_scalar(Type *ty) { return (is_integer(ty) || ty->kind == TY_PTR); }
 bool is_pointing(Type *ty) { return ty->base; }
@@ -147,7 +147,7 @@ void add_type(Node *node) {
     case ND_ASSIGN:
         if (is_scalar(node->rhs->ty))
             node->rhs = new_cast(node->rhs, node->lhs->ty);
-        //assert_same_type(node->lhs, node->rhs);
+        assert_same_type(node->lhs, node->rhs);
         node->ty = node->lhs->ty;
         return;
     case ND_COMMA:
