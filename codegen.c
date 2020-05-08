@@ -570,7 +570,7 @@ static void emit_bss(Program *prog) {
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (gv->contents)
             continue;
-        printf(".align %d\n", gv->ty->align);
+        printf(".align %d\n", gv->align);
         printf("%s:\n", gv->name);
         printf("\t.zero %d\n", size_of(gv->ty));
     }
@@ -596,7 +596,7 @@ static void emit_data(Program *prog) {
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (!gv->contents)
             continue;
-        printf(".align %d\n", gv->ty->align);
+        printf(".align %d\n", gv->align);
         printf("%s:\n", gv->name);
         if (gv->ascii)
             emit_string_literal(gv->contents, size_of(gv->ty));

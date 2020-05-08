@@ -310,6 +310,7 @@ static Var *new_lvar(char *name, Type *ty) {
     lvar->next = locals;
     lvar->name = name;
     lvar->ty = ty;
+    lvar->align = ty->align;
     lvar->is_local = true;
     push_scope(name)->var = lvar;
     locals = lvar;
@@ -321,6 +322,7 @@ static Var *new_gvar(char *name, Type *ty) {
     gvar->next = globals;
     gvar->name = name;
     gvar->ty = ty;
+    gvar->align = ty->align;
     gvar->is_local = false;
     push_scope(name)->var = gvar;
     globals = gvar;
@@ -354,8 +356,9 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",   "char", "struct", "union",   "_Bool",  "enum",
-                  "short", "long", "void",   "typedef", "static", "extern"};
+    char *tn[] = {"int",    "char",   "struct",  "union", "_Bool",
+                  "enum",   "short",  "long",    "void",  "typedef",
+                  "static", "extern", "_Alignas"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -639,6 +642,8 @@ Program *parse(Token *tok) {
         }
         for (;;) {
             Var *var = new_gvar(get_ident(ty->name), ty);
+            if (ctx.align)
+                var->align = ctx.align;
             if (equal(tok, "=")) {
                 gvar_initializer(&tok, tok->next, var);
             }
@@ -724,6 +729,8 @@ static Node *declaration(Token **rest, Token *tok) {
             continue;
         }
         Var *var = new_lvar(get_ident(ty->name), ty);
+        if (ctx.align)
+            var->align = ctx.align;
 
         // ("=" initializer)?
         if (equal(tok, "=")) {
@@ -805,6 +812,19 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
                                "storage class specifier");
             }
             tok = tok->next;
+            continue;
+        }
+        if (equal(tok, "_Alignas")) {
+            if (!ctx)
+                error_tok(tok, "parse: decl-specifier: alignment-specifier "
+                               "not allowed in this context");
+            tok = skip(tok->next, "(");
+            if (is_typename(tok)) {
+                ctx->align = typename(&tok, tok)->align;
+            } else {
+                ctx->align = const_expr(&tok, tok);
+            }
+            tok = skip(tok, ")");
             continue;
         }
 
@@ -976,11 +996,11 @@ static Type *struct_spec(Token **rest, Token *tok) {
     if (kind == TAG_STRUCT) {
         int offset = 0;
         for (Member *m = ty->member; m; m = m->next) {
-            offset = align_to(offset, m->ty->align);
+            offset = align_to(offset, m->align);
             m->offset = offset;
             offset += m->ty->size;
-            if (ty->align < m->ty->align)
-                ty->align = m->ty->align;
+            if (ty->align < m->align)
+                ty->align = m->align;
         }
         ty->size = align_to(offset, ty->align);
     } else {
@@ -988,8 +1008,8 @@ static Type *struct_spec(Token **rest, Token *tok) {
             m->offset = 0;
             if (ty->size < m->ty->size)
                 ty->size = m->ty->size;
-            if (ty->align < m->ty->align)
-                ty->align = m->ty->align;
+            if (ty->align < m->align)
+                ty->align = m->align;
         }
         ty->size = align_to(ty->size, ty->align);
     }
@@ -1010,7 +1030,8 @@ static Member *struct_decl(Token **rest, Token *tok) {
     Member *cur = &head;
 
     while (!equal(tok, "}")) {
-        Type *basety = decl_specifier(&tok, tok, NULL);
+        DeclContext ctx = {};
+        Type *basety = decl_specifier(&tok, tok, &ctx);
         int cnt = 0;
 
         while (!equal(tok, ";")) {
@@ -1020,6 +1041,7 @@ static Member *struct_decl(Token **rest, Token *tok) {
             Type *ty = declarator(&tok, tok, basety);
             cur->next = new_member(ty);
             cur = cur->next;
+            cur->align = ctx.align ? ctx.align : cur->ty->align;
         }
         tok = skip(tok, ";");
     }

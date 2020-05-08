@@ -56,6 +56,7 @@ struct DeclContext {
     bool type_def;
     bool is_extern;
     bool is_static;
+    int align;
 };
 
 typedef struct Var Var;
@@ -64,12 +65,13 @@ struct Var {
     char *name;    // name string
     Type *ty;      // type
     int offset;    // offset from rbp
+    int align;     // alignment
     bool is_local; // local or not
 
-    char *contents;   // global initialization
-    int contents_len; // length of contents
+    char *contents;    // global initialization
+    int contents_len;  // length of contents
     Relocation *reloc; // relocation
-    bool ascii; // can be converted ascii string
+    bool ascii;        // can be converted ascii string
 };
 
 typedef struct VarScope VarScope;
@@ -265,6 +267,7 @@ struct Member {
     Token *name; // member name
     int offset;  // offset from base
     int size;    // size of this member
+    int align;   // alignment
 };
 Member *new_member(Type *ty);
 
