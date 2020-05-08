@@ -62,6 +62,11 @@ Tree *tree = &(Tree){
     0,
 };
 
+int counter(void) {
+    static int i;
+    return ++i;
+}
+
 int testno;
 
 int assert(int want, int got, char *code) {
@@ -763,6 +768,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(2, ((int[]){0,1,2})[2], "((int[]){0,1,2})[2]");
     assert('a', ((struct {char a; int b;}){'a', 3}).a, "((struct {char a; int b;}){'a', 3}).a");
     assert(3, ({ int x=3; (int){x};  }), "({ int x=3; (int){x};  })");
+
+    assert(1, counter(), "counter()");
+    assert(2, counter(), "counter()");
+    assert(3, counter(), "counter()");
 
     printf("OK\n");
     return 0;

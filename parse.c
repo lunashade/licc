@@ -728,6 +728,13 @@ static Node *declaration(Token **rest, Token *tok) {
             // tok = tok->next;
             continue;
         }
+        if (ctx.is_static) {
+            Var *var = new_gvar(new_label(), ty);
+            push_scope(get_ident(ty->name))->var = var;
+            if (equal(tok, "="))
+                gvar_initializer(&tok, tok->next, var);
+            continue;
+        }
         Var *var = new_lvar(get_ident(ty->name), ty);
         if (ctx.align)
             var->align = ctx.align;
@@ -1340,7 +1347,7 @@ static long eval2(Node *node, Var **var) {
             error_tok(node->tok,
                       "parse: const_expr: not a constant expression");
         // int g1; int *g2 = &g1 + 3;
-        if (*var || node->lhs->kind != ND_VAR)
+        if (*var || node->lhs->kind != ND_VAR || node->lhs->var->is_local)
             error_tok(node->tok, "parse: invalid initializer");
         *var = node->lhs->var;
         return 0;
@@ -1670,7 +1677,8 @@ static Node *mul(Token **rest, Token *tok) {
 }
 
 // compound_literal = initializer "}"
-static Node *compound_literal(Token **rest, Token *tok, Type *ty, Token *start) {
+static Node *compound_literal(Token **rest, Token *tok, Type *ty,
+                              Token *start) {
     if (scope_depth == 0) {
         Var *var = new_gvar(new_label(), ty);
         gvar_initializer(&tok, tok, var);
@@ -1693,7 +1701,6 @@ static Node *cast(Token **rest, Token *tok) {
         tok = skip(tok, ")");
         if (consume(&tok, tok, "{")) {
             return compound_literal(rest, tok, ty, start);
-
         }
         Node *node = new_unary_node(ND_CAST, cast(rest, tok), tok);
         node->ty = ty;
@@ -1762,8 +1769,7 @@ static Node *unary(Token **rest, Token *tok) {
     return postfix(rest, tok);
 }
 
-
-// postfix = primary 
+// postfix = primary
 //         | postfix ("[" expr "]" | "." ident | "->" ident | "++" | "--" )?
 static Node *postfix(Token **rest, Token *tok) {
     Node *node = primary(&tok, tok);

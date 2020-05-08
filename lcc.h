@@ -67,6 +67,7 @@ struct Var {
     int offset;    // offset from rbp
     int align;     // alignment
     bool is_local; // local or not
+    bool is_static; // file-scope
 
     char *contents;    // global initialization
     int contents_len;  // length of contents
