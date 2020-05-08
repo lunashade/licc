@@ -170,6 +170,12 @@ static void gen_addr(Node *node) {
         gen_expr(node->lhs);
         return;
     }
+    if (node->kind == ND_COMMA) {
+        gen_expr(node->lhs);
+        reg_pop();
+        gen_addr(node->rhs);
+        return;
+    }
     if (node->kind == ND_MEMBER) {
         gen_addr(node->lhs);
         printf("\tadd %s, %d\n", reg_pop(), node->member->offset);

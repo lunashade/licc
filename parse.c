@@ -1668,11 +1668,33 @@ static Node *mul(Token **rest, Token *tok) {
         return node;
     }
 }
+
+// compound_literal = initializer "}"
+static Node *compound_literal(Token **rest, Token *tok, Type *ty, Token *start) {
+    if (scope_depth == 0) {
+        Var *var = new_gvar(new_label(), ty);
+        gvar_initializer(&tok, tok, var);
+        *rest = skip_end(tok);
+        return new_var_node(var, start);
+    }
+    Var *var = new_lvar(new_label(), ty);
+    Node *lhs = new_node(ND_STMT_EXPR, start);
+    lhs->body = lvar_initializer(&tok, tok, var)->body;
+    *rest = skip_end(tok);
+    Node *rhs = new_var_node(var, start);
+    return new_binary_node(ND_COMMA, lhs, rhs, start);
+}
 // cast = "(" typename ")" cast | unary
+//      | "(" typename ")" "{" compound-literal
 static Node *cast(Token **rest, Token *tok) {
     if (equal(tok, "(") && is_typename(tok->next)) {
+        Token *start = tok;
         Type *ty = typename(&tok, tok->next);
         tok = skip(tok, ")");
+        if (consume(&tok, tok, "{")) {
+            return compound_literal(rest, tok, ty, start);
+
+        }
         Node *node = new_unary_node(ND_CAST, cast(rest, tok), tok);
         node->ty = ty;
         add_type(node->lhs);
@@ -1740,7 +1762,9 @@ static Node *unary(Token **rest, Token *tok) {
     return postfix(rest, tok);
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--" )*
+
+// postfix = primary 
+//         | postfix ("[" expr "]" | "." ident | "->" ident | "++" | "--" )?
 static Node *postfix(Token **rest, Token *tok) {
     Node *node = primary(&tok, tok);
     for (;;) {
