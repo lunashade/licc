@@ -30,6 +30,9 @@ extern int *ext2;
 static int ext3 = 3;
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
+_Bool true_fn();
+_Bool false_fn();
+
 char g10[] = "foobar";
 char g11[10] = "foobar";
 char g12[3] = "foobar";
@@ -778,6 +781,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, counter(), "counter()");
 
     assert(3, ext3, "ext3");
+
+    assert(1, true_fn(), "true_fn()");
+    assert(0, false_fn(), "false_fn()");
 
     printf("OK\n");
     return 0;

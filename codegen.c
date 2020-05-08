@@ -323,6 +323,8 @@ static void gen_expr(Node *node) {
 
         printf("\tmov rax, 0\n");
         printf("\tcall %s\n", node->funcname);
+        if (node->ty->kind == TY_BOOL)
+            printf("\tmovzx eax, al\n");
 
         top = top_orig;
         printf("\tpop r15\n");
