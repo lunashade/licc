@@ -138,9 +138,15 @@ static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs, Token *tok) {
     return node;
 }
 
-static Node *new_number_node(long val, Token *tok) {
+static Node *new_number(long val, Token *tok) {
     Node *node = new_node(ND_NUM, tok);
     node->val = val;
+    return node;
+}
+static Node *new_ulong(long val, Token *tok) {
+    Node *node = new_node(ND_NUM, tok);
+    node->val = val;
+    node->ty = ty_ulong;
     return node;
 }
 
@@ -170,7 +176,7 @@ static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
     }
 
     // ptr + num
-    Node *size = new_number_node(lhs->ty->base->size, tok);
+    Node *size = new_number(lhs->ty->base->size, tok);
     rhs = new_binary_node(ND_MUL, rhs, size, tok);
     return new_binary_node(ND_ADD, lhs, rhs, tok);
 }
@@ -184,13 +190,13 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
 
     // ptr-ptr : how many elements are between the two
     if (is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
-        Node *size = new_number_node(lhs->ty->base->size, tok);
+        Node *size = new_number(lhs->ty->base->size, tok);
         Node *node = new_binary_node(ND_SUB, lhs, rhs, tok);
         return new_binary_node(ND_DIV, node, size, tok);
     }
     // ptr - num
     if (is_pointing(lhs->ty) && is_integer(rhs->ty)) {
-        Node *size = new_number_node(lhs->ty->base->size, tok);
+        Node *size = new_number(lhs->ty->base->size, tok);
         rhs = new_binary_node(ND_MUL, rhs, size, tok);
         return new_binary_node(ND_SUB, lhs, rhs, tok);
     }
@@ -386,7 +392,7 @@ static Initializer *string_initializer(Token **rest, Token *tok, Type *ty) {
                                                   : tok->contents_len; // min;
     for (int i = 0; i < len; i++) {
         init->children[i] = new_initializer(ty->base, 0);
-        init->children[i]->expr = new_number_node(tok->contents[i], tok);
+        init->children[i]->expr = new_number(tok->contents[i], tok);
     }
     *rest = tok->next;
     return init;
@@ -480,7 +486,7 @@ static Node *designator_expr(Designator *desg, Token *tok) {
         return node;
     }
     Node *node = designator_expr(desg->parent, tok);
-    node = new_add_node(node, new_number_node(desg->index, tok), tok),
+    node = new_add_node(node, new_number(desg->index, tok), tok),
     node = new_unary_node(ND_DEREF, node, tok);
     return node;
 }
@@ -515,7 +521,7 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
         return cur;
     }
     Node *lhs = designator_expr(desg, tok);
-    Node *rhs = (init && init->expr) ? init->expr : new_number_node(0, tok);
+    Node *rhs = (init && init->expr) ? init->expr : new_number(0, tok);
     cur->next = new_unary_node(ND_EXPR_STMT,
                                new_binary_node(ND_ASSIGN, lhs, rhs, tok), tok);
     return cur->next;
@@ -1761,7 +1767,7 @@ static Node *unary(Token **rest, Token *tok) {
         return cast(rest, tok->next);
     }
     if (equal(tok, "-")) {
-        return new_binary_node(ND_SUB, new_number_node(0, tok),
+        return new_binary_node(ND_SUB, new_number(0, tok),
                                cast(rest, tok->next), start);
     }
     if (equal(tok, "*")) {
@@ -1781,30 +1787,28 @@ static Node *unary(Token **rest, Token *tok) {
         Token *op = tok;
         Type *ty = typename(&tok, tok->next->next);
         *rest = skip(tok, ")");
-        return new_number_node(size_of(ty), op);
+        return new_ulong(size_of(ty), op);
     }
     if (equal(tok, "_Alignof")) {
         tok = skip(tok->next, "(");
         Type *ty = typename(&tok, tok);
         *rest = skip(tok, ")");
-        return new_number_node(ty->align, tok);
+        return new_ulong(ty->align, tok);
     }
     if (equal(tok, "sizeof")) {
         Node *node = unary(rest, tok->next);
         add_type(node);
-        return new_number_node(size_of(node->ty), tok);
+        return new_ulong(size_of(node->ty), tok);
     }
     if (equal(tok, "++")) {
         Node *node = cast(rest, tok->next);
-        return new_binary_node(ND_ASSIGN, node,
-                               new_add_node(node, new_number_node(1, tok), tok),
-                               tok);
+        return new_binary_node(
+            ND_ASSIGN, node, new_add_node(node, new_number(1, tok), tok), tok);
     }
     if (equal(tok, "--")) {
         Node *node = cast(rest, tok->next);
-        return new_binary_node(ND_ASSIGN, node,
-                               new_sub_node(node, new_number_node(1, tok), tok),
-                               tok);
+        return new_binary_node(
+            ND_ASSIGN, node, new_sub_node(node, new_number(1, tok), tok), tok);
     }
     return postfix(rest, tok);
 }
@@ -1837,18 +1841,18 @@ static Node *postfix(Token **rest, Token *tok) {
         }
         if (equal(tok, "++")) {
             Node *expr1 = new_binary_node(
-                ND_ASSIGN, node,
-                new_add_node(node, new_number_node(1, tok), tok), tok);
-            Node *expr2 = new_sub_node(node, new_number_node(1, tok), tok);
+                ND_ASSIGN, node, new_add_node(node, new_number(1, tok), tok),
+                tok);
+            Node *expr2 = new_sub_node(node, new_number(1, tok), tok);
             node = new_binary_node(ND_COMMA, expr1, expr2, tok);
             tok = skip(tok, "++");
             continue;
         }
         if (equal(tok, "--")) {
             Node *expr1 = new_binary_node(
-                ND_ASSIGN, node,
-                new_sub_node(node, new_number_node(1, tok), tok), tok);
-            Node *expr2 = new_add_node(node, new_number_node(1, tok), tok);
+                ND_ASSIGN, node, new_sub_node(node, new_number(1, tok), tok),
+                tok);
+            Node *expr2 = new_add_node(node, new_number(1, tok), tok);
             node = new_binary_node(ND_COMMA, expr1, expr2, tok);
             tok = skip(tok, "--");
             continue;
@@ -1912,7 +1916,7 @@ static Node *primary(Token **rest, Token *tok) {
             node = new_var_node(sc->var, tok);
         } else {
             assert(sc->enum_ty);
-            node = new_number_node(sc->enum_val, tok);
+            node = new_number(sc->enum_val, tok);
         }
         *rest = tok->next;
         return node;
@@ -1924,7 +1928,7 @@ static Node *primary(Token **rest, Token *tok) {
     }
     if (tok->kind != TK_NUM)
         error_tok(tok, "parse: primary: expected expression");
-    Node *node = new_number_node(get_number(tok), tok);
+    Node *node = new_number(get_number(tok), tok);
     *rest = tok->next;
     return node;
 }

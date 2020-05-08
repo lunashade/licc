@@ -860,6 +860,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(-1, (int)0xffffffff, "(int)0xffffffff");
     assert(0xffffffff, (unsigned)0xffffffff, "(unsigned)0xffffffff");
 
+    assert(8, sizeof(sizeof(char)), "sizeof(sizeof(char))");
+    assert(8, sizeof(_Alignof(char)), "sizeof(_Alignof(char))");
+
     printf("OK\n");
     return 0;
 }
