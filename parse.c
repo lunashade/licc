@@ -6,6 +6,7 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx);
 static Type *enum_spec(Token **rest, Token *tok);
 static Type *struct_spec(Token **rest, Token *tok);
 static Member *struct_decl(Token **rest, Token *tok);
+static Type *pointer(Token **rest, Token *tok, Type *ty);
 static Type *typename(Token **rest, Token *tok);
 static Type *abstract_declarator(Token **rest, Token *tok, Type *ty);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
@@ -357,9 +358,10 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",    "char",   "struct",   "union",  "_Bool",
-                  "enum",   "short",  "long",     "void",   "typedef",
-                  "static", "extern", "_Alignas", "signed", "unsigned"};
+    char *tn[] = {"int",    "char",    "struct",   "union",  "_Bool",
+                  "enum",   "short",   "long",     "void",   "typedef",
+                  "static", "extern",  "_Alignas", "signed", "unsigned",
+                  "const",  "volatile"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -522,8 +524,9 @@ static Node *new_lvar_initialization(Node *cur, Initializer *init, Type *ty,
     }
     Node *lhs = designator_expr(desg, tok);
     Node *rhs = (init && init->expr) ? init->expr : new_number(0, tok);
-    cur->next = new_unary_node(ND_EXPR_STMT,
-                               new_binary_node(ND_ASSIGN, lhs, rhs, tok), tok);
+    lhs = new_binary_node(ND_ASSIGN, lhs, rhs, tok);
+    lhs->is_init = true;
+    cur->next = new_unary_node(ND_EXPR_STMT, lhs, tok);
     return cur->next;
 }
 
@@ -799,6 +802,7 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     };
     int cnt = 0;
     Type *spec_ty = ty_int;
+    bool is_const = false;
 
     while (is_typename(tok)) {
         // storage-class
@@ -830,6 +834,16 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             tok = tok->next;
             continue;
         }
+        // type qualifier
+        if (equal(tok, "volatile") || equal(tok, "const")) {
+            if (equal(tok, "const"))
+                is_const = true;
+            // ignore volatile
+
+            tok = tok->next;
+            continue;
+        }
+
         if (equal(tok, "_Alignas")) {
             if (!ctx)
                 error_tok(tok, "parse: decl-specifier: alignment-specifier "
@@ -953,6 +967,10 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     }
     // epilogue
     *rest = tok;
+    if (is_const) {
+        spec_ty = copy_type(spec_ty);
+        spec_ty->is_const = is_const;
+    }
     return spec_ty;
 }
 
@@ -1095,12 +1113,24 @@ static Member *struct_decl(Token **rest, Token *tok) {
     return head.next;
 }
 
-// abstract-declarator = ("*")* ("(" declarator ")")? type-suffix?
-static Type *abstract_declarator(Token **rest, Token *tok, Type *ty) {
-    for (Token *t = tok; equal(t, "*"); t = t->next) {
+// pointer = ("*" ("volatile" | "const")*)*
+static Type *pointer(Token **rest, Token *tok, Type *ty) {
+    while (consume(&tok, tok, "*")) {
         ty = pointer_to(ty);
-        tok = t->next;
+        while (consume(&tok, tok, "const")) {
+            ty->is_const = true;
+        }
+        while (consume(&tok, tok, "volatile")) {
+            ;
+        }
     }
+    *rest = tok;
+    return ty;
+}
+
+// abstract-declarator = pointer ("(" declarator ")")? type-suffix?
+static Type *abstract_declarator(Token **rest, Token *tok, Type *ty) {
+    ty = pointer(&tok, tok, ty);
     if (equal(tok, "(")) {
         Type *placeholder = calloc(1, sizeof(Type));
         Type *new_ty = abstract_declarator(&tok, tok->next, placeholder);
@@ -1116,12 +1146,9 @@ static Type *typename(Token **rest, Token *tok) {
     return abstract_declarator(rest, tok, ty);
 }
 
-// declarator = ("*")* ("(" declarator ")" | ident) type-suffix?
+// declarator = pointer ("(" declarator ")" | ident) type-suffix?
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
-    for (Token *t = tok; equal(t, "*"); t = t->next) {
-        ty = pointer_to(ty);
-        tok = t->next;
-    }
+    ty = pointer(&tok, tok, ty);
     if (equal(tok, "(")) {
         Type *placeholder = calloc(1, sizeof(Type));
         Type *new_ty = declarator(&tok, tok->next, placeholder);

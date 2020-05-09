@@ -177,6 +177,8 @@ struct Node {
     Node *default_case; // switch-default
     int case_label;     // codegen label for case node
     int case_end_label; // codegen label for case node
+    // ND_ASSIGN
+    bool is_init;
 
     Token *tok; // Debug info: representative token
 };
@@ -266,6 +268,8 @@ struct Type {
     Member *member;
     // ARRAY or STRUCT
     bool is_incomplete;
+    // qualifier
+    bool is_const;
 };
 
 struct Member {

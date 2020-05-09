@@ -929,6 +929,15 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, ({char x[(unsigned int)0xffffffffffffff>>31]; sizeof(x);}), "({char x[(unsigned int)0xffffffffffffff>>31]; sizeof(x);})");
     assert(1, ({char x[(unsigned)1< -1]; sizeof(x);}), "({char x[(unsigned)1< -1]; sizeof(x);})");
     assert(1, ({char x[(unsigned)1<=-1]; sizeof(x);}), "({char x[(unsigned)1<=-1]; sizeof(x);})");
+    {const x;}
+    {volatile x;}
+    {int const x;}
+    {const int x;}
+    {const int volatile const const x;}
+
+    assert(5, ({const int x = 5; x;}), "({const int x = 5; x;})");
+    assert(5, ({const int x = 5; int *const y=&x; *y;}), "({const int x = 5; int *const y=&x; *y;})");
+    assert(5, ({const int x = 5; *(const volatile * const)&x;}), "({const int x = 5; *(const volatile * const)&x;})");
 
     printf("OK\n");
     return 0;
