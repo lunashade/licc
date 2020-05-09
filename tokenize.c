@@ -376,10 +376,10 @@ Token *tokenize(char *filename, char *p) {
             p += cur->len;
             continue;
         }
-        if (isalpha(*p) || *p == '_') {
+        if (isalpha(*p) || *p == '_' || (*p & 0x80)) {
             cur = new_token(cur, TK_IDENT, p, 0);
             char *q = p;
-            while (isalnum(*p) || *p == '_') {
+            while (isalnum(*p) || *p == '_' || (*p & 0x80)) {
                 p++;
             }
             cur->len = p - q;

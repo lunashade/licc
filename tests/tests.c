@@ -16,6 +16,8 @@ typedef struct {
 } va_list[1];
 int;
 struct {char a; int b;};
+int あ = 3;
+const int 🍣 = 42;
 typedef struct {char a; int b;} Ty1;
 int add_all1(int x, ...);
 int add_all3(int x, int y, int z,...);
@@ -938,6 +940,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(5, ({const int x = 5; x;}), "({const int x = 5; x;})");
     assert(5, ({const int x = 5; int *const y=&x; *y;}), "({const int x = 5; int *const y=&x; *y;})");
     assert(5, ({const int x = 5; *(const volatile * const)&x;}), "({const int x = 5; *(const volatile * const)&x;})");
+
+    assert(3, あ, "あ");
+    assert(42, 🍣, "🍣");
+    assert(3, ({int β=3; β;}), "({int β=3; β;})");
 
     printf("OK\n");
     return 0;
