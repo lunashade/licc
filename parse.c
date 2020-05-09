@@ -1376,17 +1376,26 @@ static long eval2(Node *node, Var **var) {
     case ND_NUM:
         return node->val;
     case ND_CAST: {
-        if (is_integer(node->ty)) {
-            switch (size_of(node->ty)) {
-            case 1:
-                return (char)eval(node->lhs);
-            case 2:
-                return (short)eval(node->lhs);
-            case 4:
-                return (int)eval(node->lhs);
-            }
+        long val = eval2(node->lhs, var);
+        if (size_of(node->ty) == 8 || !is_integer(node->ty))
+            return val;
+
+        switch (size_of(node->ty)) {
+        case 1:
+            if (node->ty->is_unsigned)
+                return (unsigned char)eval(node->lhs);
+            return (char)eval(node->lhs);
+        case 2:
+            if (node->ty->is_unsigned)
+                return (unsigned short)eval(node->lhs);
+            return (short)eval(node->lhs);
+        case 4:
+            if (node->ty->is_unsigned)
+                return (unsigned int)eval(node->lhs);
+            return (int)eval(node->lhs);
+        default:
+            error_tok(node->tok, "parse: eval: unknown size of type");
         }
-        return eval2(node->lhs, var);
     }
     case ND_ADDR:
         if (!var)
@@ -1413,6 +1422,8 @@ static long eval2(Node *node, Var **var) {
     case ND_MUL:
         return eval(node->lhs) * eval(node->rhs);
     case ND_DIV:
+        if (node->lhs->ty->is_unsigned)
+            return (unsigned long)eval(node->lhs) / eval(node->rhs);
         return eval(node->lhs) / eval(node->rhs);
     case ND_MOD:
         return eval(node->lhs) % eval(node->rhs);
@@ -1425,6 +1436,8 @@ static long eval2(Node *node, Var **var) {
     case ND_SHL:
         return eval(node->lhs) << eval(node->rhs);
     case ND_SHR:
+        if (node->lhs->ty->is_unsigned)
+            return (unsigned long)eval(node->lhs) >> eval(node->rhs);
         return eval(node->lhs) >> eval(node->rhs);
     case ND_LOGAND:
         return eval(node->lhs) && eval(node->rhs);
@@ -1435,8 +1448,12 @@ static long eval2(Node *node, Var **var) {
     case ND_NE:
         return eval(node->lhs) != eval(node->rhs);
     case ND_LE:
+        if (node->lhs->ty->is_unsigned)
+            return (unsigned long)eval(node->lhs) <= eval(node->rhs);
         return eval(node->lhs) <= eval(node->rhs);
     case ND_LT:
+        if (node->lhs->ty->is_unsigned)
+            return (unsigned long)eval(node->lhs) < eval(node->rhs);
         return eval(node->lhs) < eval(node->rhs);
     case ND_COND:
         return eval(node->cond) ? eval(node->then) : eval(node->els);

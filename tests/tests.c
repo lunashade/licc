@@ -923,6 +923,13 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(-1, 0x1 << 31 >> 31, "0x1 << 31 >> 31");
     assert(-1, 0b1 << 31 >> 31, "0b1 << 31 >> 31");
 
+    assert(4, ({char x[(-1>>31)+5]; sizeof(x);}), "({char x[(-1>>31)+5]; sizeof(x);})");
+    assert(255, ({char x[(unsigned char)0xffffffff]; sizeof(x);}), "({char x[(unsigned char)0xffffffff]; sizeof(x);})");
+    assert(0xffff, ({char x[(unsigned short)0xffffffff]; sizeof(x);}), "({char x[(unsigned short)0xffffffff]; sizeof(x);})");
+    assert(1, ({char x[(unsigned int)0xffffffffffffff>>31]; sizeof(x);}), "({char x[(unsigned int)0xffffffffffffff>>31]; sizeof(x);})");
+    assert(1, ({char x[(unsigned)1< -1]; sizeof(x);}), "({char x[(unsigned)1< -1]; sizeof(x);})");
+    assert(1, ({char x[(unsigned)1<=-1]; sizeof(x);}), "({char x[(unsigned)1<=-1]; sizeof(x);})");
+
     printf("OK\n");
     return 0;
 }
