@@ -30,7 +30,8 @@ typedef struct Token Token;
 struct Token {
     TokenKind kind;
     Token *next;
-    long val;
+    long val; // TK_NUM
+    Type *ty; // TK_NUM
     char *loc;
     int len;
     char *contents;   // string literal including \0

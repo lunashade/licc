@@ -1929,6 +1929,7 @@ static Node *primary(Token **rest, Token *tok) {
     if (tok->kind != TK_NUM)
         error_tok(tok, "parse: primary: expected expression");
     Node *node = new_number(get_number(tok), tok);
+    node->ty = tok->ty;
     *rest = tok->next;
     return node;
 }

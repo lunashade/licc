@@ -862,6 +862,66 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(8, sizeof(sizeof(char)), "sizeof(sizeof(char))");
     assert(8, sizeof(_Alignof(char)), "sizeof(_Alignof(char))");
+    assert(4, sizeof(0), "sizeof(0)");
+    assert(8, sizeof(0L), "sizeof(0L)");
+    assert(8, sizeof(0LU), "sizeof(0LU)");
+    assert(8, sizeof(0UL), "sizeof(0UL)");
+    assert(8, sizeof(0LL), "sizeof(0LL)");
+    assert(8, sizeof(0LLU), "sizeof(0LLU)");
+    assert(8, sizeof(0Ull), "sizeof(0Ull)");
+    assert(8, sizeof(0l), "sizeof(0l)");
+    assert(8, sizeof(0ll), "sizeof(0ll)");
+    assert(8, sizeof(0x0L), "sizeof(0x0L)");
+    assert(8, sizeof(0b0L), "sizeof(0b0L)");
+    assert(4, sizeof(2147483647), "sizeof(2147483647)");
+    assert(8, sizeof(2147483648), "sizeof(2147483648)");
+    assert(-1, 0xffffffffffffffff, "0xffffffffffffffff");
+    assert(8, sizeof(0xffffffffffffffff), "sizeof(0xffffffffffffffff)");
+    assert(4, sizeof(4294967295U), "sizeof(4294967295U)");
+    assert(8, sizeof(4294967296U), "sizeof(4294967296U)");
+
+    assert(3, -1U>>30, "-1U>>30");
+    assert(3, -1Ul>>62, "-1Ul>>62");
+    assert(3, -1ull>>62, "-1ull>>62");
+
+    assert(1, 0xffffffffffffffffl>>63, "0xffffffffffffffffl>>63");
+    assert(1, 0xffffffffffffffffll>>63, "0xffffffffffffffffll>>63");
+
+    assert(-1, 18446744073709551615, "18446744073709551615");
+    assert(8, sizeof(18446744073709551615), "sizeof(18446744073709551615)");
+    assert(-1, 18446744073709551615>>63, "18446744073709551615>>63");
+
+    assert(-1, 0xffffffffffffffff, "0xffffffffffffffff");
+    assert(8, sizeof(0xffffffffffffffff), "sizeof(0xffffffffffffffff)");
+    assert(1, 0xffffffffffffffff>>63, "0xffffffffffffffff>>63");
+
+    assert(-1, 01777777777777777777777, "01777777777777777777777");
+    assert(8, sizeof(01777777777777777777777), "sizeof(01777777777777777777777)");
+    assert(1, 01777777777777777777777>>63, "01777777777777777777777>>63");
+
+    assert(-1, 0b1111111111111111111111111111111111111111111111111111111111111111, "0b1111111111111111111111111111111111111111111111111111111111111111");
+    assert(8, sizeof(0b1111111111111111111111111111111111111111111111111111111111111111), "sizeof(0b1111111111111111111111111111111111111111111111111111111111111111)");
+    assert(1, 0b1111111111111111111111111111111111111111111111111111111111111111>>63, "0b1111111111111111111111111111111111111111111111111111111111111111>>63");
+
+    assert(8, sizeof(2147483648), "sizeof(2147483648)");
+    assert(4, sizeof(2147483647), "sizeof(2147483647)");
+
+    assert(8, sizeof(0x1ffffffff), "sizeof(0x1ffffffff)");
+    assert(4, sizeof(0xffffffff), "sizeof(0xffffffff)");
+    assert(1, 0xffffffff>>31, "0xffffffff>>31");
+
+    assert(8, sizeof(040000000000), "sizeof(040000000000)");
+    assert(4, sizeof(037777777777), "sizeof(037777777777)");
+    assert(1, 037777777777>>31, "037777777777>>31");
+
+    assert(8, sizeof(0b111111111111111111111111111111111), "sizeof(0b111111111111111111111111111111111)");
+    assert(4, sizeof(0b11111111111111111111111111111111), "sizeof(0b11111111111111111111111111111111)");
+    assert(1, 0b11111111111111111111111111111111>>31, "0b11111111111111111111111111111111>>31");
+
+    assert(-1, 1 << 31 >> 31, "1 << 31 >> 31");
+    assert(-1, 01 << 31 >> 31, "01 << 31 >> 31");
+    assert(-1, 0x1 << 31 >> 31, "0x1 << 31 >> 31");
+    assert(-1, 0b1 << 31 >> 31, "0b1 << 31 >> 31");
 
     printf("OK\n");
     return 0;

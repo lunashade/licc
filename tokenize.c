@@ -65,6 +65,11 @@ static bool startswith(char *p, char *q) {
     return strncmp(p, q, strlen(q)) == 0;
 }
 
+static bool is_hex(int c) {
+    return ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F') ||
+           ('0' <= c && c <= '9');
+}
+
 // Tokenizer
 static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
     Token *tok = calloc(1, sizeof(Token));
@@ -113,7 +118,7 @@ static void add_lineno(Token *tok) {
 }
 
 static void concat_string_literals(Token *tok) {
-    for (Token *t = tok; t->kind != TK_EOF;t = t->next) {
+    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         if (t->kind != TK_STR) {
             continue;
         }
@@ -221,24 +226,81 @@ static Token *read_char_literal(Token *cur, char *start) {
     cur->val = c;
     return cur;
 }
+
+static Type *read_int_suffix(char *p, char **rest, long val) { *rest = p; }
+
 static Token *read_int_literal(Token *cur, char *start) {
     char *p = start;
     int base = 10;
-    if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+    if (!strncasecmp(p, "0x", 2) && is_hex(p[2])) {
         p += 2;
         base = 16;
-    } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+    } else if (!strncasecmp(p, "0b", 2) && (p[2] == '0' || p[2] == '1')) {
         p += 2;
         base = 2;
     } else if (*p == '0') {
         base = 8;
     }
     long val = strtoul(p, &p, base);
+
+    // read U, L, LL suffixes
+    bool l = false;
+    bool u = false;
+
+    if (startswith(p, "LLU") || startswith(p, "ULL") || startswith(p, "ull") ||
+        startswith(p, "llu") || startswith(p, "llU") || startswith(p, "Ull") ||
+        startswith(p, "uLL") || startswith(p, "LLu")) {
+        l = u = true;
+        p += 3;
+    } else if (startswith(p, "LU") || startswith(p, "UL") ||
+               startswith(p, "ul") || startswith(p, "lu") ||
+               startswith(p, "lU") || startswith(p, "Ul") ||
+               startswith(p, "uL") || startswith(p, "Lu")) {
+        l = u = true;
+        p += 2;
+    } else if (startswith(p, "LL") || startswith(p, "ll")) {
+        l = true;
+        p += 2;
+    } else if (startswith(p, "u") || startswith(p, "U")) {
+        u = true;
+        p += 1;
+    } else if (startswith(p, "l") || startswith(p, "L")) {
+        l = true;
+        p += 1;
+    }
+    Type *ty;
+    if (base == 10) {
+        if (l && u)
+            ty = ty_ulong;
+        else if (l)
+            ty = ty_long;
+        else if (u)
+            ty = (val >> 32) ? ty_ulong : ty_uint;
+        else
+            ty = (val >> 31) ? ty_long : ty_int;
+    } else {
+        if (l && u)
+            ty = ty_ulong;
+        else if (l)
+            ty = (val >> 63) ? ty_ulong : ty_long;
+        else if (u)
+            ty = (val >> 32) ? ty_ulong : ty_uint;
+        else if (val >> 63)
+            ty = ty_ulong;
+        else if (val >> 32)
+            ty = ty_long;
+        else if (val >> 31)
+            ty = ty_uint;
+        else
+            ty = ty_int;
+    }
+
     if (isalnum(*p) || *p == '_')
         error_at(p, "tokenize: invalid digit");
 
     cur = new_token(cur, TK_NUM, start, p - start);
     cur->val = val;
+    cur->ty = ty;
     return cur;
 }
 

@@ -194,7 +194,7 @@ static void gen_expr(Node *node) {
     printf(".loc 1 %d\n", node->tok->lineno);
     switch (node->kind) {
     case ND_NUM:
-        printf("\tmov %s, %ld\n", reg_push(), node->val);
+        printf("\tmov %s, %lu\n", reg_push(), node->val);
         return;
     case ND_VAR:
     case ND_MEMBER:
