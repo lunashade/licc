@@ -721,6 +721,17 @@ static void emit_text(Program *prog) {
 }
 
 void codegen(Program *prog) {
+    for (Function *fn = prog->fns; fn; fn = fn->next) {
+        // calle-saved registers take 32 bytes
+        // and variable-argument save area takes 48 bytes.
+        int offset = fn->is_variadic ? 80 : 32;
+        for (Var *v = fn->locals; v; v = v->next) {
+            offset = align_to(offset, v->align);
+            offset += v->ty->size;
+            v->offset = offset;
+        }
+        fn->stacksize = align_to(offset, 16);
+    }
     printf(".intel_syntax noprefix\n");
     emit_bss(prog);
     emit_data(prog);
