@@ -16,6 +16,8 @@ static char *reg16[] = {"r10w", "r11w", "r12w", "r13w", "r14w", "r15w"};
 static char *reg8[] = {"r10b", "r11b", "r12b", "r13b", "r14b", "r15b"};
 
 static char *argreg(int sz, int idx) {
+    if (idx < 0 || sizeof(argreg64) / sizeof(*argreg64) <= idx)
+        error("registor out of range: %d", idx);
     if (sz == 1) {
         return argreg8[idx];
     }
@@ -29,6 +31,14 @@ static char *argreg(int sz, int idx) {
         return argreg64[idx];
     }
     error("invalid size of register: %d", sz);
+}
+
+static char *argregx(Type *ty, int idx) {
+    int sz = size_of(ty);
+    if (sz == 8)
+        return argreg(8, idx);
+    else
+        return argreg(4, idx);
 }
 
 static char *reg(int idx) {
@@ -189,10 +199,25 @@ static void gen_addr(Node *node) {
     error_tok(node->tok, "codegen: gen_addr: not an lvalue");
 }
 
+static void builtin_va_start(Node *node) {
+    int n = 0;
+    for (Var *var = current_fn->params; var; var = var->next)
+        n++;
+
+    printf("\tmov rax, [rbp-%d]\n", node->args[0]->offset);
+    printf("\tmov dword ptr [rax], %d\n", n * 8);
+    printf("\tmov [rax+16], rbp\n");
+    printf("\tsub qword ptr [rax+16], 80\n");
+    top++;
+}
+
 // code generate expression
 static void gen_expr(Node *node) {
     printf(".loc 1 %d\n", node->tok->lineno);
     switch (node->kind) {
+    case ND_NOP_EXPR:
+        top++;
+        return;
     case ND_NUM:
         printf("\tmov %s, %lu\n", reg_push(), node->val);
         return;
@@ -300,39 +325,36 @@ static void gen_expr(Node *node) {
         return;
     case ND_FUNCALL: {
         if (!strcmp(node->funcname, "__builtin_va_start")) {
-            gen_expr(node->args);
-            int n = 0;
-            for (Var *var = current_fn->params; var; var = var->next)
-                n++;
-            printf("\tmov DWORD PTR [%s], %d\n", reg(top - 1), n * 8);
-            printf("\tlea rax, [rbp-80]\n");
-            printf("\tmov [%s+16], rax\n", reg(top - 1));
+            builtin_va_start(node);
             return;
         }
-        int top_orig = top;
-        top = 0;
+
         printf("\tpush r10\n");
         printf("\tpush r11\n");
-        printf("\tpush r12\n");
-        printf("\tpush r13\n");
-        printf("\tpush r14\n");
-        printf("\tpush r15\n");
 
         // push arguments then pop to register
-        int nargs = 0;
-        for (Node *arg = node->args; arg; arg = arg->next) {
-            if (nargs >= 6) {
-                error_tok(arg->tok, "codegen: funcall: too many arguments: %d",
-                          nargs);
+        for (int i = 0; i < node->nargs; i++) {
+            Var *arg = node->args[i];
+            int sz = size_of(arg->ty);
+            switch (sz) {
+            case 1:
+                printf("\tmovsx %s, byte ptr [rbp-%d]\n", argregx(arg->ty, i),
+                       arg->offset);
+                break;
+            case 2:
+                printf("\tmovsx %s, word ptr [rbp-%d]\n", argregx(arg->ty, i),
+                       arg->offset);
+                break;
+            case 4:
+                printf("\tmov %s, dword ptr [rbp-%d]\n", argregx(arg->ty, i),
+                       arg->offset);
+                break;
+            default:
+                assert(sz == 8);
+                printf("\tmov %s, [rbp-%d]\n", argregx(arg->ty, i),
+                       arg->offset);
+                break;
             }
-            gen_expr(arg);
-            printf("\tpush %s\n", reg_pop());
-            printf("\tsub rsp, 8\n");
-            nargs++;
-        }
-        for (int i = nargs - 1; i >= 0; i--) {
-            printf("\tadd rsp, 8\n");
-            printf("\tpop %s\n", argreg64[i]);
         }
 
         printf("\tmov rax, 0\n");
@@ -340,11 +362,6 @@ static void gen_expr(Node *node) {
         if (node->ty->kind == TY_BOOL)
             printf("\tmovzx eax, al\n");
 
-        top = top_orig;
-        printf("\tpop r15\n");
-        printf("\tpop r14\n");
-        printf("\tpop r13\n");
-        printf("\tpop r12\n");
         printf("\tpop r11\n");
         printf("\tpop r10\n");
 

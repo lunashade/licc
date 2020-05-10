@@ -42,7 +42,7 @@ static Node *cast(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
-static Node *func_args(Token **rest, Token *tok);
+static Node *funcall(Token **rest, Token *tok);
 
 //
 // Token utility
@@ -1946,22 +1946,9 @@ static Node *primary(Token **rest, Token *tok) {
     }
     if (tok->kind == TK_IDENT) {
         // function call
-        if (equal(tok->next, "(")) {
-            Node *node = new_node(ND_FUNCALL, tok);
-            VarScope *sc = find_var(tok);
-            node->funcname = get_ident(tok);
-            node->args = func_args(rest, tok->next);
+        if (equal(tok->next, "("))
+            return funcall(rest, tok);
 
-            if (sc) {
-                if (!sc->var || sc->var->ty->kind != TY_FUNC)
-                    error_tok(tok, "parse: primary: not a function");
-                node->func_ty = sc->var->ty;
-            } else {
-                warn_tok(tok, "parse: implicit declaration of a function");
-                node->func_ty = func_type(ty_int);
-            }
-            return node;
-        }
         // variable or enum constant
         VarScope *sc = find_var(tok);
         if (!sc || (!sc->var && !sc->enum_ty)) {
@@ -1991,18 +1978,53 @@ static Node *primary(Token **rest, Token *tok) {
     return node;
 }
 
+// funcall = ident func-args
 // func-args = "(" (assign ("," assign)*)? ")"
-static Node *func_args(Token **rest, Token *tok) {
-    Node head = {};
-    Node *cur = &head;
+static Node *funcall(Token **rest, Token *tok) {
+    Node *node = new_node(ND_FUNCALL, tok);
+    VarScope *sc = find_var(tok);
+    node->funcname = get_ident(tok);
+    if (sc) {
+        if (!sc->var || sc->var->ty->kind != TY_FUNC)
+            error_tok(tok, "parse: primary: not a function");
+        node->func_ty = sc->var->ty;
+    } else {
+        warn_tok(tok, "parse: implicit declaration of a function");
+        node->func_ty = func_type(ty_int);
+    }
+    node->ty = node->func_ty->return_ty;
 
-    tok = skip(tok, "(");
-    int cnt = 0;
+    // func-args
+    tok = skip(tok->next, "(");
+    Node *cur = new_node(ND_NOP_EXPR, tok);
+
+    Var **args = NULL;
+    int nargs = 0;
+    Type *arg_ty = node->func_ty->params;
     while (!equal(tok, ")")) {
-        if (cnt++ > 0)
+        if (nargs)
             tok = skip(tok, ",");
-        cur = cur->next = assign(&tok, tok);
+
+        Node *arg = assign(&tok, tok);
+        add_type(arg);
+        if (arg_ty) {
+            arg = new_cast(arg, arg_ty);
+            arg_ty = arg_ty->next;
+        }
+        Var *var = is_pointing(arg->ty)
+                       ? new_lvar("", pointer_to(arg->ty->base))
+                       : new_lvar("", arg->ty);
+
+        args = realloc(args, sizeof(*args) * (nargs + 1));
+        args[nargs] = var;
+        nargs++;
+        Node *expr =
+            new_binary_node(ND_ASSIGN, new_var_node(var, tok), arg, tok);
+        cur = new_binary_node(ND_COMMA, cur, expr, tok);
     }
     *rest = skip(tok, ")");
-    return head.next;
+    node->args = args;
+    node->nargs = nargs;
+
+    return new_binary_node(ND_COMMA, cur, node, tok);
 }

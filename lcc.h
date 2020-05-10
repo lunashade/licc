@@ -126,6 +126,7 @@ typedef enum {
     ND_ASSIGN,    // =
     ND_COND,      // cond ? then : else
     ND_MEMBER,    // . (struct member)
+    ND_NOP_EXPR,  // nop
     ND_EXPR_STMT, // Expession Statement
     ND_STMT_EXPR, // GNU Statement Expression
     ND_BLOCK,     // block statement
@@ -156,7 +157,8 @@ struct Node {
 
     // ND_FUNCALL
     char *funcname; // function call
-    Node *args;     // function args
+    Var **args;     // function args
+    int nargs;      // number of args
     Type *func_ty;  // function type info
 
     Node *cond; // condition
