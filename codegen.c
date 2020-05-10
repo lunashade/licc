@@ -336,14 +336,15 @@ static void gen_expr(Node *node) {
         for (int i = 0; i < node->nargs; i++) {
             Var *arg = node->args[i];
             int sz = size_of(arg->ty);
+            char *insn = (arg->ty->is_unsigned) ? "movzx" : "movsx";
             switch (sz) {
             case 1:
-                printf("\tmovsx %s, byte ptr [rbp-%d]\n", argregx(arg->ty, i),
-                       arg->offset);
+                printf("\t%s %s, byte ptr [rbp-%d]\n", insn,
+                       argregx(arg->ty, i), arg->offset);
                 break;
             case 2:
-                printf("\tmovsx %s, word ptr [rbp-%d]\n", argregx(arg->ty, i),
-                       arg->offset);
+                printf("\t%s %s, word ptr [rbp-%d]\n", insn,
+                       argregx(arg->ty, i), arg->offset);
                 break;
             case 4:
                 printf("\tmov %s, dword ptr [rbp-%d]\n", argregx(arg->ty, i),
