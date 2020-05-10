@@ -1,11 +1,27 @@
 version: 2.1
 jobs:
-  test:
+  test-stage1:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
-      - run: make test-all
+      - run: make test
+      - "slack/status":
+          fail_only: false
+  test-stage2:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run: make test-stage2
+      - "slack/status":
+          fail_only: false
+  test-stage3:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run: make test-stage3
       - "slack/status":
           fail_only: false
   nqueen:
@@ -30,4 +46,6 @@ orbs:
 workflows:
   wfs:
     jobs:
-      - test
+      - test-stage1
+      - test-stage2
+      - test-stage3
