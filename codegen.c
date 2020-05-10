@@ -15,6 +15,14 @@ static char *reg32[] = {"r10d", "r11d", "r12d", "r13d", "r14d", "r15d"};
 static char *reg16[] = {"r10w", "r11w", "r12w", "r13w", "r14w", "r15w"};
 static char *reg8[] = {"r10b", "r11b", "r12b", "r13b", "r14b", "r15b"};
 
+static char *freg64[] = {"xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13"};
+
+static char *freg(int idx) {
+    if (idx < 0 || sizeof(freg64) / sizeof(*freg64) <= idx)
+        error("registor out of range: %d", idx);
+    return freg64[idx];
+}
+
 static char *argreg(int sz, int idx) {
     if (idx < 0 || sizeof(argreg64) / sizeof(*argreg64) <= idx)
         error("registor out of range: %d", idx);
@@ -219,8 +227,29 @@ static void gen_expr(Node *node) {
         top++;
         return;
     case ND_NUM:
-        printf("\tmov %s, %lu\n", reg_push(), node->val);
-        return;
+        switch (node->ty->kind) {
+        case TY_FLOAT: {
+            float fval = node->fval;
+            printf("\tmov rax, %u\n", *(int *)&fval);
+            printf("\tpush rax\n");
+            printf("\tmovss %s, [rsp]\n", freg(top++));
+            printf("\tadd rsp, 8\n");
+            return;
+        }
+        case TY_DOUBLE: {
+            printf("\tmov rax, %lu\n", *(long *)&node->fval);
+            printf("\tpush rax\n");
+            printf("\tmovsd %s, [rsp]\n", freg(top++));
+            printf("\tadd rsp, 8\n");
+            return;
+        }
+        case TY_LONG:
+            printf("\tmovabs %s, %lu\n", reg_push(), node->val);
+            return;
+        default:
+            printf("\tmov %s, %lu\n", reg_push(), node->val);
+            return;
+        }
     case ND_VAR:
     case ND_MEMBER:
         gen_addr(node);

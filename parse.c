@@ -1972,7 +1972,16 @@ static Node *primary(Token **rest, Token *tok) {
     }
     if (tok->kind != TK_NUM)
         error_tok(tok, "parse: primary: expected expression");
-    Node *node = new_number(get_number(tok), tok);
+
+    Node *node;
+    if (!tok->ty)
+        error_tok(tok, "parse: internal error: number token must have type");
+    if (is_flonum(tok->ty)) {
+        node = new_node(ND_NUM, tok);
+        node->fval = tok->fval;
+    } else {
+        node = new_number(get_number(tok), tok);
+    }
     node->ty = tok->ty;
     *rest = tok->next;
     return node;
