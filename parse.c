@@ -2036,6 +2036,8 @@ static Node *funcall(Token **rest, Token *tok) {
         if (arg_ty) {
             arg = new_cast(arg, arg_ty);
             arg_ty = arg_ty->next;
+        } else if (arg->ty->kind == TY_FLOAT) {
+            arg = new_cast(arg, ty_double);
         }
         Var *var = is_pointing(arg->ty)
                        ? new_lvar("", pointer_to(arg->ty->base))

@@ -49,6 +49,13 @@ static int ext3 = 3;
 float add_float(float x, float y);
 double add_double(double x, double y);
 
+float add_float3(float x, float y, float z) {
+    return x + y + z;
+}
+double sub_double(double x, float y) {
+    return x - y;
+}
+
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 _Bool true_fn();
@@ -1048,6 +1055,9 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(0, add_float(3.8f, -3.8f), "add_float(3.8f, -3.8f)");
     assert(0, add_double(3.8, -3.8), "add_double(3.8, -3.8)");
+
+    assert(4, add_float3(1.4f, 1.3f, 1.4f), "add_float3(1.4f, 1.3f, 1.4f)");
+    assert(2, sub_double(1.4l, -0.7f), "sub_double(1.4l, -0.7f)");
 
     printf("OK\n");
     return 0;

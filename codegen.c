@@ -712,7 +712,11 @@ static void gen_stmt(Node *node) {
     if (node->kind == ND_RETURN) {
         if (node->lhs) {
             gen_expr(node->lhs);
-            printf("\tmov rax, %s\n", reg_pop());
+            if (is_flonum(node->lhs->ty)) {
+                printf("\tmovsd xmm0, %s\n", freg(--top));
+            } else {
+                printf("\tmov rax, %s\n", reg(--top));
+            }
         }
         printf("\tjmp .L.return.%s\n", current_fn->name);
         return;
@@ -896,13 +900,22 @@ static void emit_text(Program *prog) {
             printf("\tmov [rbp-40], r9\n");
         }
         // push arguments to the stack
-        int i = 0;
+        int gp = 0, fp = 0;
         for (Var *v = fn->params; v; v = v->next) {
-            i++;
+            if (is_flonum(v->ty))
+                fp++;
+            else
+                gp++;
         }
         for (Var *v = fn->params; v; v = v->next) {
-            printf("\tmov [rbp-%d], %s\n", v->offset,
-                   argreg(size_of(v->ty), --i));
+            if (v->ty->kind == TY_FLOAT) {
+                printf("\tmovss [rbp-%d], xmm%d\n", v->offset, --fp);
+            } else if (v->ty->kind == TY_DOUBLE) {
+                printf("\tmovsd [rbp-%d], xmm%d\n", v->offset, --fp);
+            } else {
+                printf("\tmov [rbp-%d], %s\n", v->offset,
+                       argreg(size_of(v->ty), --gp));
+            }
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
