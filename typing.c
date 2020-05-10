@@ -207,22 +207,11 @@ void add_type(Node *node) {
         }
         node->ty = node->lhs->ty->base;
         return;
-    case ND_FUNCALL: {
-        node->ty = node->func_ty->return_ty;
-
-        Type *ty = node->func_ty->params;
-        Node *arg = node->args;
-        Node head = {};
-        Node *cur = &head;
-        for (; arg; arg = arg->next) {
-            if (ty) {
-                cur = cur->next = new_cast(arg, ty);
-                ty = ty->next;
-            } else {
-                cur = cur->next = arg;
-            }
-        }
-        node->args = head.next;
+    case ND_STMT_EXPR: {
+        Node *stmt = node->body;
+        while (stmt->next)
+            stmt = stmt->next;
+        node->ty = stmt->lhs->ty;
         return;
     }
     }
