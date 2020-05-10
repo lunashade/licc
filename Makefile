@@ -22,7 +22,7 @@ test-stage3: lcc-stage3
 
 $(OBJS): lcc.h
 
-test: lcc tests/extern.o
+test: fmt lcc tests/extern.o
 	./lcc tests/tests.c > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
