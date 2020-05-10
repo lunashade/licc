@@ -267,7 +267,8 @@ struct Type {
     int array_len; // TY_ARRAY
     // TY_FUNC
     Type *return_ty;  // function return type
-    Token *name;      // function name
+    Token *name;      // var name (nullable)
+    Token *name_pos;  // var name should be here
     Type *params;     // params
     Type *next;       // next parameter
     bool is_variadic; // variadic function

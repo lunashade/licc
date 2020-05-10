@@ -642,6 +642,8 @@ Program *parse(Token *tok) {
 
         if (ctx.type_def) {
             for (;;) {
+                if (!ty->name)
+                    error_tok(ty->name_pos, "parse: program: expected typedef name");
                 push_scope(get_ident(ty->name))->type_def = ty;
                 if (equal(tok, ";")) {
                     tok = skip(tok, ";");
@@ -660,6 +662,8 @@ Program *parse(Token *tok) {
             continue;
         }
         for (;;) {
+            if (!ty->name)
+                error_tok(ty->name_pos, "parse: program: expected variable name");
             Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static,
                                 !ctx.is_extern);
             if (ctx.align)
@@ -688,12 +692,16 @@ static Function *funcdef(Token **rest, Token *tok) {
     DeclContext ctx = {};
     Type *ty = decl_specifier(&tok, tok, &ctx);
     ty = declarator(&tok, tok, ty);
+    if (!ty->name)
+        error_tok(ty->name_pos, "parse: funcdef: expected function name");
 
     Function *fn = calloc(1, sizeof(Function));
     fn->name = get_ident(ty->name);
     fn->is_static = ctx.is_static;
     enter_scope();
     for (Type *t = ty->params; t; t = t->next) {
+        if (!ty->name)
+            error_tok(t->name_pos, "parse: funcdef: expected parameter name");
         new_lvar(get_ident(t->name), t);
     }
     fn->params = locals;
@@ -741,8 +749,10 @@ static Node *declaration(Token **rest, Token *tok) {
             tok = skip(tok, ",");
 
         Type *ty = declarator(&tok, tok, basety);
+        if (!ty->name)
+            error_tok(ty->name_pos, "parse: variable declared void");
         if (ty->kind == TY_VOID) {
-            error_tok(tok, "type: variable declared void");
+            error_tok(tok, "parse: variable declared void");
         }
         if (ctx.type_def) {
             push_scope(get_ident(ty->name))->type_def = ty;
@@ -1172,7 +1182,7 @@ static Type *typename(Token **rest, Token *tok) {
     return abstract_declarator(rest, tok, ty);
 }
 
-// declarator = pointer ("(" declarator ")" | ident) type-suffix?
+// declarator = pointer ("(" declarator ")" | ident?) type-suffix?
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
     ty = pointer(&tok, tok, ty);
     if (equal(tok, "(")) {
@@ -1182,11 +1192,15 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
         *placeholder = *type_suffix(rest, tok, ty);
         return new_ty;
     }
-    if (tok->kind != TK_IDENT) {
-        error_tok(tok, "parse: declarator: expected variable name");
+    Token *name = NULL;
+    Token *name_pos = tok;
+    if (tok->kind == TK_IDENT) {
+        name = tok;
+        tok = tok->next;
     }
-    ty = type_suffix(rest, tok->next, ty);
-    ty->name = tok;
+    ty = type_suffix(rest, tok, ty);
+    ty->name = name;
+    ty->name_pos = name_pos;
     return ty;
 }
 
@@ -1561,7 +1575,8 @@ static double eval_double(Node *node) {
     case ND_DIV:
         return eval_double(node->lhs) / eval_double(node->rhs);
     case ND_COND:
-        return eval_double(node->cond) ? eval_double(node->then) : eval_double(node->els);
+        return eval_double(node->cond) ? eval_double(node->then)
+                                       : eval_double(node->els);
     case ND_COMMA:
         return eval_double(node->rhs);
     default:
@@ -1569,545 +1584,534 @@ static double eval_double(Node *node) {
     }
 }
 
-    // const-expr = conditional
-    static long const_expr(Token * *rest, Token * tok) {
-        Node *node = conditional(rest, tok);
-        return eval(node);
-    }
+// const-expr = conditional
+static long const_expr(Token **rest, Token *tok) {
+    Node *node = conditional(rest, tok);
+    return eval(node);
+}
 
-    // assign = conditional ( assign-op assign )*
-    // assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^=" |
-    // "<<=" | ">>="
-    static Node *assign(Token * *rest, Token * tok) {
-        Node *node = conditional(&tok, tok);
-        for (;;) {
-            if (equal(tok, "=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node = new_binary_node(ND_ASSIGN, node, rhs, op);
-            }
-            if (equal(tok, "+=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node = new_binary_node(ND_ASSIGN, node,
-                                       new_add_node(node, rhs, op), op);
-            }
-            if (equal(tok, "-=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node = new_binary_node(ND_ASSIGN, node,
-                                       new_sub_node(node, rhs, op), op);
-            }
-            if (equal(tok, "*=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_MUL, node, rhs, op), op);
-            }
-            if (equal(tok, "/=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_DIV, node, rhs, op), op);
-            }
-            if (equal(tok, "%=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_MOD, node, rhs, op), op);
-            }
-            if (equal(tok, "&=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_AND, node, rhs, op), op);
-            }
-            if (equal(tok, "^=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_XOR, node, rhs, op), op);
-            }
-            if (equal(tok, "|=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node = new_binary_node(
-                    ND_ASSIGN, node, new_binary_node(ND_OR, node, rhs, op), op);
-            }
-            if (equal(tok, "<<=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_SHL, node, rhs, op), op);
-            }
-            if (equal(tok, ">>=")) {
-                Token *op = tok;
-                Node *rhs = assign(&tok, tok->next);
-                node =
-                    new_binary_node(ND_ASSIGN, node,
-                                    new_binary_node(ND_SHR, node, rhs, op), op);
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-
-    // conditional = logical-or ("?" expr ":" conditional)?
-    static Node *conditional(Token * *rest, Token * tok) {
-        Node *node = logical_or(&tok, tok);
-        if (!equal(tok, "?")) {
-            *rest = tok;
-            return node;
-        }
-        Node *cond = new_node(ND_COND, tok);
-        cond->cond = node;
-        cond->then = expr(&tok, tok->next);
-        tok = skip(tok, ":");
-        cond->els = conditional(rest, tok);
-        return cond;
-    }
-
-    // logical-or = logical-and ("||" logical-and)*
-    static Node *logical_or(Token * *rest, Token * tok) {
-        Node *node = logical_and(&tok, tok);
-        while (equal(tok, "||")) {
+// assign = conditional ( assign-op assign )*
+// assign-op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "|=" | "&=" | "^=" |
+// "<<=" | ">>="
+static Node *assign(Token **rest, Token *tok) {
+    Node *node = conditional(&tok, tok);
+    for (;;) {
+        if (equal(tok, "=")) {
             Token *op = tok;
-            node = new_binary_node(ND_LOGOR, node, logical_and(&tok, tok->next),
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node, rhs, op);
+        }
+        if (equal(tok, "+=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node, new_add_node(node, rhs, op),
                                    op);
         }
+        if (equal(tok, "-=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node, new_sub_node(node, rhs, op),
+                                   op);
+        }
+        if (equal(tok, "*=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_MUL, node, rhs, op), op);
+        }
+        if (equal(tok, "/=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_DIV, node, rhs, op), op);
+        }
+        if (equal(tok, "%=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_MOD, node, rhs, op), op);
+        }
+        if (equal(tok, "&=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_AND, node, rhs, op), op);
+        }
+        if (equal(tok, "^=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_XOR, node, rhs, op), op);
+        }
+        if (equal(tok, "|=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_OR, node, rhs, op), op);
+        }
+        if (equal(tok, "<<=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_SHL, node, rhs, op), op);
+        }
+        if (equal(tok, ">>=")) {
+            Token *op = tok;
+            Node *rhs = assign(&tok, tok->next);
+            node = new_binary_node(ND_ASSIGN, node,
+                                   new_binary_node(ND_SHR, node, rhs, op), op);
+        }
         *rest = tok;
         return node;
     }
+}
 
-    // logical-and = inclusive-or ("&&" inclusive-or)*
-    static Node *logical_and(Token * *rest, Token * tok) {
-        Node *node = bit_or(&tok, tok);
-        while (equal(tok, "&&")) {
+// conditional = logical-or ("?" expr ":" conditional)?
+static Node *conditional(Token **rest, Token *tok) {
+    Node *node = logical_or(&tok, tok);
+    if (!equal(tok, "?")) {
+        *rest = tok;
+        return node;
+    }
+    Node *cond = new_node(ND_COND, tok);
+    cond->cond = node;
+    cond->then = expr(&tok, tok->next);
+    tok = skip(tok, ":");
+    cond->els = conditional(rest, tok);
+    return cond;
+}
+
+// logical-or = logical-and ("||" logical-and)*
+static Node *logical_or(Token **rest, Token *tok) {
+    Node *node = logical_and(&tok, tok);
+    while (equal(tok, "||")) {
+        Token *op = tok;
+        node =
+            new_binary_node(ND_LOGOR, node, logical_and(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+
+// logical-and = inclusive-or ("&&" inclusive-or)*
+static Node *logical_and(Token **rest, Token *tok) {
+    Node *node = bit_or(&tok, tok);
+    while (equal(tok, "&&")) {
+        Token *op = tok;
+        node = new_binary_node(ND_LOGAND, node, bit_or(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+
+// or = xor ("|" xor)*
+static Node *bit_or(Token **rest, Token *tok) {
+    Node *node = bit_xor(&tok, tok);
+    while (equal(tok, "|")) {
+        Token *op = tok;
+        node = new_binary_node(ND_OR, node, bit_xor(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+// xor = and ("^" and)*
+static Node *bit_xor(Token **rest, Token *tok) {
+    Node *node = bit_and(&tok, tok);
+    while (equal(tok, "^")) {
+        Token *op = tok;
+        node = new_binary_node(ND_XOR, node, bit_and(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+// and = equality ("&" equality)*
+static Node *bit_and(Token **rest, Token *tok) {
+    Node *node = equality(&tok, tok);
+    while (equal(tok, "&")) {
+        Token *op = tok;
+        node = new_binary_node(ND_AND, node, equality(&tok, tok->next), op);
+    }
+    *rest = tok;
+    return node;
+}
+
+// equality = relational ( "==" relational | "!=" relational )*
+static Node *equality(Token **rest, Token *tok) {
+    Node *node = relational(&tok, tok);
+    for (;;) {
+        if (equal(tok, "==")) {
             Token *op = tok;
-            node =
-                new_binary_node(ND_LOGAND, node, bit_or(&tok, tok->next), op);
+            Node *rhs = relational(&tok, tok->next);
+            node = new_binary_node(ND_EQ, node, rhs, op);
+            continue;
+        }
+        if (equal(tok, "!=")) {
+            Token *op = tok;
+            Node *rhs = relational(&tok, tok->next);
+            node = new_binary_node(ND_NE, node, rhs, op);
+            continue;
         }
         *rest = tok;
         return node;
     }
+}
 
-    // or = xor ("|" xor)*
-    static Node *bit_or(Token * *rest, Token * tok) {
-        Node *node = bit_xor(&tok, tok);
-        while (equal(tok, "|")) {
+// relational = shift ( "<" shift | ">" shift | "<=" shift | ">=" shift )*
+static Node *relational(Token **rest, Token *tok) {
+    Node *node = shift(&tok, tok);
+    for (;;) {
+        if (equal(tok, "<")) {
             Token *op = tok;
-            node = new_binary_node(ND_OR, node, bit_xor(&tok, tok->next), op);
+            Node *rhs = shift(&tok, tok->next);
+            node = new_binary_node(ND_LT, node, rhs, op);
+            continue;
+        }
+        if (equal(tok, "<=")) {
+            Token *op = tok;
+            Node *rhs = shift(&tok, tok->next);
+            node = new_binary_node(ND_LE, node, rhs, op);
+            continue;
+        }
+        if (equal(tok, ">")) {
+            Token *op = tok;
+            Node *rhs = shift(&tok, tok->next);
+            node = new_binary_node(ND_LT, rhs, node, op);
+            continue;
+        }
+        if (equal(tok, ">=")) {
+            Token *op = tok;
+            Node *rhs = shift(&tok, tok->next);
+            node = new_binary_node(ND_LE, rhs, node, op);
+            continue;
         }
         *rest = tok;
         return node;
     }
-    // xor = and ("^" and)*
-    static Node *bit_xor(Token * *rest, Token * tok) {
-        Node *node = bit_and(&tok, tok);
-        while (equal(tok, "^")) {
-            Token *op = tok;
-            node = new_binary_node(ND_XOR, node, bit_and(&tok, tok->next), op);
+}
+// shift = add ("<<" add | ">>" add)*
+static Node *shift(Token **rest, Token *tok) {
+    Node *node = add(&tok, tok);
+    for (;;) {
+        Token *op = tok;
+        if (equal(tok, "<<")) {
+            Node *rhs = add(&tok, tok->next);
+            node = new_binary_node(ND_SHL, node, rhs, op);
+            continue;
+        }
+        if (equal(tok, ">>")) {
+            Node *rhs = add(&tok, tok->next);
+            node = new_binary_node(ND_SHR, node, rhs, op);
+            continue;
         }
         *rest = tok;
         return node;
     }
-    // and = equality ("&" equality)*
-    static Node *bit_and(Token * *rest, Token * tok) {
-        Node *node = equality(&tok, tok);
-        while (equal(tok, "&")) {
-            Token *op = tok;
-            node = new_binary_node(ND_AND, node, equality(&tok, tok->next), op);
-        }
-        *rest = tok;
-        return node;
-    }
+}
 
-    // equality = relational ( "==" relational | "!=" relational )*
-    static Node *equality(Token * *rest, Token * tok) {
-        Node *node = relational(&tok, tok);
-        for (;;) {
-            if (equal(tok, "==")) {
-                Token *op = tok;
-                Node *rhs = relational(&tok, tok->next);
-                node = new_binary_node(ND_EQ, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, "!=")) {
-                Token *op = tok;
-                Node *rhs = relational(&tok, tok->next);
-                node = new_binary_node(ND_NE, node, rhs, op);
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-
-    // relational = shift ( "<" shift | ">" shift | "<=" shift | ">=" shift )*
-    static Node *relational(Token * *rest, Token * tok) {
-        Node *node = shift(&tok, tok);
-        for (;;) {
-            if (equal(tok, "<")) {
-                Token *op = tok;
-                Node *rhs = shift(&tok, tok->next);
-                node = new_binary_node(ND_LT, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, "<=")) {
-                Token *op = tok;
-                Node *rhs = shift(&tok, tok->next);
-                node = new_binary_node(ND_LE, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, ">")) {
-                Token *op = tok;
-                Node *rhs = shift(&tok, tok->next);
-                node = new_binary_node(ND_LT, rhs, node, op);
-                continue;
-            }
-            if (equal(tok, ">=")) {
-                Token *op = tok;
-                Node *rhs = shift(&tok, tok->next);
-                node = new_binary_node(ND_LE, rhs, node, op);
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-    // shift = add ("<<" add | ">>" add)*
-    static Node *shift(Token * *rest, Token * tok) {
-        Node *node = add(&tok, tok);
-        for (;;) {
-            Token *op = tok;
-            if (equal(tok, "<<")) {
-                Node *rhs = add(&tok, tok->next);
-                node = new_binary_node(ND_SHL, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, ">>")) {
-                Node *rhs = add(&tok, tok->next);
-                node = new_binary_node(ND_SHR, node, rhs, op);
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-
-    // add = mul ( "+" mul | "-" mul )*
-    static Node *add(Token * *rest, Token * tok) {
-        Node *node = mul(&tok, tok);
-        for (;;) {
-            Token *op = tok;
-            if (equal(tok, "+")) {
-                Node *rhs = mul(&tok, tok->next);
-                node = new_add_node(node, rhs, op);
-                continue;
-            }
-            if (equal(tok, "-")) {
-                Node *rhs = mul(&tok, tok->next);
-                node = new_sub_node(node, rhs, op);
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-
-    // mul = cast ( "*" cast | "/" cast | "%" cast )*
-    static Node *mul(Token * *rest, Token * tok) {
-        Node *node = cast(&tok, tok);
-        for (;;) {
-            if (equal(tok, "*")) {
-                Token *op = tok;
-                Node *rhs = cast(&tok, tok->next);
-                node = new_binary_node(ND_MUL, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, "/")) {
-                Token *op = tok;
-                Node *rhs = cast(&tok, tok->next);
-                node = new_binary_node(ND_DIV, node, rhs, op);
-                continue;
-            }
-            if (equal(tok, "%")) {
-                Token *op = tok;
-                Node *rhs = cast(&tok, tok->next);
-                node = new_binary_node(ND_MOD, node, rhs, op);
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
-    }
-
-    // compound_literal = initializer "}"
-    static Node *compound_literal(Token * *rest, Token * tok, Type * ty,
-                                  Token * start) {
-        if (scope_depth == 0) {
-            Var *var = new_gvar(new_label(), ty, true, true);
-            gvar_initializer(&tok, tok, var);
-            *rest = skip_end(tok);
-            return new_var_node(var, start);
-        }
-        Var *var = new_lvar(new_label(), ty);
-        Node *lhs = new_node(ND_STMT_EXPR, start);
-        lhs->body = lvar_initializer(&tok, tok, var)->body;
-        *rest = skip_end(tok);
-        Node *rhs = new_var_node(var, start);
-        return new_binary_node(ND_COMMA, lhs, rhs, start);
-    }
-    // cast = "(" typename ")" cast | unary
-    //      | "(" typename ")" "{" compound-literal
-    static Node *cast(Token * *rest, Token * tok) {
-        if (equal(tok, "(") && is_typename(tok->next)) {
-            Token *start = tok;
-            Type *ty = typename(&tok, tok->next);
-            tok = skip(tok, ")");
-            if (consume(&tok, tok, "{")) {
-                return compound_literal(rest, tok, ty, start);
-            }
-            Node *node = new_unary_node(ND_CAST, cast(rest, tok), tok);
-            node->ty = ty;
-            add_type(node->lhs);
-            return node;
-        }
-        return unary(rest, tok);
-    }
-
-    // unary =  (unary-op)? cast | postfix
-    //       | "sizeof" unary
-    //       | "sizeof" "(" typename ")"
-    //       | "_Alignof" "(" typename ")"
-    // unary-op = ( "+" | "-" | "*" | "&" | "++" | "--" | "~" | "!")
-    static Node *unary(Token * *rest, Token * tok) {
-        Token *start = tok;
+// add = mul ( "+" mul | "-" mul )*
+static Node *add(Token **rest, Token *tok) {
+    Node *node = mul(&tok, tok);
+    for (;;) {
+        Token *op = tok;
         if (equal(tok, "+")) {
-            return cast(rest, tok->next);
+            Node *rhs = mul(&tok, tok->next);
+            node = new_add_node(node, rhs, op);
+            continue;
         }
         if (equal(tok, "-")) {
-            return new_binary_node(ND_SUB, new_number(0, tok),
-                                   cast(rest, tok->next), start);
+            Node *rhs = mul(&tok, tok->next);
+            node = new_sub_node(node, rhs, op);
+            continue;
         }
+        *rest = tok;
+        return node;
+    }
+}
+
+// mul = cast ( "*" cast | "/" cast | "%" cast )*
+static Node *mul(Token **rest, Token *tok) {
+    Node *node = cast(&tok, tok);
+    for (;;) {
         if (equal(tok, "*")) {
-            return new_unary_node(ND_DEREF, cast(rest, tok->next), start);
-        }
-        if (equal(tok, "&")) {
-            return new_unary_node(ND_ADDR, cast(rest, tok->next), start);
-        }
-        if (equal(tok, "!")) {
-            return new_unary_node(ND_NOT, cast(rest, tok->next), start);
-        }
-        if (equal(tok, "~")) {
-            return new_unary_node(ND_BITNOT, cast(rest, tok->next), start);
-        }
-        if (equal(tok, "sizeof") && equal(tok->next, "(") &&
-            is_typename(tok->next->next)) {
             Token *op = tok;
-            Type *ty = typename(&tok, tok->next->next);
-            *rest = skip(tok, ")");
-            return new_ulong(size_of(ty), op);
+            Node *rhs = cast(&tok, tok->next);
+            node = new_binary_node(ND_MUL, node, rhs, op);
+            continue;
         }
-        if (equal(tok, "_Alignof")) {
-            tok = skip(tok->next, "(");
-            Type *ty = typename(&tok, tok);
-            *rest = skip(tok, ")");
-            return new_ulong(ty->align, tok);
+        if (equal(tok, "/")) {
+            Token *op = tok;
+            Node *rhs = cast(&tok, tok->next);
+            node = new_binary_node(ND_DIV, node, rhs, op);
+            continue;
         }
-        if (equal(tok, "sizeof")) {
-            Node *node = unary(rest, tok->next);
-            add_type(node);
-            return new_ulong(size_of(node->ty), tok);
+        if (equal(tok, "%")) {
+            Token *op = tok;
+            Node *rhs = cast(&tok, tok->next);
+            node = new_binary_node(ND_MOD, node, rhs, op);
+            continue;
+        }
+        *rest = tok;
+        return node;
+    }
+}
+
+// compound_literal = initializer "}"
+static Node *compound_literal(Token **rest, Token *tok, Type *ty,
+                              Token *start) {
+    if (scope_depth == 0) {
+        Var *var = new_gvar(new_label(), ty, true, true);
+        gvar_initializer(&tok, tok, var);
+        *rest = skip_end(tok);
+        return new_var_node(var, start);
+    }
+    Var *var = new_lvar(new_label(), ty);
+    Node *lhs = new_node(ND_STMT_EXPR, start);
+    lhs->body = lvar_initializer(&tok, tok, var)->body;
+    *rest = skip_end(tok);
+    Node *rhs = new_var_node(var, start);
+    return new_binary_node(ND_COMMA, lhs, rhs, start);
+}
+// cast = "(" typename ")" cast | unary
+//      | "(" typename ")" "{" compound-literal
+static Node *cast(Token **rest, Token *tok) {
+    if (equal(tok, "(") && is_typename(tok->next)) {
+        Token *start = tok;
+        Type *ty = typename(&tok, tok->next);
+        tok = skip(tok, ")");
+        if (consume(&tok, tok, "{")) {
+            return compound_literal(rest, tok, ty, start);
+        }
+        Node *node = new_unary_node(ND_CAST, cast(rest, tok), tok);
+        node->ty = ty;
+        add_type(node->lhs);
+        return node;
+    }
+    return unary(rest, tok);
+}
+
+// unary =  (unary-op)? cast | postfix
+//       | "sizeof" unary
+//       | "sizeof" "(" typename ")"
+//       | "_Alignof" "(" typename ")"
+// unary-op = ( "+" | "-" | "*" | "&" | "++" | "--" | "~" | "!")
+static Node *unary(Token **rest, Token *tok) {
+    Token *start = tok;
+    if (equal(tok, "+")) {
+        return cast(rest, tok->next);
+    }
+    if (equal(tok, "-")) {
+        return new_binary_node(ND_SUB, new_number(0, tok),
+                               cast(rest, tok->next), start);
+    }
+    if (equal(tok, "*")) {
+        return new_unary_node(ND_DEREF, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "&")) {
+        return new_unary_node(ND_ADDR, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "!")) {
+        return new_unary_node(ND_NOT, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "~")) {
+        return new_unary_node(ND_BITNOT, cast(rest, tok->next), start);
+    }
+    if (equal(tok, "sizeof") && equal(tok->next, "(") &&
+        is_typename(tok->next->next)) {
+        Token *op = tok;
+        Type *ty = typename(&tok, tok->next->next);
+        *rest = skip(tok, ")");
+        return new_ulong(size_of(ty), op);
+    }
+    if (equal(tok, "_Alignof")) {
+        tok = skip(tok->next, "(");
+        Type *ty = typename(&tok, tok);
+        *rest = skip(tok, ")");
+        return new_ulong(ty->align, tok);
+    }
+    if (equal(tok, "sizeof")) {
+        Node *node = unary(rest, tok->next);
+        add_type(node);
+        return new_ulong(size_of(node->ty), tok);
+    }
+    if (equal(tok, "++")) {
+        Node *node = cast(rest, tok->next);
+        return new_binary_node(
+            ND_ASSIGN, node, new_add_node(node, new_number(1, tok), tok), tok);
+    }
+    if (equal(tok, "--")) {
+        Node *node = cast(rest, tok->next);
+        return new_binary_node(
+            ND_ASSIGN, node, new_sub_node(node, new_number(1, tok), tok), tok);
+    }
+    return postfix(rest, tok);
+}
+
+// postfix = primary
+//         | postfix ("[" expr "]" | "." ident | "->" ident | "++" | "--" )?
+static Node *postfix(Token **rest, Token *tok) {
+    Node *node = primary(&tok, tok);
+    for (;;) {
+        if (equal(tok, "[")) {
+            Token *op = tok;
+            Node *ex = expr(&tok, tok->next);
+            node = new_add_node(node, ex, op);
+            node = new_unary_node(ND_DEREF, node, op);
+            tok = skip(tok, "]");
+            continue;
+        }
+        if (equal(tok, ".")) {
+            Token *op = tok;
+            node = struct_ref(node, tok->next);
+            tok = tok->next->next;
+            continue;
+        }
+        if (equal(tok, "->")) {
+            Token *op = tok;
+            node = new_unary_node(ND_DEREF, node, op);
+            node = struct_ref(node, tok->next);
+            tok = tok->next->next;
+            continue;
         }
         if (equal(tok, "++")) {
-            Node *node = cast(rest, tok->next);
-            return new_binary_node(ND_ASSIGN, node,
-                                   new_add_node(node, new_number(1, tok), tok),
-                                   tok);
+            Node *expr1 = new_binary_node(
+                ND_ASSIGN, node, new_add_node(node, new_number(1, tok), tok),
+                tok);
+            Node *expr2 = new_sub_node(node, new_number(1, tok), tok);
+            node = new_binary_node(ND_COMMA, expr1, expr2, tok);
+            tok = skip(tok, "++");
+            continue;
         }
         if (equal(tok, "--")) {
-            Node *node = cast(rest, tok->next);
-            return new_binary_node(ND_ASSIGN, node,
-                                   new_sub_node(node, new_number(1, tok), tok),
-                                   tok);
+            Node *expr1 = new_binary_node(
+                ND_ASSIGN, node, new_sub_node(node, new_number(1, tok), tok),
+                tok);
+            Node *expr2 = new_add_node(node, new_number(1, tok), tok);
+            node = new_binary_node(ND_COMMA, expr1, expr2, tok);
+            tok = skip(tok, "--");
+            continue;
         }
-        return postfix(rest, tok);
+        *rest = tok;
+        return node;
     }
+}
 
-    // postfix = primary
-    //         | postfix ("[" expr "]" | "." ident | "->" ident | "++" | "--" )?
-    static Node *postfix(Token * *rest, Token * tok) {
-        Node *node = primary(&tok, tok);
-        for (;;) {
-            if (equal(tok, "[")) {
-                Token *op = tok;
-                Node *ex = expr(&tok, tok->next);
-                node = new_add_node(node, ex, op);
-                node = new_unary_node(ND_DEREF, node, op);
-                tok = skip(tok, "]");
-                continue;
-            }
-            if (equal(tok, ".")) {
-                Token *op = tok;
-                node = struct_ref(node, tok->next);
-                tok = tok->next->next;
-                continue;
-            }
-            if (equal(tok, "->")) {
-                Token *op = tok;
-                node = new_unary_node(ND_DEREF, node, op);
-                node = struct_ref(node, tok->next);
-                tok = tok->next->next;
-                continue;
-            }
-            if (equal(tok, "++")) {
-                Node *expr1 = new_binary_node(
-                    ND_ASSIGN, node,
-                    new_add_node(node, new_number(1, tok), tok), tok);
-                Node *expr2 = new_sub_node(node, new_number(1, tok), tok);
-                node = new_binary_node(ND_COMMA, expr1, expr2, tok);
-                tok = skip(tok, "++");
-                continue;
-            }
-            if (equal(tok, "--")) {
-                Node *expr1 = new_binary_node(
-                    ND_ASSIGN, node,
-                    new_sub_node(node, new_number(1, tok), tok), tok);
-                Node *expr2 = new_add_node(node, new_number(1, tok), tok);
-                node = new_binary_node(ND_COMMA, expr1, expr2, tok);
-                tok = skip(tok, "--");
-                continue;
-            }
-            *rest = tok;
-            return node;
-        }
+// primary = "(" "{" compound-stmt ")"
+//         | "(" expr ")"
+//         | num
+//         | str
+//         | char
+//         | ident func-args?
+static Node *primary(Token **rest, Token *tok) {
+    if (equal(tok, "(") && equal(tok->next, "{")) {
+        Node *node = new_node(ND_STMT_EXPR, tok);
+        node->body = compound_stmt(&tok, tok->next->next)->body;
+        *rest = skip(tok, ")");
+
+        Node *cur = node->body;
+        while (cur->next)
+            cur = cur->next;
+        if (cur->kind != ND_EXPR_STMT)
+            error_tok(cur->tok, "parse: stmt-expr: statement expression "
+                                "returning void is not supported");
+        return node;
     }
+    if (equal(tok, "(")) {
+        Node *node = expr(&tok, tok->next);
+        *rest = skip(tok, ")");
+        return node;
+    }
+    if (tok->kind == TK_IDENT) {
+        // function call
+        if (equal(tok->next, "("))
+            return funcall(rest, tok);
 
-    // primary = "(" "{" compound-stmt ")"
-    //         | "(" expr ")"
-    //         | num
-    //         | str
-    //         | char
-    //         | ident func-args?
-    static Node *primary(Token * *rest, Token * tok) {
-        if (equal(tok, "(") && equal(tok->next, "{")) {
-            Node *node = new_node(ND_STMT_EXPR, tok);
-            node->body = compound_stmt(&tok, tok->next->next)->body;
-            *rest = skip(tok, ")");
-
-            Node *cur = node->body;
-            while (cur->next)
-                cur = cur->next;
-            if (cur->kind != ND_EXPR_STMT)
-                error_tok(cur->tok, "parse: stmt-expr: statement expression "
-                                    "returning void is not supported");
-            return node;
+        // variable or enum constant
+        VarScope *sc = find_var(tok);
+        if (!sc || (!sc->var && !sc->enum_ty)) {
+            error_tok(tok, "parse: var: undeclared variable: %s",
+                      get_ident(tok));
         }
-        if (equal(tok, "(")) {
-            Node *node = expr(&tok, tok->next);
-            *rest = skip(tok, ")");
-            return node;
-        }
-        if (tok->kind == TK_IDENT) {
-            // function call
-            if (equal(tok->next, "("))
-                return funcall(rest, tok);
-
-            // variable or enum constant
-            VarScope *sc = find_var(tok);
-            if (!sc || (!sc->var && !sc->enum_ty)) {
-                error_tok(tok, "parse: var: undeclared variable: %s",
-                          get_ident(tok));
-            }
-            Node *node;
-            if (sc->var) {
-                node = new_var_node(sc->var, tok);
-            } else {
-                assert(sc->enum_ty);
-                node = new_number(sc->enum_val, tok);
-            }
-            *rest = tok->next;
-            return node;
-        }
-        if (tok->kind == TK_STR) {
-            Var *var = new_string_literal(tok->contents, tok->contents_len);
-            *rest = tok->next;
-            return new_var_node(var, tok);
-        }
-        if (tok->kind != TK_NUM)
-            error_tok(tok, "parse: primary: expected expression");
-
         Node *node;
-        if (!tok->ty)
-            error_tok(tok,
-                      "parse: internal error: number token must have type");
-        if (is_flonum(tok->ty)) {
-            node = new_node(ND_NUM, tok);
-            node->fval = tok->fval;
+        if (sc->var) {
+            node = new_var_node(sc->var, tok);
         } else {
-            node = new_number(get_number(tok), tok);
+            assert(sc->enum_ty);
+            node = new_number(sc->enum_val, tok);
         }
-        node->ty = tok->ty;
         *rest = tok->next;
         return node;
     }
-
-    // funcall = ident func-args
-    // func-args = "(" (assign ("," assign)*)? ")"
-    static Node *funcall(Token * *rest, Token * tok) {
-        Node *node = new_node(ND_FUNCALL, tok);
-        VarScope *sc = find_var(tok);
-        node->funcname = get_ident(tok);
-        if (sc) {
-            if (!sc->var || sc->var->ty->kind != TY_FUNC)
-                error_tok(tok, "parse: primary: not a function");
-            node->func_ty = sc->var->ty;
-        } else {
-            warn_tok(tok, "parse: implicit declaration of a function");
-            node->func_ty = func_type(ty_int);
-        }
-        node->ty = node->func_ty->return_ty;
-
-        // func-args
-        tok = skip(tok->next, "(");
-        Node *cur = new_node(ND_NOP_EXPR, tok);
-
-        Var **args = NULL;
-        int nargs = 0;
-        Type *arg_ty = node->func_ty->params;
-        while (!equal(tok, ")")) {
-            if (nargs)
-                tok = skip(tok, ",");
-
-            Node *arg = assign(&tok, tok);
-            add_type(arg);
-            if (arg_ty) {
-                arg = new_cast(arg, arg_ty);
-                arg_ty = arg_ty->next;
-            } else if (arg->ty->kind == TY_FLOAT) {
-                arg = new_cast(arg, ty_double);
-            }
-            Var *var = is_pointing(arg->ty)
-                           ? new_lvar("", pointer_to(arg->ty->base))
-                           : new_lvar("", arg->ty);
-
-            args = realloc(args, sizeof(*args) * (nargs + 1));
-            args[nargs] = var;
-            nargs++;
-            Node *expr =
-                new_binary_node(ND_ASSIGN, new_var_node(var, tok), arg, tok);
-            cur = new_binary_node(ND_COMMA, cur, expr, tok);
-        }
-        *rest = skip(tok, ")");
-        node->args = args;
-        node->nargs = nargs;
-
-        return new_binary_node(ND_COMMA, cur, node, tok);
+    if (tok->kind == TK_STR) {
+        Var *var = new_string_literal(tok->contents, tok->contents_len);
+        *rest = tok->next;
+        return new_var_node(var, tok);
     }
+    if (tok->kind != TK_NUM)
+        error_tok(tok, "parse: primary: expected expression");
+
+    Node *node;
+    if (!tok->ty)
+        error_tok(tok, "parse: internal error: number token must have type");
+    if (is_flonum(tok->ty)) {
+        node = new_node(ND_NUM, tok);
+        node->fval = tok->fval;
+    } else {
+        node = new_number(get_number(tok), tok);
+    }
+    node->ty = tok->ty;
+    *rest = tok->next;
+    return node;
+}
+
+// funcall = ident func-args
+// func-args = "(" (assign ("," assign)*)? ")"
+static Node *funcall(Token **rest, Token *tok) {
+    Node *node = new_node(ND_FUNCALL, tok);
+    VarScope *sc = find_var(tok);
+    node->funcname = get_ident(tok);
+    if (sc) {
+        if (!sc->var || sc->var->ty->kind != TY_FUNC)
+            error_tok(tok, "parse: primary: not a function");
+        node->func_ty = sc->var->ty;
+    } else {
+        warn_tok(tok, "parse: implicit declaration of a function");
+        node->func_ty = func_type(ty_int);
+    }
+    node->ty = node->func_ty->return_ty;
+
+    // func-args
+    tok = skip(tok->next, "(");
+    Node *cur = new_node(ND_NOP_EXPR, tok);
+
+    Var **args = NULL;
+    int nargs = 0;
+    Type *arg_ty = node->func_ty->params;
+    while (!equal(tok, ")")) {
+        if (nargs)
+            tok = skip(tok, ",");
+
+        Node *arg = assign(&tok, tok);
+        add_type(arg);
+        if (arg_ty) {
+            arg = new_cast(arg, arg_ty);
+            arg_ty = arg_ty->next;
+        } else if (arg->ty->kind == TY_FLOAT) {
+            arg = new_cast(arg, ty_double);
+        }
+        Var *var = is_pointing(arg->ty)
+                       ? new_lvar("", pointer_to(arg->ty->base))
+                       : new_lvar("", arg->ty);
+
+        args = realloc(args, sizeof(*args) * (nargs + 1));
+        args[nargs] = var;
+        nargs++;
+        Node *expr =
+            new_binary_node(ND_ASSIGN, new_var_node(var, tok), arg, tok);
+        cur = new_binary_node(ND_COMMA, cur, expr, tok);
+    }
+    *rest = skip(tok, ")");
+    node->args = args;
+    node->nargs = nargs;
+
+    return new_binary_node(ND_COMMA, cur, node, tok);
+}

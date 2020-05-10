@@ -22,7 +22,7 @@ typedef struct {char a; int b;} Ty1;
 int add_all1(int x, ...);
 int add_all3(int x, int y, int z,...);
 int strcmp(char *p, char *q);
-int memcmp(char *p, char *q);
+int memcmp(char *, char *);
 int sprintf(char *buf, char *fmt, ...);
 int vsprintf(char *buf, char *fmt, va_list ap);
 char *fmt(char *buf, char *fmt, ...) {
