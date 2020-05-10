@@ -79,6 +79,10 @@ struct {int a[2];} g31[2] = {1, 2, 3, 4};
 char g32[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 
 char *g34 = {"foo"};
+
+float g35 = 1.5;
+double g36 = 0.0 ? 55 : (0, 1+1 * 5.0/2 * (double)2  *(int)2.0);
+
 typedef struct Tree {
     int val;
     struct Tree *lhs;
@@ -1058,6 +1062,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 
     assert(4, add_float3(1.4f, 1.3f, 1.4f), "add_float3(1.4f, 1.3f, 1.4f)");
     assert(2, sub_double(1.4l, -0.7f), "sub_double(1.4l, -0.7f)");
+
+    assert(1, g35==1.5, "g35==1.5");
+    assert(1, g36==11, "g36==11");
+
 
     printf("OK\n");
     return 0;

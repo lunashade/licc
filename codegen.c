@@ -269,14 +269,18 @@ static void gen_addr(Node *node) {
 }
 
 static void builtin_va_start(Node *node) {
-    int n = 0;
+    int gp = 0, fp = 0;
     for (Var *var = current_fn->params; var; var = var->next)
-        n++;
+        if (is_flonum(var->ty))
+            fp++;
+        else
+            gp++;
 
     printf("\tmov rax, [rbp-%d]\n", node->args[0]->offset);
-    printf("\tmov dword ptr [rax], %d\n", n * 8);
+    printf("\tmov dword ptr [rax], %d\n", gp * 8);
+    printf("\tmov dword ptr [rax+4], %d\n", 48 + fp * 8);
     printf("\tmov [rax+16], rbp\n");
-    printf("\tsub qword ptr [rax+16], 80\n");
+    printf("\tsub qword ptr [rax+16], 128\n");
     top++;
 }
 
@@ -892,12 +896,19 @@ static void emit_text(Program *prog) {
         printf("\tmov [rbp-32], r15\n");
 
         if (fn->is_variadic) {
-            printf("\tmov [rbp-80], rdi\n");
-            printf("\tmov [rbp-72], rsi\n");
-            printf("\tmov [rbp-64], rdx\n");
-            printf("\tmov [rbp-56], rcx\n");
-            printf("\tmov [rbp-48], r8\n");
-            printf("\tmov [rbp-40], r9\n");
+            printf("\tmov [rbp-128], rdi\n");
+            printf("\tmov [rbp-120], rsi\n");
+            printf("\tmov [rbp-112], rdx\n");
+            printf("\tmov [rbp-104], rcx\n");
+            printf("\tmov [rbp-96], r8\n");
+            printf("\tmov [rbp-88], r9\n");
+
+            printf("\tmovsd [rbp-80], xmm0\n");
+            printf("\tmovsd [rbp-72], xmm1\n");
+            printf("\tmovsd [rbp-64], xmm2\n");
+            printf("\tmovsd [rbp-56], xmm3\n");
+            printf("\tmovsd [rbp-48], xmm4\n");
+            printf("\tmovsd [rbp-40], xmm5\n");
         }
         // push arguments to the stack
         int gp = 0, fp = 0;
@@ -940,8 +951,8 @@ static void emit_text(Program *prog) {
 void codegen(Program *prog) {
     for (Function *fn = prog->fns; fn; fn = fn->next) {
         // calle-saved registers take 32 bytes
-        // and variable-argument save area takes 48 bytes.
-        int offset = fn->is_variadic ? 80 : 32;
+        // and variable-argument save area takes 8 * 6 * 2 = 96 bytes.
+        int offset = fn->is_variadic ? 128 : 32;
         for (Var *v = fn->locals; v; v = v->next) {
             offset = align_to(offset, v->align);
             offset += v->ty->size;
