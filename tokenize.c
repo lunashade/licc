@@ -1,11 +1,11 @@
 #include "lcc.h"
 
 static char *KEYWORDS[] = {
-    "return",  "if",     "else",     "for",      "while",    "sizeof",
-    "int",     "char",   "struct",   "union",    "short",    "long",
-    "void",    "signed", "unsigned", "typedef",  "_Bool",    "static",
-    "enum",    "goto",   "break",    "continue", "switch",   "case",
-    "default", "extern", "_Alignof", "_Alignas", "volatile", "const"};
+    "return",   "if",      "else",  "for",     "while",  "sizeof",   "int",
+    "char",     "struct",  "union", "short",   "long",   "void",     "signed",
+    "unsigned", "typedef", "_Bool", "static",  "enum",   "goto",     "break",
+    "continue", "switch",  "case",  "default", "extern", "_Alignof", "_Alignas",
+    "volatile", "const",   "float", "double"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "...", "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=",
     "/=",  "%=",  "&=",  "|=", "^=", "++", "--", "&&", "||", "<<", ">>"};
@@ -224,10 +224,9 @@ static Token *read_char_literal(Token *cur, char *start) {
 
     cur = new_token(cur, TK_NUM, start, p - start + 1);
     cur->val = c;
+    cur->ty = ty_int;
     return cur;
 }
-
-static Type *read_int_suffix(char *p, char **rest, long val) { *rest = p; }
 
 static Token *read_int_literal(Token *cur, char *start) {
     char *p = start;
@@ -295,13 +294,31 @@ static Token *read_int_literal(Token *cur, char *start) {
             ty = ty_int;
     }
 
-    if (isalnum(*p) || *p == '_')
-        error_at(p, "tokenize: invalid digit");
-
     cur = new_token(cur, TK_NUM, start, p - start);
     cur->val = val;
     cur->ty = ty;
     return cur;
+}
+
+static Token *read_number(Token *cur, char *start) {
+    Token *tok = read_int_literal(cur, start);
+    if (!strchr(".eEfF", start[tok->len]))
+        return tok;
+
+    char *end;
+    double fval = strtod(start, &end);
+
+    Type *ty = ty_double;
+    if (*end == 'f' || *end == 'F') {
+        ty = ty_float;
+        end++;
+    } else if (*end == 'l' || *end == 'L') {
+        end++;
+    }
+    tok = new_token(cur, TK_NUM, start, end - start);
+    tok->fval = fval;
+    tok->ty = ty;
+    return tok;
 }
 
 static Token *read_string_literal(Token *cur, char *start) {
@@ -385,14 +402,14 @@ Token *tokenize(char *filename, char *p) {
             cur->len = p - q;
             continue;
         }
+        if (isdigit(*p) || (p[0] == '.' && isdigit(p[1]))) {
+            cur = read_number(cur, p);
+            p += cur->len;
+            continue;
+        }
         if (ispunct(*p)) {
             cur = new_token(cur, TK_RESERVED, p, 1);
             p++;
-            continue;
-        }
-        if (isdigit(*p)) {
-            cur = read_int_literal(cur, p);
-            p += cur->len;
             continue;
         }
         error_at(p, "tokenize: invalid token character");

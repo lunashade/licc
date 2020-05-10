@@ -30,8 +30,9 @@ typedef struct Token Token;
 struct Token {
     TokenKind kind;
     Token *next;
-    long val; // TK_NUM
-    Type *ty; // TK_NUM
+    long val;    // TK_NUM
+    double fval; // TK_NUM
+    Type *ty;    // TK_NUM
     char *loc;
     int len;
     char *contents;   // string literal including \0
@@ -172,6 +173,7 @@ struct Node {
 
     Var *var;        // ND_VAR, local variable
     long val;        // ND_NUM, value
+    double fval;     // ND_NUM, value
     Member *member;  // ND_MEMBER, struct member
     char *labelname; // label
 
@@ -246,10 +248,12 @@ typedef enum {
     TY_INT,
     TY_LONG,
     TY_PTR,
+    TY_ENUM,
+    TY_FLOAT,
+    TY_DOUBLE,
     TY_FUNC,
     TY_ARRAY,
     TY_STRUCT,
-    TY_ENUM,
 } TypeKind;
 
 struct Type {
@@ -297,19 +301,25 @@ extern Type *ty_ushort;
 extern Type *ty_long;
 extern Type *ty_ulong;
 
+extern Type *ty_float;
+extern Type *ty_double;
+
 bool is_integer(Type *ty);
+bool is_flonum(Type *ty);
+bool is_numeric(Type *ty);
+bool is_scalar(Type *ty);
 bool is_pointing(Type *ty);
 int size_of(Type *ty);
 
 void add_type(Node *node);
 
 Type *new_type(TypeKind kind, int size, int align);
+Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 Type *array_of(Type *base, int size);
 Type *func_type(Type *return_ty);
 Type *struct_type(void);
 Type *enum_type(void);
-Type *copy_type(Type *ty);
 
 //
 // Codegen

@@ -13,11 +13,22 @@ Type *ty_ushort = &(Type){TY_SHORT, 2, 2, true};
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 Type *ty_uchar = &(Type){TY_CHAR, 1, 1, true};
 
+Type *ty_float = &(Type){TY_FLOAT, 4, 4};
+Type *ty_double = &(Type){TY_DOUBLE, 8, 8};
+
 bool is_integer(Type *ty) {
     return (ty->kind == TY_INT || ty->kind == TY_CHAR || ty->kind == TY_SHORT ||
             ty->kind == TY_LONG || ty->kind == TY_BOOL || ty->kind == TY_ENUM);
 }
-bool is_scalar(Type *ty) { return (is_integer(ty) || ty->kind == TY_PTR); }
+bool is_flonum(Type *ty) {
+    return (ty->kind == TY_FLOAT || ty->kind == TY_DOUBLE);
+}
+bool is_numeric(Type *ty) {
+    return is_integer(ty) || is_flonum(ty);
+}
+bool is_scalar(Type *ty) {
+    return (is_integer(ty) || is_flonum(ty) || ty->base);
+}
 bool is_pointing(Type *ty) { return ty->base; }
 
 int size_of(Type *ty) {
@@ -79,6 +90,11 @@ static Type *common_type(Type *ty1, Type *ty2) {
     if (ty1->base)
         return pointer_to(ty1->base);
 
+    if (ty1->kind == TY_DOUBLE || ty2->kind == TY_DOUBLE)
+        return ty_double;
+    if (ty1->kind == TY_FLOAT || ty2->kind == TY_FLOAT)
+        return ty_float;
+
     if (size_of(ty1) < 4)
         ty1 = ty_int;
     if (size_of(ty2) < 4)
@@ -99,16 +115,19 @@ static void usual_arithmetic_conversion(Node **lhs, Node **rhs) {
 }
 
 static void assert_same_type(Type *lhs, Type *rhs, Token *tok) {
-    if (is_integer(lhs)) {
-        if (lhs->kind != rhs->kind)
-            error_tok(tok, "type: must have same scalar type");
-    } else if (is_pointing(lhs)) {
+    if (is_pointing(lhs)) {
         if (!is_pointing(rhs))
             error_tok(tok, "type: must have same scalar type");
-    } else {
-        if (lhs != rhs)
-            error_tok(tok, "type: must have same type");
+        return;
     }
+    if (is_scalar(lhs)) {
+        if (lhs->kind != rhs->kind)
+            error_tok(tok, "type: must have same scalar type");
+        return;
+    }
+    if (lhs != rhs)
+        error_tok(tok, "type: must have same type");
+    return;
 }
 
 void add_type(Node *node) {

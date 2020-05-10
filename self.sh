@@ -51,6 +51,8 @@ int isalnum(int c);
 char *strstr(char *haystack, char *needle);
 static void va_end(va_list ap) {}
 long strtoul(char *nptr, char **endptr, int base);
+char *strchr(char *s, char c);
+double strtod(char *s, char **endptr);
 void exit(int code);
 EOF
 
