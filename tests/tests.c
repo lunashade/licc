@@ -952,6 +952,21 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, (int)1.0, "(int)1.0");
     assert(1.0, (float)1, "(float)1");
 
+    assert(1, 2e3==2e3, "2e3==2e3");
+    assert(1, 2e3==2000, "2e3==2000");
+    assert(0, 2e3!=2e3, "2e3!=2e3");
+    assert(0, 2e3!=2000, "2e3!=2000");
+    assert(0, 2e5==2e3, "2e5==2e3");
+    assert(0, 2e3==200, "2e3==200");
+    assert(1, 2.0<2.1, "2.0<2.1");
+    assert(1, 2.0<=2.1, "2.0<=2.1");
+    assert(0, 2.0>2.1, "2.0>2.1");
+    assert(0, 2.0>=2.1, "2.0>=2.1");
+    assert(1, 2.0f<2.1, "2.0f<2.1");
+    assert(1, 2<=2.1L, "2<=2.1L");
+    assert(0, 2.0l>2.1f, "2.0l>2.1f");
+    assert(0, 2ul>2.1f, "2ul>2.1f");
+
     printf("OK\n");
     return 0;
 }

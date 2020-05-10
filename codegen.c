@@ -303,7 +303,7 @@ static void gen_expr(Node *node) {
     case ND_COND: {
         int label = next_label();
         gen_expr(node->cond);
-        printf("\tcmp %s, 0\n", reg_pop());
+        cmpzero(node->cond->ty);
         printf("\tje .L.else.%d\n", label);
         gen_expr(node->then);
         top--;
@@ -342,26 +342,23 @@ static void gen_expr(Node *node) {
         return;
     case ND_NOT: {
         gen_expr(node->lhs);
-        char *rs = reg_pop();
+        cmpzero(node->lhs->ty);
         char *rd = reg_push();
-        printf("\tcmp %s, 0\n", rs);
         printf("\tsete %sb\n", rd);
-        printf("\tmovzx %s, %sb\n", rd, rs);
+        printf("\tmovzx %s, %sb\n", rd, rd);
         return;
     }
     case ND_LOGOR: {
         int label = next_label();
 
         gen_expr(node->lhs);
-        char *rs = reg_pop_x(node->lhs->ty);
-        printf("\tcmp %s, 0\n", rs);
+        cmpzero(node->lhs->ty);
         printf("\tjne .L.true.%d\n", label);
         gen_expr(node->rhs);
-        char *rd = reg_pop_x(node->rhs->ty);
-        printf("\tcmp %s, 0\n", rd);
+        cmpzero(node->rhs->ty);
         printf("\tjne .L.true.%d\n", label);
 
-        rd = reg_push();
+        char *rd = reg_push();
         printf("\tmov %s, 0\n", rd);
         printf("\tjmp .L.end.%d\n", label);
         printf(".L.true.%d:\n", label);
@@ -373,15 +370,13 @@ static void gen_expr(Node *node) {
         int label = next_label();
 
         gen_expr(node->lhs);
-        char *rs = reg_pop_x(node->lhs->ty);
-        printf("\tcmp %s, 0\n", rs);
+        cmpzero(node->lhs->ty);
         printf("\tje .L.false.%d\n", label);
         gen_expr(node->rhs);
-        char *rd = reg_pop_x(node->rhs->ty);
-        printf("\tcmp %s, 0\n", rd);
+        cmpzero(node->rhs->ty);
         printf("\tje .L.false.%d\n", label);
 
-        rd = reg_push();
+        char *rd = reg_push();
         printf("\tmov %s, 1\n", rd);
         printf("\tjmp .L.end.%d\n", label);
         printf(".L.false.%d:\n", label);
@@ -452,9 +447,11 @@ static void gen_expr(Node *node) {
     gen_expr(node->lhs);
     gen_expr(node->rhs);
 
-    char *rs = reg_pop_x(node->rhs->ty);
-    char *rd = reg_pop_x(node->lhs->ty);
-    reg_push();
+    char *rs = regx(node->rhs->ty, top - 1);
+    char *rd = regx(node->lhs->ty, top - 2);
+    char *fs = freg(top - 1);
+    char *fd = freg(top - 2);
+    top--;
 
     if (node->kind == ND_SHL) {
         printf("\tmov rcx, %s\n", reg(top)); // rs with 8-bit register
@@ -544,33 +541,60 @@ static void gen_expr(Node *node) {
         return;
     }
     if (node->kind == ND_EQ) {
-        printf("\tcmp %s, %s\n", rd, rs);
+        if (node->lhs->ty->kind == TY_FLOAT)
+            printf("\tucomiss %s, %s\n", fd, fs);
+        else if (node->lhs->ty->kind == TY_DOUBLE)
+            printf("\tucomisd %s, %s\n", fd, fs);
+        else
+            printf("\tcmp %s, %s\n", rd, rs);
+
         printf("\tsete al\n");
         printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_NE) {
-        printf("\tcmp %s, %s\n", rd, rs);
+        if (node->lhs->ty->kind == TY_FLOAT)
+            printf("\tucomiss %s, %s\n", fd, fs);
+        else if (node->lhs->ty->kind == TY_DOUBLE)
+            printf("\tucomisd %s, %s\n", fd, fs);
+        else
+            printf("\tcmp %s, %s\n", rd, rs);
         printf("\tsetne al\n");
         printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_LT) {
-        printf("\tcmp %s, %s\n", rd, rs);
-        if (node->lhs->ty->is_unsigned) {
+        if (node->lhs->ty->kind == TY_FLOAT) {
+            printf("\tucomiss %s, %s\n", fd, fs);
+            printf("\tsetb al\n");
+        } else if (node->lhs->ty->kind == TY_DOUBLE) {
+            printf("\tucomisd %s, %s\n", fd, fs);
             printf("\tsetb al\n");
         } else {
-            printf("\tsetl al\n");
+            printf("\tcmp %s, %s\n", rd, rs);
+            if (node->lhs->ty->is_unsigned) {
+                printf("\tsetb al\n");
+            } else {
+                printf("\tsetl al\n");
+            }
         }
         printf("\tmovzx %s, al\n", rd);
         return;
     }
     if (node->kind == ND_LE) {
-        printf("\tcmp %s, %s\n", rd, rs);
-        if (node->lhs->ty->is_unsigned) {
+        if (node->lhs->ty->kind == TY_FLOAT) {
+            printf("\tucomiss %s, %s\n", fd, fs);
+            printf("\tsetbe al\n");
+        } else if (node->lhs->ty->kind == TY_DOUBLE) {
+            printf("\tucomisd %s, %s\n", fd, fs);
             printf("\tsetbe al\n");
         } else {
-            printf("\tsetle al\n");
+            printf("\tcmp %s, %s\n", rd, rs);
+            if (node->lhs->ty->is_unsigned) {
+                printf("\tsetbe al\n");
+            } else {
+                printf("\tsetle al\n");
+            }
         }
         printf("\tmovzx %s, al\n", rd);
         return;
