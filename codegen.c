@@ -109,11 +109,19 @@ static void load(Type *ty) {
         // first element.
         return;
     }
-    char *rs = reg_pop();
+    if (ty->kind == TY_DOUBLE) {
+        printf("\tmovsd %s, [%s]\n", freg(top - 1), reg(top - 1));
+        return;
+    }
+    if (ty->kind == TY_FLOAT) {
+        printf("\tmovss %s, [%s]\n", freg(top - 1), reg(top - 1));
+        return;
+    }
+    char *rs = reg(top - 1);
     // When we load value of size <4, always extend to the size of int,
     // so that we can assume that the lower half of register contains valid
     // value.
-    char *rd = reg_push_x(ty);
+    char *rd = regx(ty, top - 1);
     int sz = size_of(ty);
     char *insn = ty->is_unsigned ? "movzx" : "movsx";
     if (sz == 1) {
@@ -140,6 +148,14 @@ static void store(Type *ty) {
         reg_push(); // address to top
         return;
     }
+    if (is_flonum(ty)) {
+        char *insn = (ty->kind == TY_FLOAT) ? "movss" : "movsd";
+        char *rs = freg(--top);
+        printf("\%s [%s], %s\n", insn, rd, rs);
+        reg_push();
+        return;
+    }
+
     char *rs = reg_pop_sz(size_of(ty));
     printf("\tmov [%s], %s\n", rd, rs);
     reg_push(); // address to top

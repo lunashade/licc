@@ -967,6 +967,42 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(0, 2.0l>2.1f, "2.0l>2.1f");
     assert(0, 2ul>2.1f, "2ul>2.1f");
 
+    assert(1, ({float x=1.0; x==1.0;}), "({float x=1.0; x==1.0;})");
+    assert(1, ({ float x=2e3f; x==2e3; }), "({ float x=2e3f; x==2e3; })");
+    assert(0, ({ float x=2e3f; x==2e5; }), "({ float x=2e3f; x==2e5; })");
+    assert(0, ({ float x=5.1f; x<5; }), "({ float x=5.1f; x<5; })");
+    assert(0, ({ float x=5.0f; x<5; }), "({ float x=5.0f; x<5; })");
+    assert(1, ({ float x=4.9f; x<5; }), "({ float x=4.9f; x<5; })");
+    assert(0, ({ float x=5.1f; x<=5; }), "({ float x=5.1f; x<=5; })");
+    assert(1, ({ float x=5.0f; x<=5; }), "({ float x=5.0f; x<=5; })");
+    assert(1, ({ float x=4.9f; x<=5; }), "({ float x=4.9f; x<=5; })");
+
+    assert(1, ({ double x=2e3f; x==2e3; }), "({ double x=2e3f; x==2e3; })");
+    assert(0, ({ double x=2e3f; x==2e5; }), "({ double x=2e3f; x==2e5; })");
+    assert(0, ({ double x=5.1f; x<5; }), "({ double x=5.1f; x<5; })");
+    assert(0, ({ double x=5.0f; x<5; }), "({ double x=5.0f; x<5; })");
+    assert(1, ({ double x=4.9f; x<5; }), "({ double x=4.9f; x<5; })");
+    assert(0, ({ double x=5.1f; x<=5; }), "({ double x=5.1f; x<=5; })");
+    assert(1, ({ double x=5.0f; x<=5; }), "({ double x=5.0f; x<=5; })");
+    assert(1, ({ double x=4.9f; x<=5; }), "({ double x=4.9f; x<=5; })");
+
+    assert(0, (_Bool)0.0, "(_Bool)0.0");
+    assert(1, (_Bool)0.1, "(_Bool)0.1");
+    assert(3, (char)3.0, "(char)3.0");
+    assert(1000, (short)1000.3, "(short)1000.3");
+    assert(3, (int)3.99, "(int)3.99");
+    assert(2000000000000000, (long)2e15, "(long)2e15");
+    assert(3, (float)3.5, "(float)3.5");
+    assert(5, (double)(float)5.5, "(double)(float)5.5");
+    assert(3, (float)3, "(float)3");
+    assert(3, (double)3, "(double)3");
+    assert(3, (float)3L, "(float)3L");
+    assert(3, (double)3L, "(double)3L");
+
+    assert(4, sizeof(float), "sizeof(float)");
+    assert(8, sizeof(double), "sizeof(double)");
+    assert(8, sizeof(long double), "sizeof(long double)");
+
     printf("OK\n");
     return 0;
 }
