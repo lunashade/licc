@@ -46,6 +46,9 @@ long g8 = 8;
 extern int ext1;
 extern int *ext2;
 static int ext3 = 3;
+float add_float(float x, float y);
+double add_double(double x, double y);
+
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 _Bool true_fn();
@@ -1042,6 +1045,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, ({ int x=5; if (0.1) x=3; x; }), "({ int x=5; if (0.1) x=3; x; })");
     assert(10, ({ double i=10.0; int j=0; for (; i; i--, j++); j; }), "({ double i=10.0; int j=0; for (; i; i--, j++); j; })");
     assert(10, ({ double i=10.0; int j=0; do j++; while(--i); j; }), "({ double i=10.0; int j=0; do j++; while(--i); j; })");
+
+    assert(0, add_float(3.8f, -3.8f), "add_float(3.8f, -3.8f)");
+    assert(0, add_double(3.8, -3.8), "add_double(3.8, -3.8)");
+
     printf("OK\n");
     return 0;
 }

@@ -417,12 +417,28 @@ static void gen_expr(Node *node) {
             return;
         }
 
-        printf("\tpush r10\n");
-        printf("\tpush r11\n");
+        printf("\tsub rsp, 64\n");
+        printf("\tmov [rsp], r10\n");
+        printf("\tmov [rsp+8], r11\n");
+        printf("\tmovsd [rsp+16], xmm8\n");
+        printf("\tmovsd [rsp+24], xmm9\n");
+        printf("\tmovsd [rsp+32], xmm10\n");
+        printf("\tmovsd [rsp+40], xmm11\n");
+        printf("\tmovsd [rsp+48], xmm12\n");
+        printf("\tmovsd [rsp+56], xmm13\n");
 
         // push arguments then pop to register
+        int gp = 0, fp = 0;
         for (int i = 0; i < node->nargs; i++) {
             Var *arg = node->args[i];
+            if (is_flonum(arg->ty)) {
+                if (arg->ty->kind == TY_FLOAT) {
+                    printf("movss xmm%d, [rbp-%d]\n", fp++, arg->offset);
+                } else {
+                    printf("movsd xmm%d, [rbp-%d]\n", fp++, arg->offset);
+                }
+                continue;
+            }
             int sz = size_of(arg->ty);
             char *insn = (arg->ty->is_unsigned) ? "movzx" : "movsx";
             switch (sz) {
@@ -446,15 +462,28 @@ static void gen_expr(Node *node) {
             }
         }
 
-        printf("\tmov rax, 0\n");
+        printf("\tmov rax, %d\n", fp);
         printf("\tcall %s\n", node->funcname);
         if (node->ty->kind == TY_BOOL)
             printf("\tmovzx eax, al\n");
 
-        printf("\tpop r11\n");
-        printf("\tpop r10\n");
+        printf("\tmov r10, [rsp]\n");
+        printf("\tmov r11, [rsp+8]\n");
+        printf("\tmovsd xmm8, [rsp+16]\n");
+        printf("\tmovsd xmm9, [rsp+24]\n");
+        printf("\tmovsd xmm10, [rsp+32]\n");
+        printf("\tmovsd xmm11, [rsp+40]\n");
+        printf("\tmovsd xmm12, [rsp+48]\n");
+        printf("\tmovsd xmm13, [rsp+56]\n");
+        printf("\tadd rsp, 64\n");
 
-        printf("\tmov %s, rax\n", reg_push());
+        if (node->ty->kind == TY_FLOAT) {
+            printf("\tmovss %s, xmm0\n", freg(top++));
+        } else if (node->ty->kind == TY_DOUBLE) {
+            printf("\tmovsd %s, xmm0\n", freg(top++));
+        } else {
+            printf("\tmov %s, rax\n", reg(top++));
+        }
         return;
     }
     }
