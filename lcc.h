@@ -306,6 +306,7 @@ extern Type *ty_double;
 
 bool is_integer(Type *ty);
 bool is_flonum(Type *ty);
+bool is_numeric(Type *ty);
 bool is_scalar(Type *ty);
 bool is_pointing(Type *ty);
 int size_of(Type *ty);

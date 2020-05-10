@@ -1003,6 +1003,27 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(8, sizeof(double), "sizeof(double)");
     assert(8, sizeof(long double), "sizeof(long double)");
 
+    assert(6, 2.3+3.8, "2.3+3.8");
+    assert(-1, 2.3-3.8, "2.3-3.8");
+    assert(8, 2.3*3.8, "2.3*3.8");
+    assert(2, 5.0/2, "5.0/2");
+
+    assert(6, 2.3f+3.8f, "2.3f+3.8f");
+    assert(-1, 2.3f-3.8f, "2.3f-3.8f");
+    assert(8, 2.3f*3.8f, "2.3f*3.8f");
+    assert(2, 5.0f/2, "5.0f/2");
+    assert(2, 5.f/2, "5.f/2");
+    assert(2, .5f*4, ".5f*4");
+
+    assert(4, sizeof(1.f+2), "sizeof(1.f+2)");
+    assert(4, sizeof(1.f-2), "sizeof(1.f-2)");
+    assert(4, sizeof(1.f*2), "sizeof(1.f*2)");
+    assert(4, sizeof(1.f/2), "sizeof(1.f/2)");
+    assert(8, sizeof(1.0+2), "sizeof(1.0+2)");
+    assert(8, sizeof(1.0-2), "sizeof(1.0-2)");
+    assert(8, sizeof(1.0*2), "sizeof(1.0*2)");
+    assert(8, sizeof(1.0/2), "sizeof(1.0/2)");
+
     printf("OK\n");
     return 0;
 }

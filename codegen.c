@@ -484,18 +484,38 @@ static void gen_expr(Node *node) {
         return;
     }
     if (node->kind == ND_ADD) {
+        if (is_flonum(node->ty)) {
+            char *insn = (node->ty->kind == TY_FLOAT) ? "addss" : "addsd";
+            printf("\t%s %s, %s\n", insn, fd, fs);
+            return;
+        }
         printf("\tadd %s, %s\n", rd, rs);
         return;
     }
     if (node->kind == ND_SUB) {
+        if (is_flonum(node->ty)) {
+            char *insn = (node->ty->kind == TY_FLOAT) ? "subss" : "subsd";
+            printf("\t%s %s, %s\n", insn, fd, fs);
+            return;
+        }
         printf("\tsub %s, %s\n", rd, rs);
         return;
     }
     if (node->kind == ND_MUL) {
+        if (is_flonum(node->ty)) {
+            char *insn = (node->ty->kind == TY_FLOAT) ? "mulss" : "mulsd";
+            printf("\t%s %s, %s\n", insn, fd, fs);
+            return;
+        }
         printf("\timul %s, %s\n", rd, rs);
         return;
     }
     if (node->kind == ND_DIV) {
+        if (is_flonum(node->ty)) {
+            char *insn = (node->ty->kind == TY_FLOAT) ? "divss" : "divsd";
+            printf("\t%s %s, %s\n", insn, fd, fs);
+            return;
+        }
         if (size_of(node->ty) == 8) {
             printf("\tmov rax, %s\n", rd);
             if (node->ty->is_unsigned) {

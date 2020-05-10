@@ -162,21 +162,24 @@ static Node *new_add_node(Node *lhs, Node *rhs, Token *tok) {
     add_type(lhs);
     add_type(rhs);
     // num+num
-    if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    if (is_numeric(lhs->ty) && is_numeric(rhs->ty))
         return new_binary_node(ND_ADD, lhs, rhs, tok);
 
     // ptr+ptr -> invalid
     if (is_pointing(lhs->ty) && is_pointing(rhs->ty))
         error_tok(tok, "parse: add: invalid operands: ptr+ptr");
 
-    // canonicalize num+ptr -> ptr + num
+    // canonicalize int + ptr -> ptr + int
     if (!is_pointing(lhs->ty) && is_pointing(rhs->ty)) {
         Node *tmp = lhs;
         lhs = rhs;
         rhs = tmp;
     }
 
-    // ptr + num
+    // ptr + int
+    if (!is_integer(rhs->ty))
+        error_tok(tok, "parse: add: invalid operands");
+
     Node *size = new_number(lhs->ty->base->size, tok);
     rhs = new_binary_node(ND_MUL, rhs, size, tok);
     return new_binary_node(ND_ADD, lhs, rhs, tok);
@@ -186,7 +189,7 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
     add_type(lhs);
     add_type(rhs);
     // num+num
-    if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    if (is_numeric(lhs->ty) && is_numeric(rhs->ty))
         return new_binary_node(ND_SUB, lhs, rhs, tok);
 
     // ptr-ptr : how many elements are between the two
@@ -195,7 +198,7 @@ static Node *new_sub_node(Node *lhs, Node *rhs, Token *tok) {
         Node *node = new_binary_node(ND_SUB, lhs, rhs, tok);
         return new_binary_node(ND_DIV, node, size, tok);
     }
-    // ptr - num
+    // ptr - int
     if (is_pointing(lhs->ty) && is_integer(rhs->ty)) {
         Node *size = new_number(lhs->ty->base->size, tok);
         rhs = new_binary_node(ND_MUL, rhs, size, tok);
