@@ -945,6 +945,10 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(42, 🍣, "🍣");
     assert(3, ({int β=3; β;}), "({int β=3; β;})");
 
+    assert(10, ({int i=0; do i++; while(i<10); i;}), "({int i=0; do i++; while(i<10); i;})");
+    assert(1, ({int i=0; do i++; while(i<0); i;}), "({int i=0; do i++; while(i<0); i;})");
+    assert(4, ({ int i=0; int j=0; int k=0; do { if (++j > 3) break; continue; k++;  } while (1); j;  }), "({ int i=0; int j=0; int k=0; do { if (++j > 3) break; continue; k++;  } while (1); j;  })");
+
     printf("OK\n");
     return 0;
 }

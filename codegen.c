@@ -533,11 +533,30 @@ static void gen_stmt(Node *node) {
         printf("\tjmp .L.return.%s\n", current_fn->name);
         return;
     }
+    if (node->kind == ND_DO) {
+        int label = next_label();
+        int brk = breaklabel;
+        int cnt = continuelabel;
+        continuelabel = breaklabel = label;
+
+        printf(".L.begin.%d:\n", label);
+        gen_stmt(node->then);
+        printf(".L.continue.%d:\n", label);
+        gen_expr(node->cond);
+        printf("\tcmp %s, 0\n", reg_pop());
+        printf("\tjne .L.begin.%d\n", label);
+        printf(".L.break.%d:\n", label);
+
+        continuelabel = cnt;
+        breaklabel = brk;
+        return;
+    }
     if (node->kind == ND_FOR) {
         int lfor = next_label();
         int pastbrk = breaklabel;
         int pastcnt = continuelabel;
         continuelabel = breaklabel = lfor;
+
         if (node->init)
             gen_stmt(node->init);
         printf(".L.begin.%d:\n", lfor);
@@ -552,6 +571,7 @@ static void gen_stmt(Node *node) {
             gen_stmt(node->inc);
         printf("\tjmp .L.begin.%d\n", lfor);
         printf(".L.break.%d:\n", lfor);
+
         continuelabel = pastcnt;
         breaklabel = pastbrk;
         return;

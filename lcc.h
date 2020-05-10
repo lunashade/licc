@@ -139,6 +139,7 @@ typedef enum {
     ND_RETURN,    // return statement
     ND_IF,        // if statement
     ND_FOR,       // for statement
+    ND_DO,        // do statement
     ND_NUM,       // Integer
     ND_VAR,       // variable
     ND_ADDR,      // &
@@ -193,7 +194,7 @@ struct Function {
     Var *locals;   // linked list of locals
     int stacksize; // local variable stack size
 
-    bool is_static; // file scope
+    bool is_static;   // file scope
     bool is_variadic; // variadic
 };
 
