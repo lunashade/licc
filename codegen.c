@@ -698,7 +698,7 @@ static void gen_stmt(Node *node) {
         gen_stmt(node->then);
         printf(".L.continue.%d:\n", label);
         gen_expr(node->cond);
-        printf("\tcmp %s, 0\n", reg_pop());
+        cmpzero(node->cond->ty);
         printf("\tjne .L.begin.%d\n", label);
         printf(".L.break.%d:\n", label);
 
@@ -717,7 +717,7 @@ static void gen_stmt(Node *node) {
         printf(".L.begin.%d:\n", lfor);
         if (node->cond) {
             gen_expr(node->cond);
-            printf("\tcmp %s, 0\n", reg_pop());
+            cmpzero(node->cond->ty);
             printf("\tje .L.break.%d\n", lfor);
         }
         gen_stmt(node->then);
@@ -747,7 +747,7 @@ static void gen_stmt(Node *node) {
     }
     if (node->kind == ND_IF) {
         gen_expr(node->cond);
-        printf("\tcmp %s, 0\n", reg_pop());
+        cmpzero(node->cond->ty);
         int lif = next_label();
         if (node->els) {
             printf("\tje .L.els.%d\n", lif);
