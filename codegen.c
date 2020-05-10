@@ -151,7 +151,7 @@ static void store(Type *ty) {
     if (is_flonum(ty)) {
         char *insn = (ty->kind == TY_FLOAT) ? "movss" : "movsd";
         char *rs = freg(--top);
-        printf("\%s [%s], %s\n", insn, rd, rs);
+        printf("\t%s [%s], %s\n", insn, rd, rs);
         reg_push();
         return;
     }
@@ -437,9 +437,9 @@ static void gen_expr(Node *node) {
             Var *arg = node->args[i];
             if (is_flonum(arg->ty)) {
                 if (arg->ty->kind == TY_FLOAT) {
-                    printf("movss xmm%d, [rbp-%d]\n", fp++, arg->offset);
+                    printf("\tmovss xmm%d, [rbp-%d]\n", fp++, arg->offset);
                 } else {
-                    printf("movsd xmm%d, [rbp-%d]\n", fp++, arg->offset);
+                    printf("\tmovsd xmm%d, [rbp-%d]\n", fp++, arg->offset);
                 }
                 continue;
             }
