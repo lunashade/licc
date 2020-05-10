@@ -146,31 +146,76 @@ static void store(Type *ty) {
     return;
 }
 
+// compare stack-top value to zero, push 1 or 0 to top
+static void cmpzero(Type *ty) {
+    if (ty->kind == TY_FLOAT) {
+        printf("\txorpd xmm0, xmm0\n");
+        printf("\tucomiss xmm0, %s\n", freg(--top));
+    } else if (ty->kind == TY_DOUBLE) {
+        printf("\txorpd xmm0, xmm0\n");
+        printf("\tucomisd xmm0, %s\n", freg(--top));
+    } else {
+        printf("\tcmp %s, 0\n", regx(ty, --top));
+    }
+}
+
 // cast a type of stack top
 static void cast(Type *from, Type *to) {
     if (to->kind == TY_VOID)
         return;
-    if (to->kind == TY_STRUCT)
-        return;
 
     int sz = size_of(to);
-    char *rs = reg_pop();
-    char *rd = reg_push();
-    char *insn = to->is_unsigned ? "movzx" : "movsx";
+    char *r = reg(top - 1);
+    char *fr = freg(top - 1);
+
     if (to->kind == TY_BOOL) {
-        printf("\tcmp %s, 0\n", rs);
-        printf("\tsetne %sb\n", rd);
-        printf("\tmovzx %s, %sb\n", rd, rd);
+        cmpzero(from);
+        printf("\tsetne %sb\n", r);
+        printf("\tmovzx %s, %sb\n", r, r);
+        top++;
         return;
     }
+
+    // from FLONUM
+    if (from->kind == TY_FLOAT) {
+        if (to->kind == TY_FLOAT)
+            return;
+        if (to->kind == TY_DOUBLE)
+            printf("\tcvtss2sd %s, %s\n", fr, fr);
+        else
+            printf("\tcvttss2si %s, %s\n", r, fr);
+        return;
+    }
+    if (from->kind == TY_DOUBLE) {
+        if (to->kind == TY_DOUBLE)
+            return;
+        if (to->kind == TY_FLOAT)
+            printf("\tcvtsd2ss %s, %s\n", fr, fr);
+        else
+            printf("\tcvttsd2si %s, %s\n", r, fr);
+        return;
+    }
+    // INTEGER -> FLONUM
+    if (to->kind == TY_FLOAT) {
+        printf("\tcvtsi2ss %s, %s\n", fr, r);
+        return;
+    }
+    if (to->kind == TY_DOUBLE) {
+        printf("\tcvtsi2sd %s, %s\n", fr, r);
+        return;
+    }
+
+    // INTEGER -> INTEGER
+    char *insn = to->is_unsigned ? "movzx" : "movsx";
+
     if (size_of(to) == 1) {
-        printf("\t%s %s, %sb\n", insn, rd, rs);
+        printf("\t%s %s, %sb\n", insn, r, r);
     } else if (size_of(to) == 2) {
-        printf("\t%s %s, %sw\n", insn, rd, rs);
+        printf("\t%s %s, %sw\n", insn, r, r);
     } else if (size_of(to) == 4) {
-        printf("\tmov %sd, %sd\n", rd, rs);
+        printf("\tmov %sd, %sd\n", r, r);
     } else if (is_integer(from) && size_of(from) < 8 && !from->is_unsigned) {
-        printf("\tmovsx %s, %sd\n", rd, rs);
+        printf("\tmovsx %s, %sd\n", r, r);
     }
 }
 
@@ -270,6 +315,9 @@ static void gen_expr(Node *node) {
     }
     case ND_CAST:
         gen_expr(node->lhs);
+        if (node->lhs->ty == NULL) {
+            error_tok(node->lhs->tok, "wtf");
+        }
         cast(node->lhs->ty, node->ty);
         return;
     case ND_ADDR:

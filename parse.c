@@ -358,10 +358,10 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",    "char",    "struct",   "union",  "_Bool",
-                  "enum",   "short",   "long",     "void",   "typedef",
-                  "static", "extern",  "_Alignas", "signed", "unsigned",
-                  "const",  "volatile"};
+    char *tn[] = {"int",    "char",     "struct",   "union",  "_Bool",
+                  "enum",   "short",    "long",     "void",   "typedef",
+                  "static", "extern",   "_Alignas", "signed", "unsigned",
+                  "const",  "volatile", "float",    "double"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -787,6 +787,7 @@ static Initializer *initializer(Token **rest, Token *tok, Type *ty) {
 // decl-specifier = (storage-class-specifier | type-specifier | type-qualifier)*
 // type-specifier = builtin-type | struct-union-spec | enum-spec | typedef-name
 // storage-class-specifier = "typedef" | "extern" | "static"
+// type-qualifier = "const" | "volatile"
 // alignment-specifier = "_Alignas" "(" typename | const-expr ")"
 static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
     enum {
@@ -796,9 +797,11 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         SHORT = 1 << 6,
         INT = 1 << 8,
         LONG = 1 << 10,
-        OTHER = 1 << 12,
-        SIGNED = 1 << 13,
-        UNSIGNED = 1 << 14,
+        FLOAT = 1 << 12,
+        DOUBLE = 1 << 14,
+        OTHER = 1 << 16,
+        SIGNED = 1 << 17,
+        UNSIGNED = 1 << 18,
     };
     int cnt = 0;
     Type *spec_ty = ty_int;
@@ -906,6 +909,10 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             cnt += LONG;
         } else if (consume(&tok, tok, "char")) {
             cnt += CHAR;
+        } else if (consume(&tok, tok, "float")) {
+            cnt += FLOAT;
+        } else if (consume(&tok, tok, "double")) {
+            cnt += DOUBLE;
         } else if (consume(&tok, tok, "signed")) {
             cnt |= SIGNED;
         } else if (consume(&tok, tok, "unsigned")) {
@@ -960,6 +967,13 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
         case UNSIGNED + LONG + LONG:
         case UNSIGNED + LONG + LONG + INT:
             spec_ty = ty_ulong;
+            break;
+        case FLOAT:
+            spec_ty = ty_float;
+            break;
+        case DOUBLE:
+        case LONG + DOUBLE:
+            spec_ty = ty_double;
             break;
         default:
             error_tok(tok, "parse: unsupported type-specifier");
