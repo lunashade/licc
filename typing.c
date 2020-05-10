@@ -107,16 +107,19 @@ static void usual_arithmetic_conversion(Node **lhs, Node **rhs) {
 }
 
 static void assert_same_type(Type *lhs, Type *rhs, Token *tok) {
-    if (is_integer(lhs)) {
-        if (lhs->kind != rhs->kind)
-            error_tok(tok, "type: must have same scalar type");
-    } else if (is_pointing(lhs)) {
+    if (is_pointing(lhs)) {
         if (!is_pointing(rhs))
             error_tok(tok, "type: must have same scalar type");
-    } else {
-        if (lhs != rhs)
-            error_tok(tok, "type: must have same type");
+        return;
     }
+    if (is_scalar(lhs)) {
+        if (lhs->kind != rhs->kind)
+            error_tok(tok, "type: must have same scalar type");
+        return;
+    }
+    if (lhs != rhs)
+        error_tok(tok, "type: must have same type");
+    return;
 }
 
 void add_type(Node *node) {
