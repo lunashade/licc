@@ -33,11 +33,15 @@ struct Token {
     long val;    // TK_NUM
     double fval; // TK_NUM
     Type *ty;    // TK_NUM
+
     char *loc;
     int len;
+
     char *contents;   // string literal including \0
     int contents_len; // string literal length
-    int lineno;
+
+    int lineno;  // line number
+    bool at_bol; // beginning of line
 };
 
 Token *tokenize_file(char *filename);
@@ -333,3 +337,8 @@ Type *enum_type(void);
 //
 
 void codegen(Program *prog);
+
+//
+// Debug
+//
+void print_tokens(Token *);

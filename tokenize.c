@@ -100,13 +100,18 @@ bool is_keyword(Token *tok) {
 static void add_lineno(Token *tok) {
     char *p = current_input;
     int lineno = 1;
+    bool at_bol = true;
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         for (; p < t->loc; p++) {
             if (*p == '\n') {
                 lineno++;
+                at_bol = true;
+            } else if (!isspace(*p)) {
+                at_bol = false;
             }
         }
         t->lineno = lineno;
+        t->at_bol = at_bol;
     }
 }
 
