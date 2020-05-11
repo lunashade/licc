@@ -5,10 +5,12 @@ TMP=$1
 CC=$2
 OUT=$3
 
+HEADER=lcc.h
+
 rm -rf $TMP
 mkdir -p $TMP
 
-lcc() {
+lcc-header() {
     cat <<EOF > $TMP/$1
 typedef struct FILE FILE;
 extern FILE *stdin;
@@ -55,9 +57,18 @@ char *strchr(char *s, char c);
 double strtod(char *s, char **endptr);
 void exit(int code);
 EOF
-
-    grep -v '^#' lcc.h >> $TMP/$1
     grep -v '^#' $1 >> $TMP/$1
+    sed -i 's/\bbool\b/_Bool/g' $TMP/$1
+    sed -i 's/\berrno\b/*__errno_location()/g' $TMP/$1
+    sed -i 's/\btrue\b/1/g; s/\bfalse\b/0/g;' $TMP/$1
+    sed -i 's/\bNULL\b/0/g' $TMP/$1
+    sed -i 's/\bva_start\b/__builtin_va_start/g' $TMP/$1
+
+}
+
+lcc() {
+    lcc-header $HEADER
+    cat $1 > $TMP/$1
     sed -i 's/\bbool\b/_Bool/g' $TMP/$1
     sed -i 's/\berrno\b/*__errno_location()/g' $TMP/$1
     sed -i 's/\btrue\b/1/g; s/\bfalse\b/0/g;' $TMP/$1
