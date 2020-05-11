@@ -10,7 +10,7 @@ static char *MULTIPUNCT[] = { // must be length descending order
     "...", "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=",
     "/=",  "%=",  "&=",  "|=", "^=", "++", "--", "&&", "||", "<<", ">>"};
 // error report
-static char *current_filename;
+char *current_filename;
 static char *current_input;
 
 void error(char *fmt, ...) {
@@ -337,7 +337,6 @@ static Token *read_string_literal(Token *cur, char *start) {
 }
 
 Token *tokenize(char *filename, int fileno, char *p) {
-    current_filename = filename;
     current_input = p;
 
     Token head = {};
@@ -437,6 +436,10 @@ static char *read_filestring(char *path) {
 }
 
 Token *tokenize_file(char *path) {
+    char *before_path = current_filename;
+    current_filename = path;
     static int fileno;
-    return tokenize(path,++fileno, read_filestring(path));
+    Token *tok = tokenize(path,++fileno, read_filestring(path));
+    current_filename = before_path;
+    return tok;
 }

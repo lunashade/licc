@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
     if (!entry_filename)
         error("no input file");
 
+    current_filename = entry_filename;
     Token *tok = read_file(entry_filename);
     if (opt_E) {
         print_tokens(tok);

@@ -18,6 +18,8 @@ typedef struct Relocation Relocation;
 //
 // Tokenizer
 //
+extern char *current_filename;
+
 typedef enum {
     TK_RESERVED, // Keywords, punctuators
     TK_STR,      // string literal
