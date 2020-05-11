@@ -215,6 +215,10 @@ void add_type(Node *node) {
         node->ty = ty_int;
         return;
     case ND_DEREF:
+        if (node->lhs->ty->kind == TY_FUNC) {
+            *node = *node->lhs;
+            return;
+        }
         if (!is_pointing(node->lhs->ty)) {
             error_tok(node->tok, "type: invalid pointer dereference");
         }

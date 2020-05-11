@@ -1071,7 +1071,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, g35==1.5, "g35==1.5");
     assert(1, g36==11, "g36==11");
 
-    assert(3, fnptr()(), "fnptr()()");
+    assert(3, fnptr()(0), "fnptr()(0)");
+    assert(3, (*****ret3)(), "(*****ret3)()");
 
     printf("OK\n");
     return 0;
