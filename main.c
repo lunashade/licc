@@ -1,12 +1,13 @@
 #include "lcc.h"
 
-static char *filename;
+static char *entry_filename;
 
 static void usage() { fprintf(stderr, "Usage: lcc [-E] <file>\n"); }
 
 int main(int argc, char **argv) {
-    filename = NULL;
-    bool opt_E;
+    entry_filename = NULL;
+    bool opt_E = false;
+
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "--help")) {
             usage();
@@ -20,13 +21,12 @@ int main(int argc, char **argv) {
         if (argv[i][0] == '-' && argv[i][1] != '\0') {
             error("unknown option: %s", argv[i]);
         }
-        filename = argv[i];
+        entry_filename = argv[i];
     }
-    if (!filename)
+    if (!entry_filename)
         error("no input file");
 
-    Token *tok = tokenize_file(filename);
-    tok = preprocess(tok);
+    Token *tok = read_file(entry_filename);
     if (opt_E) {
         print_tokens(tok);
         exit(0);
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 
     Program *prog = parse(tok);
     // emit .file directive for assembler
-    printf(".file 1 \"%s\"\n", filename);
+    printf(".file 1 \"%s\"\n", entry_filename);
     codegen(prog);
     return 0;
 }

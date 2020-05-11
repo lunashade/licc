@@ -41,6 +41,7 @@ struct Token {
     int contents_len; // string literal length
 
     int lineno;  // line number
+    int fileno;  // file number
     bool at_bol; // beginning of line
 };
 
@@ -57,7 +58,7 @@ void warn_tok(Token *tok, char *fmt, ...);
 //
 // Preprocessor
 //
-Token *preprocess(Token *);
+Token *read_file(char *);
 
 //
 // Parser

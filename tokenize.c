@@ -97,7 +97,7 @@ bool is_keyword(Token *tok) {
     return false;
 }
 
-static void add_lineno(Token *tok) {
+static void add_lineno(Token *tok, int fileno) {
     char *p = current_input;
     int lineno = 1;
     bool at_bol = true;
@@ -110,6 +110,7 @@ static void add_lineno(Token *tok) {
                 at_bol = false;
             }
         }
+        t->fileno = fileno;
         t->lineno = lineno;
         t->at_bol = at_bol;
     }
@@ -335,7 +336,7 @@ static Token *read_string_literal(Token *cur, char *start) {
     return cur;
 }
 
-Token *tokenize(char *filename, char *p) {
+Token *tokenize(char *filename, int fileno, char *p) {
     current_filename = filename;
     current_input = p;
 
@@ -398,11 +399,11 @@ Token *tokenize(char *filename, char *p) {
         error_at(p, "tokenize: invalid token character");
     }
     new_token(cur, TK_EOF, p, 0);
-    add_lineno(head.next);
+    add_lineno(head.next, fileno);
     return head.next;
 }
 
-static char *readfile(char *path) {
+static char *read_filestring(char *path) {
     FILE *fp = stdin;
     if (strcmp(path, "-")) {
         fp = fopen(path, "r");
@@ -436,5 +437,6 @@ static char *readfile(char *path) {
 }
 
 Token *tokenize_file(char *path) {
-    return tokenize(path, readfile(path));
+    static int fileno;
+    return tokenize(path,++fileno, read_filestring(path));
 }

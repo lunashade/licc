@@ -23,7 +23,33 @@ static void concat_string_literals(Token *tok) {
     }
 }
 
-Token *preprocess(Token *tok) {
+static bool is_hash(Token *tok) { return tok->at_bol && equal(tok, "#"); }
+
+static Token *preprocess(Token *tok) {
+    Token head = {};
+    Token *cur = &head;
+
+    while (tok->kind != TK_EOF) {
+        if (!is_hash(tok)) {
+            cur = cur->next = tok;
+            tok = tok->next;
+            continue;
+        }
+        // preprocessor directive
+        tok = tok->next;
+        if (tok->at_bol)
+            // null directive
+            continue;
+
+        error_tok(tok, "preprocess: invalid preprocessor directive");
+    }
+    cur->next = tok;
+    return head.next;
+}
+
+Token *read_file(char *filename) {
+    Token *tok = tokenize_file(filename);
+    tok = preprocess(tok);
     concat_string_literals(tok);
     convert_keywords(tok);
     return tok;
