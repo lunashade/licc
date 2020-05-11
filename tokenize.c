@@ -439,7 +439,7 @@ Token *tokenize_file(char *path) {
     char *before_path = current_filename;
     current_filename = path;
     static int fileno;
-    Token *tok = tokenize(path,++fileno, read_filestring(path));
+    Token *tok = tokenize(path, ++fileno, read_filestring(path));
     current_filename = before_path;
     return tok;
 }

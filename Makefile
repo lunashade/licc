@@ -36,6 +36,7 @@ test-dp: lcc
 	@examples/dp_a.sh
 
 fmt:
+	clang-format -i $(SRCS)
 	@tests/fmt.sh
 clean:
 	git clean -fX
