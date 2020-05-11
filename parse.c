@@ -43,7 +43,7 @@ static Node *cast(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
-static Node *funcall(Token **rest, Token *tok);
+static Node *funcall(Token **rest, Token *tok, Node *fn);
 
 //
 // Token utility
@@ -643,7 +643,8 @@ Program *parse(Token *tok) {
         if (ctx.type_def) {
             for (;;) {
                 if (!ty->name)
-                    error_tok(ty->name_pos, "parse: program: expected typedef name");
+                    error_tok(ty->name_pos,
+                              "parse: program: expected typedef name");
                 push_scope(get_ident(ty->name))->type_def = ty;
                 if (equal(tok, ";")) {
                     tok = skip(tok, ";");
@@ -663,7 +664,8 @@ Program *parse(Token *tok) {
         }
         for (;;) {
             if (!ty->name)
-                error_tok(ty->name_pos, "parse: program: expected variable name");
+                error_tok(ty->name_pos,
+                          "parse: program: expected variable name");
             Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static,
                                 !ctx.is_extern);
             if (ctx.align)
@@ -1947,10 +1949,16 @@ static Node *unary(Token **rest, Token *tok) {
 }
 
 // postfix = primary
-//         | postfix ("[" expr "]" | "." ident | "->" ident | "++" | "--" )?
+//         | postfix postfix-op?
+//         | ident funcall
+// postfix-op = funcall | "[" expr "]" | "." ident | "->" ident | "++" | "--"
 static Node *postfix(Token **rest, Token *tok) {
     Node *node = primary(&tok, tok);
     for (;;) {
+        if (equal(tok, "(")) {
+            node = funcall(&tok, tok, node);
+            continue;
+        }
         if (equal(tok, "[")) {
             Token *op = tok;
             Node *ex = expr(&tok, tok->next);
@@ -2021,25 +2029,22 @@ static Node *primary(Token **rest, Token *tok) {
         return node;
     }
     if (tok->kind == TK_IDENT) {
-        // function call
-        if (equal(tok->next, "("))
-            return funcall(rest, tok);
-
         // variable or enum constant
         VarScope *sc = find_var(tok);
-        if (!sc || (!sc->var && !sc->enum_ty)) {
-            error_tok(tok, "parse: var: undeclared variable: %s",
-                      get_ident(tok));
-        }
-        Node *node;
-        if (sc->var) {
-            node = new_var_node(sc->var, tok);
-        } else {
-            assert(sc->enum_ty);
-            node = new_number(sc->enum_val, tok);
-        }
         *rest = tok->next;
-        return node;
+        if (sc) {
+            if (sc->var)
+                return new_var_node(sc->var, tok);
+            if (sc->enum_ty)
+                return new_number(sc->enum_val, tok);
+        }
+        if (equal(tok->next, "(")) {
+            warn_tok(tok, "parse: implicit declaration of a function");
+            char *name = strndup(tok->loc, tok->len);
+            Var *var = new_gvar(name, func_type(ty_int), true, false);
+            return new_var_node(var, tok);
+        }
+        error_tok(tok, "parse: primary: undefined variable");
     }
     if (tok->kind == TK_STR) {
         Var *var = new_string_literal(tok->contents, tok->contents_len);
@@ -2063,29 +2068,22 @@ static Node *primary(Token **rest, Token *tok) {
     return node;
 }
 
-// funcall = ident func-args
-// func-args = "(" (assign ("," assign)*)? ")"
-static Node *funcall(Token **rest, Token *tok) {
-    Node *node = new_node(ND_FUNCALL, tok);
-    VarScope *sc = find_var(tok);
-    node->funcname = get_ident(tok);
-    if (sc) {
-        if (!sc->var || sc->var->ty->kind != TY_FUNC)
-            error_tok(tok, "parse: primary: not a function");
-        node->func_ty = sc->var->ty;
-    } else {
-        warn_tok(tok, "parse: implicit declaration of a function");
-        node->func_ty = func_type(ty_int);
+// funcall = "(" (assign ("," assign)*)? ")"
+static Node *funcall(Token **rest, Token *tok, Node *fn) {
+    add_type(fn);
+    if (fn->ty->kind != TY_FUNC &&
+        (fn->ty->kind != TY_PTR || fn->ty->base->kind != TY_FUNC)) {
+        error_tok(fn->tok, "parse: funcall: not a function");
     }
-    node->ty = node->func_ty->return_ty;
 
     // func-args
-    tok = skip(tok->next, "(");
+    tok = skip(tok, "(");
     Node *cur = new_node(ND_NOP_EXPR, tok);
 
     Var **args = NULL;
     int nargs = 0;
-    Type *arg_ty = node->func_ty->params;
+    Type *func_ty = (fn->ty->kind == TY_FUNC) ? fn->ty : fn->ty->base;
+    Type *arg_ty = func_ty->params;
     while (!equal(tok, ")")) {
         if (nargs)
             tok = skip(tok, ",");
@@ -2110,6 +2108,9 @@ static Node *funcall(Token **rest, Token *tok) {
         cur = new_binary_node(ND_COMMA, cur, expr, tok);
     }
     *rest = skip(tok, ")");
+
+    Node *node = new_unary_node(ND_FUNCALL, fn, tok);
+    node->ty = func_ty->return_ty;
     node->args = args;
     node->nargs = nargs;
 

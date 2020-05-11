@@ -31,6 +31,7 @@ char *fmt(char *buf, char *fmt, ...) {
     vsprintf(buf, fmt, ap);
 }
 
+
 int _Alignas(512) g_aligned1;
 int _Alignas(512) g_aligned2;
 
@@ -130,6 +131,10 @@ int ret3(void) {
     return 5;
 }
 int ret5(void) { return 5; }
+
+int (*fnptr(void))(int) {
+    return ret3;
+}
 
 void ret_none() {return;}
 
@@ -1066,6 +1071,7 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, g35==1.5, "g35==1.5");
     assert(1, g36==11, "g36==11");
 
+    assert(3, fnptr()(), "fnptr()()");
 
     printf("OK\n");
     return 0;
