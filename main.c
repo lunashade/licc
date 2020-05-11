@@ -2,11 +2,23 @@
 
 static char *filename;
 
+static void usage() {
+    fprintf(stderr, "Usage: lcc <file>\n");
+    exit(2);
+}
+
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        error("%s: invalid number of argument\n", argv[0]);
+    filename = NULL;
+    for (int i = 0; i < argc; i++) {
+        if (!strcmp(argv[i], "--help"))
+            usage();
+        if (argv[i][0] == '-' && argv[i][1] != '\0'){
+            error("unknown option: %s", argv[i]);
+        }
+        filename = argv[i];
     }
-    filename = argv[1];
+    if (!filename)
+        error("no input file");
 
     Token *tok = tokenize_file(filename);
     tok = preprocess(tok);
