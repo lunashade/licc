@@ -48,9 +48,13 @@ static Token *preprocess(Token *tok) {
             while (cur->next->kind != TK_EOF) {
                 cur = cur->next;
             }
+            tok = tok->next;
+            if (!tok->at_bol)
+                warn_tok(tok, "preprocess: extra tokens after include directive");
             while (tok->kind != TK_EOF && !tok->at_bol) {
                 tok = tok->next;
             }
+            continue;
         }
         if (tok->at_bol)
             // null directive
