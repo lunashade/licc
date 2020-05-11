@@ -25,6 +25,7 @@ static void concat_string_literals(Token *tok) {
 
 static bool is_hash(Token *tok) { return tok->at_bol && equal(tok, "#"); }
 
+static Token *preprocess_file(char *);
 static Token *preprocess(Token *tok) {
     Token head = {};
     Token *cur = &head;
@@ -37,6 +38,20 @@ static Token *preprocess(Token *tok) {
         }
         // preprocessor directive
         tok = tok->next;
+        if (equal(tok, "include")) {
+            if (tok->next->kind != TK_STR) {
+                error_tok(tok->next, "preprocess: expected include file path");
+            }
+            tok = tok->next;
+            Token *tok2 = preprocess_file(tok->contents);
+            cur = cur->next = tok2;
+            while (cur->next->kind != TK_EOF) {
+                cur = cur->next;
+            }
+            while (tok->kind != TK_EOF && !tok->at_bol) {
+                tok = tok->next;
+            }
+        }
         if (tok->at_bol)
             // null directive
             continue;
@@ -47,9 +62,13 @@ static Token *preprocess(Token *tok) {
     return head.next;
 }
 
-Token *read_file(char *filename) {
+static Token *preprocess_file(char *filename) {
     Token *tok = tokenize_file(filename);
-    tok = preprocess(tok);
+    return preprocess(tok);
+}
+
+Token *read_file(char *filename) {
+    Token *tok = preprocess_file(filename);
     concat_string_literals(tok);
     convert_keywords(tok);
     return tok;

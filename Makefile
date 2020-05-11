@@ -12,7 +12,7 @@ lcc-stage3: lcc-stage2
 	./self.sh tmp-stage3 $$PWD/lcc-stage2 $@
 
 test-stage2: lcc-stage2 tests/extern.o
-	./lcc-stage2 tests/tests.c > tmp2.s
+	(cd tests; ../lcc-stage2 tests.c ) > tmp2.s
 	cc -static -o tmp2 tmp2.s tests/extern.o
 	./tmp2
 
@@ -23,7 +23,7 @@ test-stage3: lcc-stage3
 $(OBJS): lcc.h
 
 test: fmt lcc tests/extern.o
-	./lcc tests/tests.c > tmp.s
+	(cd tests; ../lcc tests.c ) > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
 

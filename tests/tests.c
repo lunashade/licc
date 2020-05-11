@@ -6,6 +6,7 @@
 /*
  *  This is a block comment
  */
+#include "include1.h"
 int printf();
 int exit();
 typedef struct {
@@ -1075,6 +1076,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(3, (*****ret3)(), "(*****ret3)()");
 
 #
+    assert(10, include1, "include1");
+    assert(200, include2, "include2");
 
     printf("OK\n");
     return 0;
