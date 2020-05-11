@@ -61,16 +61,7 @@ void error_tok(Token *tok, char *fmt, ...) {
 }
 
 // utility
-static bool startswith(char *p, char *q) {
-    return strncmp(p, q, strlen(q)) == 0;
-}
 
-static bool is_hex(int c) {
-    return ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F') ||
-           ('0' <= c && c <= '9');
-}
-
-// Tokenizer
 static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
@@ -78,6 +69,15 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
     tok->len = len;
     cur->next = tok;
     return tok;
+}
+
+static bool startswith(char *p, char *q) {
+    return strncmp(p, q, strlen(q)) == 0;
+}
+
+static bool is_hex(int c) {
+    return ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F') ||
+           ('0' <= c && c <= '9');
 }
 
 static int is_multipunct(char *p) {
@@ -89,7 +89,7 @@ static int is_multipunct(char *p) {
     return 0;
 }
 
-static bool is_keyword(Token *tok) {
+bool is_keyword(Token *tok) {
     for (int i = 0; i < sizeof(KEYWORDS) / sizeof(*KEYWORDS); i++) {
         if (equal(tok, KEYWORDS[i]))
             return true;
@@ -97,13 +97,6 @@ static bool is_keyword(Token *tok) {
     return false;
 }
 
-static void convert_keywords(Token *tok) {
-    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
-        if (t->kind == TK_IDENT && is_keyword(t)) {
-            t->kind = TK_RESERVED;
-        }
-    }
-}
 static void add_lineno(Token *tok) {
     char *p = current_input;
     int lineno = 1;
@@ -117,22 +110,7 @@ static void add_lineno(Token *tok) {
     }
 }
 
-static void concat_string_literals(Token *tok) {
-    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
-        if (t->kind != TK_STR) {
-            continue;
-        }
-        while (t->next->kind == TK_STR) {
-            long len = t->contents_len - 1 + t->next->contents_len;
-            t->contents = realloc(t->contents, len);
-            strncat(t->contents, t->next->contents, t->next->contents_len);
-            t->len = t->len + t->next->len;
-            t->contents_len = len;
-            t->next = t->next->next;
-        }
-    }
-}
-
+// Tokenizer
 static char *read_escape_char(char *ret, char *p) {
     switch (*p) {
     case 'a':
@@ -416,7 +394,42 @@ Token *tokenize(char *filename, char *p) {
     }
     new_token(cur, TK_EOF, p, 0);
     add_lineno(head.next);
-    concat_string_literals(head.next);
-    convert_keywords(head.next);
     return head.next;
+}
+
+static char *readfile(char *path) {
+    FILE *fp = stdin;
+    if (strcmp(path, "-")) {
+        fp = fopen(path, "r");
+        if (!fp) {
+            error("main: cannot open file %s: %s", path, strerror(errno));
+        }
+    }
+    int buflen = 4096;
+    int nread = 0;
+    char *buf = malloc(buflen);
+
+    for (;;) {
+        int end = buflen - 2;
+        int n = fread(buf + nread, 1, end - nread, fp);
+        if (n == 0)
+            break;
+        nread += n;
+        if (nread == end) {
+            buflen *= 2;
+            buf = realloc(buf, buflen);
+        }
+    }
+
+    if (fp != stdin)
+        fclose(fp);
+
+    if (nread == 0 || buf[nread - 1] != '\n')
+        buf[nread++] = '\n';
+    buf[nread] = '\0';
+    return buf;
+}
+
+Token *tokenize_file(char *path) {
+    return tokenize(path, readfile(path));
 }

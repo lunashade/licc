@@ -40,7 +40,8 @@ struct Token {
     int lineno;
 };
 
-Token *tokenize(char *filename, char *p);
+Token *tokenize_file(char *filename);
+bool is_keyword(Token *tok);
 bool equal(Token *tok, char *s);
 Token *skip(Token *tok, char *s);
 
@@ -48,6 +49,11 @@ void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 void warn_tok(Token *tok, char *fmt, ...);
+
+//
+// Preprocessor
+//
+Token *preprocess(Token *);
 
 //
 // Parser

@@ -77,5 +77,6 @@ lcc typing.c
 lcc parse.c
 lcc codegen.c
 lcc tokenize.c
+lcc preprocess.c
 
 (cd $TMP; gcc -static -o ../$OUT *.o)
