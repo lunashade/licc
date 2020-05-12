@@ -23,12 +23,37 @@ static void concat_string_literals(Token *tok) {
     }
 }
 
+//
+// Preprocessor directive
+//
+
+// #if stack
+typedef struct PPIf PPIf;
+struct PPIf {
+    PPIf *next;
+    Token *tok;
+};
+static PPIf *current_if; // stack top
+
+static void push_if(Token *tok) {
+    PPIf *ppif = calloc(1, sizeof(PPIf));
+    ppif->tok = tok;
+    ppif->next = current_if;
+    current_if = ppif;
+}
+
 static bool is_hash(Token *tok) { return tok->at_bol && equal(tok, "#"); }
+static bool is_directive(Token *tok, char *s) {
+    return is_hash(tok) && equal(tok->next, s);
+}
 
 static Token *skip_to_endif(Token *tok) {
     while (tok->kind != TK_EOF) {
-        if (is_hash(tok) && equal(tok->next, "endif")) {
+        if (is_directive(tok, "endif")) {
             return tok;
+        }
+        if (is_directive(tok, "if")) {
+            tok = skip_to_endif(tok->next->next);
         }
         tok = tok->next;
     }
@@ -47,6 +72,13 @@ static Token *new_eof(Token *tok) {
     eof->kind = TK_EOF;
     eof->len = 0;
     return eof;
+}
+
+static Token *skip_line(Token *tok) {
+    while (tok->kind != TK_EOF && !tok->at_bol) {
+        tok = tok->next;
+    }
+    return tok;
 }
 
 // read the token sequence until eol, copy the sequence to pp_line
@@ -89,12 +121,10 @@ static Token *preprocess(Token *tok) {
             if (!tok->at_bol)
                 warn_tok(tok,
                          "preprocess: extra tokens after include directive");
-            while (tok->kind != TK_EOF && !tok->at_bol) {
-                tok = tok->next;
-            }
+            tok = skip_line(tok);
             continue;
         }
-        // "#" "if" const-expr newline
+        // "#" "if" const-expr
         if (equal(tok, "if")) {
 
             Token *if_line;
@@ -103,6 +133,7 @@ static Token *preprocess(Token *tok) {
             if (if_line->kind != TK_EOF)
                 error_tok(if_line,
                           "preprocess: extra token after #if const-expr");
+            push_if(tok);
 
             if (!val) {
                 tok = skip_to_endif(tok);
@@ -111,7 +142,13 @@ static Token *preprocess(Token *tok) {
         }
         // "#" "endif"
         if (equal(tok, "endif")) {
+            if (!current_if)
+                error_tok(tok, "stray endif");
+            current_if = current_if->next;
             tok = tok->next;
+            if (!tok->at_bol)
+                warn_tok(tok, "preprocess: extra tokens after endif directive");
+            tok = skip_line(tok);
             continue;
         }
         if (tok->at_bol)

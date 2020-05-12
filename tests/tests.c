@@ -1080,6 +1080,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(200, include2, "include2");
 #if 0
     assert_do_nothing;
+#if nested
+#endif
 #endif
 
     assert(3, 1
@@ -1087,6 +1089,19 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
             +2,
 #endif
             "1+2");
+
+    assert(6, 1
+#if 1
+            +2
+#if 10
+            +3
+#if 0
+            hahaha
+#endif
+#endif
+          ,"1+2+3"
+#endif
+          );
 
     printf("OK\n");
     return 0;
