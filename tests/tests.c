@@ -1126,7 +1126,8 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 # endif
                          2,
 #else
-# if 1
+# if 0
+# elif 1
                                   3,
 # endif
 #endif
@@ -1139,6 +1140,20 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
                                     3,
 #endif
                                              "2");
+
+          assert(3, 
+#if 0
+                  1,
+#elif 0
+                  2,
+#elif 1+3
+                  3,
+#elif 0
+                  4,
+#else
+                  5,
+#endif
+                  "3");
     printf("OK\n");
     return 0;
 }

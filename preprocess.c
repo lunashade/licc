@@ -64,9 +64,12 @@ static Token *skip_to_endif(Token *tok) {
     return tok;
 }
 
-static Token *skip_to_else_or_endif(Token *tok) {
+static Token *skip_to_cond_directive(Token *tok) {
     while (tok->kind != TK_EOF) {
         if (is_directive(tok, "endif")) {
+            break;
+        }
+        if (is_directive(tok, "elif")) {
             break;
         }
         if (is_directive(tok, "else")) {
@@ -155,10 +158,35 @@ static Token *preprocess(Token *tok) {
             push_if(tok, val);
 
             if (!val) {
-                tok = skip_to_else_or_endif(tok);
+                tok = skip_to_cond_directive(tok);
             }
             continue;
         }
+        // #elif (const-expr)
+        if (equal(tok, "elif")) {
+            if (!current_if)
+                error_tok(tok, "preprocess: stray #elif");
+            if (current_if->ctx == IN_ELSE)
+                error_tok(tok, "preprocess: #elif after #else");
+            Token *if_line;
+            tok = read_pp_line(tok->next, &if_line);
+            long val = const_expr(&if_line, if_line);
+            if (if_line->kind != TK_EOF)
+                error_tok(if_line,
+                          "preprocess: extra token after #elif const-expr");
+            // if current_if->val is true, don't update to skip elif or else
+            if (current_if->val) {
+                tok = skip_to_endif(tok);
+                continue;
+            }
+            // if current_if->val is false
+            current_if->val = val;
+            if (!val) {
+                tok = skip_to_cond_directive(tok);
+            }
+            continue;
+        }
+        // #else
         if (equal(tok, "else")) {
             if (!current_if)
                 error_tok(tok, "preprocess: stray #else");
