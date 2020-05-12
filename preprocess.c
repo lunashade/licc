@@ -28,17 +28,17 @@ static void concat_string_literals(Token *tok) {
 //
 
 // #if stack
-typedef struct PPIf PPIf;
-struct PPIf {
-    PPIf *next;
+typedef struct PPCond PPCond;
+struct PPCond {
+    PPCond *next;
     Token *tok;
     long val;
     enum { IN_THEN, IN_ELSE } ctx;
 };
-static PPIf *current_if; // stack top
+static PPCond *current_if; // stack top
 
 static void push_if(Token *tok, long val) {
-    PPIf *ppif = calloc(1, sizeof(PPIf));
+    PPCond *ppif = calloc(1, sizeof(PPCond));
     ppif->tok = tok;
     ppif->next = current_if;
     ppif->val = val;
