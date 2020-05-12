@@ -32,13 +32,17 @@ typedef struct PPIf PPIf;
 struct PPIf {
     PPIf *next;
     Token *tok;
+    long val;
+    enum { IN_THEN, IN_ELSE } ctx;
 };
 static PPIf *current_if; // stack top
 
-static void push_if(Token *tok) {
+static void push_if(Token *tok, long val) {
     PPIf *ppif = calloc(1, sizeof(PPIf));
     ppif->tok = tok;
     ppif->next = current_if;
+    ppif->val = val;
+    ppif->ctx = IN_THEN;
     current_if = ppif;
 }
 
@@ -50,7 +54,23 @@ static bool is_directive(Token *tok, char *s) {
 static Token *skip_to_endif(Token *tok) {
     while (tok->kind != TK_EOF) {
         if (is_directive(tok, "endif")) {
-            return tok;
+            break;
+        }
+        if (is_directive(tok, "if")) {
+            tok = skip_to_endif(tok->next->next);
+        }
+        tok = tok->next;
+    }
+    return tok;
+}
+
+static Token *skip_to_else_or_endif(Token *tok) {
+    while (tok->kind != TK_EOF) {
+        if (is_directive(tok, "endif")) {
+            break;
+        }
+        if (is_directive(tok, "else")) {
+            break;
         }
         if (is_directive(tok, "if")) {
             tok = skip_to_endif(tok->next->next);
@@ -126,16 +146,28 @@ static Token *preprocess(Token *tok) {
         }
         // "#" "if" const-expr
         if (equal(tok, "if")) {
-
             Token *if_line;
             tok = read_pp_line(tok->next, &if_line);
             long val = const_expr(&if_line, if_line);
             if (if_line->kind != TK_EOF)
                 error_tok(if_line,
                           "preprocess: extra token after #if const-expr");
-            push_if(tok);
+            push_if(tok, val);
 
             if (!val) {
+                tok = skip_to_else_or_endif(tok);
+            }
+            continue;
+        }
+        if (equal(tok, "else")) {
+            if (!current_if)
+                error_tok(tok, "preprocess: stray #else");
+            if (current_if->ctx == IN_ELSE)
+                error_tok(tok, "preprocess: #else after #else");
+
+            current_if->ctx = IN_ELSE;
+            tok = tok->next;
+            if (current_if->val) {
                 tok = skip_to_endif(tok);
             }
             continue;
@@ -143,7 +175,7 @@ static Token *preprocess(Token *tok) {
         // "#" "endif"
         if (equal(tok, "endif")) {
             if (!current_if)
-                error_tok(tok, "stray endif");
+                error_tok(tok, "preprocess: stray #endif");
             current_if = current_if->next;
             tok = tok->next;
             if (!tok->at_bol)
