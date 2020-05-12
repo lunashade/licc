@@ -26,7 +26,7 @@ static Node *expr(Token **rest, Token *tok);
 static long eval(Node *node);
 static double eval_double(Node *node);
 static long eval2(Node *node, Var **var);
-static long const_expr(Token **rest, Token *tok);
+long const_expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
 static Node *conditional(Token **rest, Token *tok);
 static Node *logical_or(Token **rest, Token *tok);
@@ -1587,7 +1587,7 @@ static double eval_double(Node *node) {
 }
 
 // const-expr = conditional
-static long const_expr(Token **rest, Token *tok) {
+long const_expr(Token **rest, Token *tok) {
     Node *node = conditional(rest, tok);
     return eval(node);
 }

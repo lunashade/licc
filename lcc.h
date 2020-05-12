@@ -244,6 +244,7 @@ struct Relocation {
 };
 
 Node *new_cast(Node *node, Type *ty);
+long const_expr(Token **rest, Token *tok);
 Program *parse(Token *tok);
 
 //

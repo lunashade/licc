@@ -1078,6 +1078,15 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 #
     assert(10, include1, "include1");
     assert(200, include2, "include2");
+#if 0
+    assert_do_nothing;
+#endif
+
+    assert(3, 1
+#if 1 + 1
+            +2,
+#endif
+            "1+2");
 
     printf("OK\n");
     return 0;
