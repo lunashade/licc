@@ -9,9 +9,9 @@ $(OBJS): lcc.h
 lcc: $(OBJS)
 	$(CC) -o lcc $(OBJS) $(LDFLAGS)
 lcc-stage2: lcc $(SRCS) lcc.h self.sh
-	./self.sh tmp-stage2 $$PWD/lcc $@
+	./self.sh tmp-stage2 $$PWD/$< $@
 lcc-stage3: lcc-stage2
-	./self.sh tmp-stage3 $$PWD/lcc-stage2 $@
+	./self.sh tmp-stage3 $$PWD/$< $@
 
 test: lcc tests/extern.o
 	(cd tests; ../lcc tests.c ) > tmp.s
