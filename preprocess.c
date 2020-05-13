@@ -1,5 +1,54 @@
 #include "lcc.h"
 
+// Token
+static Token *copy_token(Token *tok) {
+    Token *tok2 = malloc(sizeof(Token));
+    *tok2 = *tok;
+    tok2->next = NULL;
+    return tok2;
+}
+
+static Token *new_eof(Token *tok) {
+    Token *eof = copy_token(tok);
+    eof->kind = TK_EOF;
+    eof->len = 0;
+    return eof;
+}
+
+static Token *skip_line(Token *tok) {
+    while (tok->kind != TK_EOF && !tok->at_bol) {
+        tok = tok->next;
+    }
+    return tok;
+}
+
+// er -> (ee) -> er->next
+static Token *append(Token *er, Token *ee) {
+    if (!er || er->kind == TK_EOF)
+        return ee;
+
+    Token head = {};
+    Token *cur = &head;
+
+    for (; er && er->kind != TK_EOF; er = er->next) {
+        cur = cur->next = copy_token(er);
+    }
+    cur->next = ee;
+    return head.next;
+}
+
+// read the token sequence until eol, copy the sequence to pp_line
+static Token *read_pp_line(Token *tok, Token **pp_line) {
+    Token head = {};
+    Token *cur = &head;
+    for (; !tok->at_bol; tok = tok->next) {
+        cur = cur->next = copy_token(tok);
+    }
+    cur->next = new_eof(tok);
+    *pp_line = head.next;
+    return tok;
+}
+
 static void convert_keywords(Token *tok) {
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         if (t->kind == TK_IDENT && is_keyword(t)) {
@@ -83,39 +132,6 @@ static Token *skip_to_cond_directive(Token *tok) {
     return tok;
 }
 
-static Token *copy_token(Token *tok) {
-    Token *tok2 = malloc(sizeof(Token));
-    *tok2 = *tok;
-    tok2->next = NULL;
-    return tok2;
-}
-
-static Token *new_eof(Token *tok) {
-    Token *eof = copy_token(tok);
-    eof->kind = TK_EOF;
-    eof->len = 0;
-    return eof;
-}
-
-static Token *skip_line(Token *tok) {
-    while (tok->kind != TK_EOF && !tok->at_bol) {
-        tok = tok->next;
-    }
-    return tok;
-}
-
-// read the token sequence until eol, copy the sequence to pp_line
-static Token *read_pp_line(Token *tok, Token **pp_line) {
-    Token head = {};
-    Token *cur = &head;
-    for (; !tok->at_bol; tok = tok->next) {
-        cur = cur->next = copy_token(tok);
-    }
-    cur->next = new_eof(tok);
-    *pp_line = head.next;
-    return tok;
-}
-
 static Token *preprocess_file(char *);
 static Token *preprocess(Token *tok) {
     Token head = {};
@@ -128,23 +144,23 @@ static Token *preprocess(Token *tok) {
             continue;
         }
         // preprocessor directive
+        Token *start = tok;
         tok = tok->next;
         // "#" "include" TK_STR
         if (equal(tok, "include")) {
-            if (tok->next->kind != TK_STR) {
+            tok = tok->next;
+            if (tok->kind != TK_STR) {
                 error_tok(tok->next, "preprocess: expected include file path");
             }
-            tok = tok->next;
-            Token *tok2 = preprocess_file(tok->contents);
-            cur = cur->next = tok2;
-            while (cur->next->kind != TK_EOF) {
-                cur = cur->next;
-            }
+            Token *tok2 = tokenize_file(tok->contents);
+            if (!tok2)
+                error_tok(tok, "%s", strerror(errno));
             tok = tok->next;
             if (!tok->at_bol)
                 warn_tok(tok,
                          "preprocess: extra tokens after include directive");
             tok = skip_line(tok);
+            tok = append(tok2, tok);
             continue;
         }
         // "#" "if" const-expr
