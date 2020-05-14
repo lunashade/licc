@@ -51,6 +51,7 @@ Token *tokenize_file(char *filename);
 bool is_keyword(Token *tok);
 bool equal(Token *tok, char *s);
 Token *skip(Token *tok, char *s);
+char *get_ident(Token *tok);
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);

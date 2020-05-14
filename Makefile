@@ -17,6 +17,10 @@ test: lcc tests/extern.o
 	(cd tests; ../lcc tests.c ) > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
+test-pp: lcc
+	(cd tests; ../lcc pptests.c ) > tmp.s
+	cc -static -o tmp tmp.s
+	./tmp
 test-stage2: lcc-stage2 tests/extern.o
 	(cd tests; ../lcc-stage2 tests.c ) > tmp2.s
 	cc -static -o tmp2 tmp2.s tests/extern.o

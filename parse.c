@@ -55,7 +55,7 @@ static long get_number(Token *tok) {
     return tok->val;
 }
 
-static char *get_ident(Token *tok) {
+char *get_ident(Token *tok) {
     if (tok->kind != TK_IDENT) {
         error_tok(tok, "parse: ident: expected a identifier token");
     }

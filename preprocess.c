@@ -76,6 +76,43 @@ static void concat_string_literals(Token *tok) {
 // Preprocessor directive
 //
 
+// #define macro
+typedef struct Macro Macro;
+struct Macro {
+    Macro *next;
+    char *name;
+    Token *body;
+    bool deleted;
+};
+static Macro *macro;
+static void push_macro(char *name) {
+    Macro *m = calloc(1, sizeof(Macro));
+    m->next = macro;
+    m->name = name;
+    macro = m;
+}
+
+static Macro *find_macro(Token *tok) {
+    if (tok->kind != TK_IDENT) {
+        return NULL;
+    }
+    for (Macro *m = macro; m; m = m->next) {
+        if (equal(tok, m->name)) {
+            return m->deleted ? NULL : m;
+        }
+    }
+    return NULL;
+}
+
+static bool expand_macro(Token **rest, Token *tok) {
+    Macro *m = find_macro(tok);
+    if (!m) {
+        return false;
+    }
+    *rest = append(m->body, tok->next);
+    return true;
+}
+
 // #if stack
 typedef struct PPCond PPCond;
 struct PPCond {
@@ -138,6 +175,8 @@ static Token *preprocess(Token *tok) {
     Token *cur = &head;
 
     while (tok->kind != TK_EOF) {
+        if (expand_macro(&tok, tok))
+            continue;
         if (!is_hash(tok)) {
             cur = cur->next = tok;
             tok = tok->next;
@@ -161,6 +200,19 @@ static Token *preprocess(Token *tok) {
                          "preprocess: extra tokens after include directive");
             tok = skip_line(tok);
             tok = append(tok2, tok);
+            continue;
+        }
+        if (equal(tok, "define")) {
+            push_macro(get_ident(tok->next));
+            Token *body;
+            tok = read_pp_line(tok->next->next, &body);
+            macro->body = body;
+            continue;
+        }
+        if (equal(tok, "undef")) {
+            push_macro(get_ident(tok->next));
+            macro->deleted = true;
+            tok = skip_line(tok);
             continue;
         }
         // "#" "if" const-expr
