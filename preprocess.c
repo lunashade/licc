@@ -169,8 +169,7 @@ static Token *skip_to_cond_directive(Token *tok) {
     return tok;
 }
 
-static Token *preprocess_file(char *);
-static Token *preprocess(Token *tok) {
+Token *preprocess(Token *tok) {
     Token head = {};
     Token *cur = &head;
 
@@ -219,6 +218,7 @@ static Token *preprocess(Token *tok) {
         if (equal(tok, "if")) {
             Token *if_line;
             tok = read_pp_line(tok->next, &if_line);
+            if_line = preprocess(if_line);
             long val = const_expr(&if_line, if_line);
             if (if_line->kind != TK_EOF)
                 error_tok(if_line,
@@ -238,6 +238,7 @@ static Token *preprocess(Token *tok) {
                 error_tok(tok, "preprocess: #elif after #else");
             Token *if_line;
             tok = read_pp_line(tok->next, &if_line);
+            if_line = preprocess(if_line);
             long val = const_expr(&if_line, if_line);
             if (if_line->kind != TK_EOF)
                 error_tok(if_line,
@@ -289,7 +290,7 @@ static Token *preprocess(Token *tok) {
     return head.next;
 }
 
-static Token *preprocess_file(char *filename) {
+Token *preprocess_file(char *filename) {
     Token *tok = tokenize_file(filename);
     return preprocess(tok);
 }

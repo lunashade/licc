@@ -116,7 +116,19 @@ int main() {
 #undef if
 #undef END
 #undef ASSERT
-    assert(3, ({if (1); 3;}), "if (1); 3;");
+    assert(3, ({int x; if (1) x=3; x; }), "if (1); 3;");
+
+#define M2 5
+#define M3 0
+    assert(5, 
+#if M2
+            5
+#elif M3
+            6
+#else
+            7
+#endif
+            , "5");
     printf("OK\n");
     return 0;
 }
