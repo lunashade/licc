@@ -18,6 +18,12 @@ typedef struct Relocation Relocation;
 //
 // Tokenizer
 //
+// hideset for preprocess
+typedef struct Hideset Hideset;
+struct Hideset {
+    Hideset *next;
+    char *name;
+};
 extern char *current_filename;
 
 typedef enum {
@@ -45,6 +51,7 @@ struct Token {
     int lineno;  // line number
     int fileno;  // file number
     bool at_bol; // beginning of line
+    Hideset *hideset;
 };
 
 Token *tokenize_file(char *filename);

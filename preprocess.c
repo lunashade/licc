@@ -92,6 +92,42 @@ static void push_macro(char *name) {
     macro = m;
 }
 
+static bool ishidden(Token *tok) {
+    for (Hideset *hs = tok->hideset; hs; hs = hs->next) {
+        if (equal(tok, hs->name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static Hideset *new_hideset(char *name) {
+    Hideset *hs = calloc(1, sizeof(Hideset));
+    hs->name = name;
+    return hs;
+}
+
+static Hideset *hsunion(Hideset *hs1, Hideset *hs2) {
+    Hideset head = {};
+    Hideset *cur = &head;
+    for (; hs1; hs1 = hs1->next) {
+        cur = cur->next = new_hideset(hs1->name);
+    }
+    cur->next = hs2;
+    return head.next;
+}
+
+static Token *hsadd(Hideset *hs, Token *tok) {
+    Token head = {};
+    Token *cur = &head;
+    for (;tok; tok = tok->next) {
+        Token *t = copy_token(tok);
+        t->hideset = hsunion(tok->hideset, hs);
+        cur = cur->next = t;
+    }
+    return head.next;
+}
+
 static Macro *find_macro(Token *tok) {
     if (tok->kind != TK_IDENT) {
         return NULL;
@@ -105,11 +141,16 @@ static Macro *find_macro(Token *tok) {
 }
 
 static bool expand_macro(Token **rest, Token *tok) {
+    if (ishidden(tok)) {
+        return false;
+    }
     Macro *m = find_macro(tok);
     if (!m) {
         return false;
     }
-    *rest = append(m->body, tok->next);
+    Hideset *hs = hsunion(new_hideset(get_ident(tok)), tok->hideset);
+    Token *body = hsadd(hs, m->body);
+    *rest = append(body, tok->next);
     return true;
 }
 
