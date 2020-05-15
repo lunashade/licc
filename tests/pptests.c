@@ -144,6 +144,39 @@ int main() {
 #undef M3
 #undef M4
 #undef M5
+
+#define IFDEF 5
+#define IFNDEF 6
+#define M6 1
+    assert(5,
+#ifdef M6
+            IFDEF
+#else
+            IFNDEF
+#endif
+           ,"IFDEF");
+    assert(5,
+#ifdef M7
+            IFNDEF
+#else
+            IFDEF
+#endif
+           ,"IFDEF");
+    assert(6,
+#ifndef M6
+            IFDEF
+#else
+            IFNDEF
+#endif
+           ,"IFNDEF");
+    assert(6,
+#ifndef M7
+            IFNDEF
+#else
+            IFDEF
+#endif
+           ,"IFNDEF");
+    
     printf("OK\n"); 
     return 0;
 }

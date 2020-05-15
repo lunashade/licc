@@ -120,7 +120,7 @@ static Hideset *hsunion(Hideset *hs1, Hideset *hs2) {
 static Token *hsadd(Hideset *hs, Token *tok) {
     Token head = {};
     Token *cur = &head;
-    for (;tok; tok = tok->next) {
+    for (; tok; tok = tok->next) {
         Token *t = copy_token(tok);
         t->hideset = hsunion(tok->hideset, hs);
         cur = cur->next = t;
@@ -202,7 +202,8 @@ static Token *skip_to_cond_directive(Token *tok) {
         if (is_directive(tok, "else")) {
             break;
         }
-        if (is_directive(tok, "if")) {
+        if (is_directive(tok, "if") || is_directive(tok, "ifdef") ||
+            is_directive(tok, "ifndef")) {
             tok = skip_to_endif(tok->next->next);
         }
         tok = tok->next;
@@ -225,7 +226,7 @@ Token *preprocess(Token *tok) {
         // preprocessor directive
         Token *start = tok;
         tok = tok->next;
-        // "#" "include" TK_STR
+        // #include TK_STR
         if (equal(tok, "include")) {
             tok = tok->next;
             if (tok->kind != TK_STR) {
@@ -242,6 +243,7 @@ Token *preprocess(Token *tok) {
             tok = append(tok2, tok);
             continue;
         }
+        // #define ident replacements
         if (equal(tok, "define")) {
             push_macro(get_ident(tok->next));
             Token *body;
@@ -249,13 +251,14 @@ Token *preprocess(Token *tok) {
             macro->body = body;
             continue;
         }
+        // #undef ident
         if (equal(tok, "undef")) {
             push_macro(get_ident(tok->next));
             macro->deleted = true;
             tok = skip_line(tok);
             continue;
         }
-        // "#" "if" const-expr
+        // #if const-expr
         if (equal(tok, "if")) {
             Token *if_line;
             tok = read_pp_line(tok->next, &if_line);
@@ -271,7 +274,27 @@ Token *preprocess(Token *tok) {
             }
             continue;
         }
-        // #elif (const-expr)
+        // #ifndef ident
+        if (equal(tok, "ifndef")) {
+            bool defined = !find_macro(tok->next);
+            push_if(tok->next, defined);
+            tok = skip_line(tok->next->next);
+            if (!defined) {
+                tok = skip_to_cond_directive(tok);
+            }
+            continue;
+        }
+        // #ifdef ident
+        if (equal(tok, "ifdef")) {
+            bool defined = find_macro(tok->next);
+            push_if(tok->next, defined);
+            tok = skip_line(tok->next->next);
+            if (!defined) {
+                tok = skip_to_cond_directive(tok);
+            }
+            continue;
+        }
+        // #elif const-expr
         if (equal(tok, "elif")) {
             if (!current_if)
                 error_tok(tok, "preprocess: stray #elif");
@@ -310,7 +333,7 @@ Token *preprocess(Token *tok) {
             }
             continue;
         }
-        // "#" "endif"
+        // #endif
         if (equal(tok, "endif")) {
             if (!current_if)
                 error_tok(tok, "preprocess: stray #endif");
@@ -321,8 +344,8 @@ Token *preprocess(Token *tok) {
             tok = skip_line(tok);
             continue;
         }
+        // # (null directive)
         if (tok->at_bol)
-            // null directive
             continue;
 
         error_tok(tok, "preprocess: invalid preprocessor directive");
