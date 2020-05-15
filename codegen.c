@@ -286,7 +286,7 @@ static void builtin_va_start(Node *node) {
 
 // code generate expression
 static void gen_expr(Node *node) {
-    printf(".loc 1 %d\n", node->tok->lineno);
+    printf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
     switch (node->kind) {
     case ND_NOP_EXPR:
         top++;
@@ -675,7 +675,7 @@ static void gen_expr(Node *node) {
 }
 
 static void gen_stmt(Node *node) {
-    printf(".loc 1 %d\n", node->tok->lineno);
+    printf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
     if (node->kind == ND_BLOCK) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
