@@ -1,11 +1,14 @@
 #include "lcc.h"
 
 static char *entry_filename;
-static bool opt_E;
+bool opt_E;
+char **include_paths;
 
 static void usage() { fprintf(stderr, "Usage: lcc [-E] <file>\n"); }
 
 static void parse_args(int argc, char **argv) {
+    include_paths = malloc(sizeof(char *) * argc);
+    int npaths = 0;
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "--help")) {
             usage();
@@ -15,12 +18,17 @@ static void parse_args(int argc, char **argv) {
             opt_E = true;
             continue;
         }
+        if (!strncmp(argv[i], "-I", 2)) {
+            include_paths[npaths++] = argv[i] + 2;
+            continue;
+        }
 
         if (argv[i][0] == '-' && argv[i][1] != '\0') {
             error("unknown option: %s", argv[i]);
         }
         entry_filename = argv[i];
     }
+    include_paths[npaths] = NULL;
     if (!entry_filename)
         error("no input file");
 }

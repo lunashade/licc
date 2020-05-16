@@ -510,16 +510,28 @@ static long eval_const_expr(Token **rest, Token *tok) {
     return val;
 }
 
+static char *search_include_paths(char *filename, Token *start) {
+    for (char **p = include_paths; *p; p++) {
+        char *path = pathjoin(*p, filename);
+        if (file_exists(path))
+            return path;
+    }
+    error_tok(start, "`%s`: file not found", filename);
+}
+
 static char *read_include_path(Token **rest, Token *tok) {
     // #include "filepath"
     if (tok->kind == TK_STR) {
         // Do not escape
+        Token *start = tok;
         char *filename = strndup(tok->loc + 1, tok->len - 2);
         tok = tok->next;
         if (!tok->at_bol)
             warn_tok(tok, "preprocess: extra tokens after include directive");
         *rest = skip_line(tok);
-        return filename;
+        if (file_exists(filename))
+            return filename;
+        return search_include_paths(filename, start);
     }
     // #include <foo.h>
     if (equal(tok, "<")) {
@@ -532,11 +544,7 @@ static char *read_include_path(Token **rest, Token *tok) {
         char *filename = join_token(start->next, tok);
         tok = skip(tok, ">");
         *rest = skip_line(tok);
-        // TODO: actual include path
-        char *path = pathjoin(".", filename);
-        if (!file_exists(path))
-            error_tok(start, "`%s`: file not found", filename);
-        return path;
+        return search_include_paths(filename, start);
     }
     // #include MACRO
     if (tok->kind == TK_IDENT) {

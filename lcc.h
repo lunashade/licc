@@ -14,6 +14,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+extern bool opt_E;
+extern char **include_paths;
+
 typedef struct Type Type;
 typedef struct Member Member;
 typedef struct Relocation Relocation;

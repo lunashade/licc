@@ -1,4 +1,5 @@
 CFLAGS=-std=c11 -g -static -fno-common
+LCCFLAGS=-I.
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
@@ -14,19 +15,19 @@ lcc-stage3: lcc-stage2
 	./self.sh $(patsubst lcc-%,tmp-%,$@) $$PWD/$< $@
 
 test: lcc tests/extern.o
-	(cd tests; ../$< tests.c ) > tmp.s
+	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
 test-pp: lcc
-	(cd tests; ../$< pptests.c ) > tmp-pp.s
+	(cd tests; ../$< $(LCCFLAGS) pptests.c ) > tmp-pp.s
 	cc -static -o tmp-pp tmp-pp.s
 	./tmp-pp
 test-stage2: lcc-stage2 tests/extern.o
-	(cd tests; ../$< tests.c ) > tmp2.s
+	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp2.s
 	cc -static -o tmp2 tmp2.s tests/extern.o
 	./tmp2
 test-stage2-pp: lcc-stage2
-	(cd tests; ../$< pptests.c ) > tmp2-pp.s
+	(cd tests; ../$< $(LCCFLAGS) pptests.c ) > tmp2-pp.s
 	cc -static -o tmp2-pp tmp2-pp.s
 	./tmp-pp
 test-stage3: lcc-stage3
