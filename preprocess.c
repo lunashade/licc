@@ -53,8 +53,14 @@ static Token *read_pp_line(Token *tok, Token **pp_line) {
 static Token *read_actual(Token *tok, Token **actual) {
     Token head = {};
     Token *cur = &head;
-    for (; !equal(tok, ",") && !equal(tok, ")"); tok = tok->next) {
+    int level = 0;
+    for (; level > 0 || (!equal(tok, ",") && !equal(tok, ")"));
+         tok = tok->next) {
         cur = cur->next = copy_token(tok);
+        if (equal(tok, "("))
+            level++;
+        if (equal(tok, ")"))
+            level--;
     }
     cur->next = new_eof(tok);
     *actual = head.next;

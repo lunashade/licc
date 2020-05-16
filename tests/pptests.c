@@ -196,6 +196,8 @@ int main() {
     assert(63, M11(3+4,4+5), "M11(3,4)");
 #define M12(a,b) a b
     assert(9, M12(, 4+5), "M12(, 4+5)");
+    assert(20, M10((2+3), 4), "M10((2+3), 4)");
+    assert(12, M10((2,3), 4), "M10((2,3), 4)");
     printf("OK\n"); 
     return 0;
 }
