@@ -72,15 +72,10 @@ EOF
 }
 
 lcc() {
-    lcc-header $HEADER
-    cat $1 > $TMP/$1
-    sed -i 's/\bbool\b/_Bool/g' $TMP/$1
-    sed -i 's/\berrno\b/*__errno_location()/g' $TMP/$1
-    sed -i 's/\btrue\b/1/g; s/\bfalse\b/0/g;' $TMP/$1
-    sed -i 's/\bNULL\b/0/g' $TMP/$1
-    sed -i 's/\bva_start\b/__builtin_va_start/g' $TMP/$1
-
-    (cd $TMP; $CC $1 > ${1%.c}.s)
+    $CC -Iinclude -I/usr/local/include -I/usr/include \
+        -I/usr/include/linux -I/usr/include/x86_64-linux-gnu \
+        -I/usr/include/i386-linux-gnu/ \
+        $1 > $TMP/${1%.c}.s
     gcc -c -o $TMP/${1%.c}.o $TMP/${1%.c}.s
 }
 
