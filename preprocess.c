@@ -455,7 +455,8 @@ static Token *skip_to_endif(Token *tok) {
         if (is_directive(tok, "endif")) {
             break;
         }
-        if (is_directive(tok, "if")) {
+        if (is_directive(tok, "if") || is_directive(tok, "ifdef") ||
+            is_directive(tok, "ifndef")) {
             tok = skip_to_endif(tok->next->next);
         }
         tok = tok->next;
@@ -738,6 +739,8 @@ Token *preprocess(Token *tok) {
 Token *preprocess_all(Token *tok) {
     init_macros();
     tok = preprocess(tok);
+    if (current_if)
+        error_tok(current_if->tok, "preprocess: unfinished if");
     concat_string_literals(tok);
     convert_keywords(tok);
     return tok;
