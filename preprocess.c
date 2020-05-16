@@ -139,6 +139,57 @@ static Macro *push_macro(char *name) {
     return m;
 }
 
+static void define_macro(char *name, char *buf) {
+    Token *tok = tokenize("(internal)", 1, buf);
+    push_macro(name)->body = tok;
+}
+
+static void init_macros(void) {
+    // Define predefined macros
+    define_macro("__lcc__", "1");
+    define_macro("_LP64", "1");
+    define_macro("__ELF__", "1");
+    define_macro("__LP64__", "1");
+    define_macro("__SIZEOF_DOUBLE__", "8");
+    define_macro("__SIZEOF_FLOAT__", "4");
+    define_macro("__SIZEOF_INT__", "4");
+    define_macro("__SIZEOF_LONG_DOUBLE__", "8");
+    define_macro("__SIZEOF_LONG_LONG__", "8");
+    define_macro("__SIZEOF_LONG__", "8");
+    define_macro("__SIZEOF_POINTER__", "8");
+    define_macro("__SIZEOF_PTRDIFF_T__", "8");
+    define_macro("__SIZEOF_SHORT__", "2");
+    define_macro("__SIZEOF_SIZE_T__", "8");
+    define_macro("__STDC_HOSTED__", "1");
+    define_macro("__STDC_ISO_10646__", "201103L");
+    define_macro("__STDC_NO_ATOMICS__", "1");
+    define_macro("__STDC_NO_COMPLEX__", "1");
+    define_macro("__STDC_NO_THREADS__", "1");
+    define_macro("__STDC_NO_VLA__", "1");
+    define_macro("__STDC_UTF_16__", "1");
+    define_macro("__STDC_UTF_32__", "1");
+    define_macro("__STDC_VERSION__", "201112L");
+    define_macro("__STDC__", "1");
+    define_macro("__amd64", "1");
+    define_macro("__amd64__", "1");
+    define_macro("__gnu_linux__", "1");
+    define_macro("__linux", "1");
+    define_macro("__linux__", "1");
+    define_macro("__unix", "1");
+    define_macro("__unix__", "1");
+    define_macro("__x86_64", "1");
+    define_macro("__x86_64__", "1");
+    define_macro("linux", "1");
+    define_macro("__alignof__", "alignof");
+    define_macro("__const__", "const");
+    define_macro("__inline__", "inline");
+    define_macro("__restrict", "restrict");
+    define_macro("__restrict__", "restrict");
+    define_macro("__signed__", "signed");
+    define_macro("__typeof__", "typeof");
+    define_macro("__volatile__", "volatile");
+}
+
 static bool ishidden(Token *tok) {
     for (Hideset *hs = tok->hideset; hs; hs = hs->next) {
         if (equal(tok, hs->name)) {
@@ -671,6 +722,9 @@ Token *preprocess(Token *tok) {
             tok = skip_line(tok);
             continue;
         }
+        if (equal(tok, "error")) {
+            error_tok(tok, "");
+        }
         // # (null directive)
         if (tok->at_bol)
             continue;
@@ -681,14 +735,16 @@ Token *preprocess(Token *tok) {
     return head.next;
 }
 
-Token *preprocess_file(char *filename) {
-    Token *tok = tokenize_file(filename);
-    return preprocess(tok);
+Token *preprocess_all(Token *tok) {
+    init_macros();
+    tok = preprocess(tok);
+    concat_string_literals(tok);
+    convert_keywords(tok);
+    return tok;
 }
 
 Token *read_file(char *filename) {
-    Token *tok = preprocess_file(filename);
-    concat_string_literals(tok);
-    convert_keywords(tok);
+    Token *tok = tokenize_file(filename);
+    tok = preprocess_all(tok);
     return tok;
 }
