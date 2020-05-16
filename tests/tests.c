@@ -37,6 +37,9 @@ char *fmt(char *buf, char *fmt, ...) {
     vsprintf(buf, fmt, ap);
 }
 
+char *func_fn(void) {
+    return __func__;
+}
 
 int _Alignas(512) g_aligned1;
 int _Alignas(512) g_aligned2;
@@ -1340,6 +1343,10 @@ of(int),"sizeof(int)");
     assert(2, main_ln, "main_ln");
     assert(0, strcmp("include1.h", include1_fn), "strcmp(\"include1.h\", include1_fn)");
     assert(5, include1_ln, "include1_ln");
+
+    assert(5, sizeof(__func__), "sizeof(__func__)");
+    assert(0, strcmp("main", __func__), "strcmp(\"main\", __func__)");
+    assert(0, strcmp("func_fn", func_fn()), "strcmp(\"func_fn\", func_fn())");
     printf("OK\n");
     return 0;
 }

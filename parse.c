@@ -687,6 +687,11 @@ Program *parse(Token *tok) {
     return prog;
 }
 
+static void add_func_ident(char *name) {
+    Var *var = new_string_literal(name, strlen(name) + 1);
+    push_scope("__func__")->var = var;
+}
+
 // funcdef = decl-specifier declarator "{" compound_stmt
 static Function *funcdef(Token **rest, Token *tok) {
     locals = NULL;
@@ -709,6 +714,7 @@ static Function *funcdef(Token **rest, Token *tok) {
     fn->params = locals;
 
     tok = skip(tok, "{");
+    add_func_ident(fn->name);
     fn->node = compound_stmt(&tok, tok)->body;
     fn->locals = locals;
     fn->is_variadic = ty->is_variadic;
