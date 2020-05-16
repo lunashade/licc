@@ -3,6 +3,9 @@
 int printf();
 int exit();
 int testno;
+int ret3(void) {
+    return 3;
+}
 
 int assert(int want, int got, char *code) {
     testno = testno + 1;
@@ -177,6 +180,14 @@ int main() {
 #endif
            ,"IFNDEF");
     
+#undef M7
+#undef M6
+#define M8() 8
+    int M8 = 88;
+    assert(8, M8(), "M8()");
+    assert(88, M8, "M8()");
+#define M9 ()
+    assert(3, ret3 M9, "ret3 M9");
     printf("OK\n"); 
     return 0;
 }

@@ -97,22 +97,28 @@ bool is_keyword(Token *tok) {
     return false;
 }
 
-static void add_lineno(Token *tok, int fileno) {
+static void add_line_info(Token *tok, int fileno) {
     char *p = current_input;
     int lineno = 1;
     bool at_bol = true;
+    bool has_space = false;
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         for (; p < t->loc; p++) {
             if (*p == '\n') {
                 lineno++;
                 at_bol = true;
+                has_space = true;
             } else if (!isspace(*p)) {
                 at_bol = false;
+                has_space = false;
+            } else {
+                has_space = true;
             }
         }
         t->fileno = fileno;
         t->lineno = lineno;
         t->at_bol = at_bol;
+        t->has_space = has_space;
     }
 }
 
@@ -398,7 +404,7 @@ Token *tokenize(char *filename, int fileno, char *p) {
         error_at(p, "tokenize: invalid token character");
     }
     new_token(cur, TK_EOF, p, 0);
-    add_lineno(head.next, fileno);
+    add_line_info(head.next, fileno);
     return head.next;
 }
 

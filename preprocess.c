@@ -22,7 +22,7 @@ static Token *skip_line(Token *tok) {
     return tok;
 }
 
-// er -> (ee) -> er->next
+// er -> (ee)
 static Token *append(Token *er, Token *ee) {
     if (!er || er->kind == TK_EOF)
         return ee;
@@ -83,13 +83,15 @@ struct Macro {
     char *name;
     Token *body;
     bool deleted;
+    bool funclike;
 };
 static Macro *macro;
-static void push_macro(char *name) {
+static Macro *push_macro(char *name) {
     Macro *m = calloc(1, sizeof(Macro));
     m->next = macro;
     m->name = name;
     macro = m;
+    return m;
 }
 
 static bool ishidden(Token *tok) {
@@ -148,9 +150,17 @@ static bool expand_macro(Token **rest, Token *tok) {
     if (!m) {
         return false;
     }
-    Hideset *hs = hsunion(new_hideset(get_ident(tok)), tok->hideset);
-    Token *body = hsadd(hs, m->body);
-    *rest = append(body, tok->next);
+    if (!m->funclike) {
+        Hideset *hs = hsunion(new_hideset(get_ident(tok)), tok->hideset);
+        Token *body = hsadd(hs, m->body);
+        *rest = append(body, tok->next);
+        return true;
+    }
+    if (!equal(tok->next, "("))
+        return false;
+    tok = skip(tok->next, "(");
+    tok = skip(tok, ")");
+    *rest = append(m->body, tok);
     return true;
 }
 
@@ -245,16 +255,23 @@ Token *preprocess(Token *tok) {
         }
         // #define ident replacements
         if (equal(tok, "define")) {
-            push_macro(get_ident(tok->next));
+            Macro *m = push_macro(get_ident(tok->next));
+            tok = tok->next->next;
+            if (!tok->has_space && equal(tok, "(")) {
+                m->funclike = true;
+                tok = skip(tok->next, ")");
+            } else {
+                m->funclike = false;
+            }
             Token *body;
-            tok = read_pp_line(tok->next->next, &body);
-            macro->body = body;
+            tok = read_pp_line(tok, &body);
+            m->body = body;
             continue;
         }
         // #undef ident
         if (equal(tok, "undef")) {
-            push_macro(get_ident(tok->next));
-            macro->deleted = true;
+            Macro *m = push_macro(get_ident(tok->next));
+            m->deleted = true;
             tok = skip_line(tok);
             continue;
         }

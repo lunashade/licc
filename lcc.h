@@ -48,9 +48,10 @@ struct Token {
     char *contents;   // string literal including \0
     int contents_len; // string literal length
 
-    int lineno;  // line number
-    int fileno;  // file number
-    bool at_bol; // beginning of line
+    int lineno;     // line number
+    int fileno;     // file number
+    bool at_bol;    // beginning of line
+    bool has_space; // has space before this
     Hideset *hideset;
 };
 
