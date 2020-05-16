@@ -143,6 +143,23 @@ static Hideset *new_hideset(char *name) {
     return hs;
 }
 
+static bool inhideset(Hideset *hs, char *loc, int len) {
+    for (; hs; hs = hs->next) {
+        if (strlen(hs->name) == len && !strncmp(hs->name, loc, len))
+            return true;
+    }
+    return false;
+}
+
+static Hideset *hsintersect(Hideset *hs1, Hideset *hs2) {
+    Hideset head = {};
+    Hideset *cur = &head;
+    for (; hs1; hs1 = hs1->next) {
+        if (inhideset(hs2, hs1->name, strlen(hs1->name)))
+            cur = cur->next = new_hideset(hs1->name);
+    }
+    return head.next;
+}
 static Hideset *hsunion(Hideset *hs1, Hideset *hs2) {
     Hideset head = {};
     Hideset *cur = &head;
@@ -209,8 +226,9 @@ static bool expand_macro(Token **rest, Token *tok) {
     if (!m) {
         return false;
     }
-    Hideset *tokhs = new_hideset(get_ident(tok));
-    Hideset *hs1 = hsunion(tokhs, tok->hideset);
+    Token *macro_ident = tok;
+    Hideset *tokhs = new_hideset(get_ident(macro_ident));
+    Hideset *hs1 = hsunion(tokhs, macro_ident->hideset);
     if (!m->funclike) {
         Token *body = hsadd(hs1, m->body);
         *rest = append(body, tok->next);
@@ -229,8 +247,11 @@ static bool expand_macro(Token **rest, Token *tok) {
         fp->actual = actual;
         fp = fp->next;
     }
+    Token *rparen = tok;
+    Hideset *hs2 = hsintersect(hs1, hsunion(tokhs, rparen->hideset));
     tok = skip(tok, ")");
     Token *body = subst(m);
+    body = hsadd(hs2, body);
     *rest = append(body, tok);
     return true;
 }

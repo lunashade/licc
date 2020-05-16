@@ -6,6 +6,9 @@ int testno;
 int ret3(void) {
     return 3;
 }
+int M13(int x) {
+    return x*x;
+}
 
 int assert(int want, int got, char *code) {
     testno = testno + 1;
@@ -198,6 +201,9 @@ int main() {
     assert(9, M12(, 4+5), "M12(, 4+5)");
     assert(20, M10((2+3), 4), "M10((2+3), 4)");
     assert(12, M10((2,3), 4), "M10((2,3), 4)");
+#define M13(x) M14(x) * x
+#define M14(x) M13(x) + 3
+    assert(10, M13(2), "M13(2)");
     printf("OK\n"); 
     return 0;
 }
