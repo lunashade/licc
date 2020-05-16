@@ -23,7 +23,6 @@ static void parse_args(int argc, char **argv) {
     }
     if (!entry_filename)
         error("no input file");
-
 }
 
 int main(int argc, char **argv) {
