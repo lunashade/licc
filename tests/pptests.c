@@ -188,6 +188,14 @@ int main() {
     assert(88, M8, "M8()");
 #define M9 ()
     assert(3, ret3 M9, "ret3 M9");
+
+#define M10(a, b) a*b
+    assert(12, M10(3,4), "M10(3,4)");
+    assert(24, M10(3+4,4+5), "M10(3,4)");
+#define M11(a, b) (a) * (b)
+    assert(63, M11(3+4,4+5), "M11(3,4)");
+#define M12(a,b) a b
+    assert(9, M12(, 4+5), "M12(, 4+5)");
     printf("OK\n"); 
     return 0;
 }

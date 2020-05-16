@@ -49,6 +49,18 @@ static Token *read_pp_line(Token *tok, Token **pp_line) {
     return tok;
 }
 
+// read token sequence until "," or ")", copy to actual
+static Token *read_actual(Token *tok, Token **actual) {
+    Token head = {};
+    Token *cur = &head;
+    for (; !equal(tok, ",") && !equal(tok, ")"); tok = tok->next) {
+        cur = cur->next = copy_token(tok);
+    }
+    cur->next = new_eof(tok);
+    *actual = head.next;
+    return tok;
+}
+
 static void convert_keywords(Token *tok) {
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         if (t->kind == TK_IDENT && is_keyword(t)) {
@@ -77,6 +89,20 @@ static void concat_string_literals(Token *tok) {
 //
 
 // #define macro
+typedef struct MacroParams MacroParams;
+struct MacroParams {
+    MacroParams *next;
+    char *name;
+    Token *tok;
+    Token *actual; // actual token sequence
+};
+
+static MacroParams *new_params(Token *tok) {
+    MacroParams *fp = calloc(1, sizeof(MacroParams));
+    fp->tok = copy_token(tok);
+    fp->name = get_ident(fp->tok);
+    return fp;
+}
 typedef struct Macro Macro;
 struct Macro {
     Macro *next;
@@ -84,6 +110,8 @@ struct Macro {
     Token *body;
     bool deleted;
     bool funclike;
+    MacroParams *params;
+    int n_param;
 };
 static Macro *macro;
 static Macro *push_macro(char *name) {
@@ -130,6 +158,31 @@ static Token *hsadd(Hideset *hs, Token *tok) {
     return head.next;
 }
 
+static MacroParams *find_param(Token *tok, MacroParams *fp) {
+    for (; fp; fp = fp->next) {
+        if (equal(tok, fp->name)) {
+            return fp;
+        }
+    }
+    return NULL;
+}
+
+static Token *subst(Macro *m) {
+    Token head = {};
+    Token *cur = &head;
+    for (Token *tok = m->body; tok->kind != TK_EOF; tok = tok->next) {
+        MacroParams *fp = find_param(tok, m->params);
+        if (!fp) {
+            cur = cur->next = copy_token(tok);
+            continue;
+        }
+        for (Token *t = fp->actual; t->kind != TK_EOF; t = t->next) {
+            cur = cur->next = copy_token(t);
+        }
+    }
+    return head.next;
+}
+
 static Macro *find_macro(Token *tok) {
     if (tok->kind != TK_IDENT) {
         return NULL;
@@ -150,17 +203,29 @@ static bool expand_macro(Token **rest, Token *tok) {
     if (!m) {
         return false;
     }
+    Hideset *tokhs = new_hideset(get_ident(tok));
+    Hideset *hs1 = hsunion(tokhs, tok->hideset);
     if (!m->funclike) {
-        Hideset *hs = hsunion(new_hideset(get_ident(tok)), tok->hideset);
-        Token *body = hsadd(hs, m->body);
+        Token *body = hsadd(hs1, m->body);
         *rest = append(body, tok->next);
         return true;
     }
     if (!equal(tok->next, "("))
         return false;
     tok = skip(tok->next, "(");
+    MacroParams *fp = m->params;
+    for (int i = 0; i < m->n_param; i++) {
+        if (i > 0) {
+            tok = skip(tok, ",");
+        }
+        Token *actual;
+        tok = read_actual(tok, &actual);
+        fp->actual = actual;
+        fp = fp->next;
+    }
     tok = skip(tok, ")");
-    *rest = append(m->body, tok);
+    Token *body = subst(m);
+    *rest = append(body, tok);
     return true;
 }
 
@@ -221,6 +286,36 @@ static Token *skip_to_cond_directive(Token *tok) {
     return tok;
 }
 
+// tok == "define"
+static void read_macro_def(Token **rest, Token *tok) {
+    tok = skip(tok, "define");
+    Macro *m = push_macro(get_ident(tok));
+    tok = tok->next;
+
+    m->funclike = (!tok->has_space && equal(tok, "("));
+    if (m->funclike) {
+        tok = skip(tok, "(");
+        MacroParams head = {};
+        MacroParams *cur = &head;
+        int cnt = 0;
+        while (!equal(tok, ")")) {
+            if (cnt++ > 0) {
+                tok = skip(tok, ",");
+            }
+            cur = cur->next = new_params(tok);
+            tok = tok->next;
+        }
+        tok = skip(tok, ")");
+        m->params = head.next;
+        m->n_param = cnt;
+    }
+    Token *body;
+    tok = read_pp_line(tok, &body);
+    m->body = body;
+    *rest = tok;
+    return;
+}
+
 Token *preprocess(Token *tok) {
     Token head = {};
     Token *cur = &head;
@@ -255,17 +350,7 @@ Token *preprocess(Token *tok) {
         }
         // #define ident replacements
         if (equal(tok, "define")) {
-            Macro *m = push_macro(get_ident(tok->next));
-            tok = tok->next->next;
-            if (!tok->has_space && equal(tok, "(")) {
-                m->funclike = true;
-                tok = skip(tok->next, ")");
-            } else {
-                m->funclike = false;
-            }
-            Token *body;
-            tok = read_pp_line(tok, &body);
-            m->body = body;
+            read_macro_def(&tok, tok);
             continue;
         }
         // #undef ident
