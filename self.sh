@@ -13,6 +13,9 @@ mkdir -p $TMP
 lcc-header() {
     cat <<EOF > $TMP/$1
 typedef struct FILE FILE;
+struct stat {
+  char _[512];
+};
 extern FILE *stdin;
 extern FILE *stdout;
 extern FILE *stderr;
@@ -57,6 +60,7 @@ char *strchr(char *s, char c);
 char *strncpy(char *s1, const char *s2, int n);
 double strtod(char *s, char **endptr);
 void exit(int code);
+int stat(char *path, struct stat *statbuf);
 EOF
     grep -v '^#' $1 >> $TMP/$1
     sed -i 's/\bbool\b/_Bool/g' $TMP/$1

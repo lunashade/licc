@@ -1,4 +1,7 @@
 #include "include1.h"
+#include <include3.h>
+#define MINC <include4.h
+#include MINC>
 
 int printf();
 int exit();
@@ -272,5 +275,7 @@ rt(
     assert(4,
             size\
 of(int),"sizeof(int)");
+    assert(3, INCLUDE3, "INCLUDE3");
+    assert(4, INC4, "INC4");
     return 0;
 }

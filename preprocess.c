@@ -1,5 +1,17 @@
 #include "lcc.h"
 
+//
+static char *pathjoin(char *dir, char *file) {
+    char *buf = malloc(strlen(dir) + strlen(file) + 2);
+    sprintf(buf, "%s/%s", dir, file);
+    return buf;
+}
+
+static bool file_exists(char *path) {
+    struct stat st;
+    return !stat(path, &st);
+}
+
 // Token
 static Token *copy_token(Token *tok) {
     Token *tok2 = malloc(sizeof(Token));
@@ -62,7 +74,6 @@ static Token *read_actual(Token *tok, Token **actual) {
         if (equal(tok, ")"))
             level--;
     }
-    cur->next = new_eof(tok);
     *actual = head.next;
     return tok;
 }
@@ -210,9 +221,9 @@ static char *quote_string(char *str) {
     return buf;
 }
 
-static char *join_token(Token *tok) {
+static char *join_token(Token *tok, Token *end) {
     int len = 1;
-    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+    for (Token *t = tok; t != end; t = t->next) {
         if (t != tok && t->has_space)
             len++;
         len += t->len;
@@ -220,7 +231,7 @@ static char *join_token(Token *tok) {
     char *buf = malloc(len);
 
     int pos = 0;
-    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+    for (Token *t = tok; t != end; t = t->next) {
         if (t != tok && t->has_space) {
             buf[pos++] = ' ';
         }
@@ -241,7 +252,7 @@ static Token *new_number_token(int val, Token *tmpl) {
 }
 
 static Token *stringize(Token *tok, Token *actual) {
-    char *buf = join_token(actual);
+    char *buf = join_token(actual, NULL);
     buf = quote_string(buf);
     return tokenize(tok->filename, tok->fileno, buf);
 }
@@ -263,11 +274,14 @@ static Token *subst(Macro *m) {
     for (Token *tok = m->body; tok->kind != TK_EOF; tok = tok->next) {
         MacroParams *fp = find_param(tok, m->params);
         if (fp) {
-            if (fp->actual->kind == TK_EOF && equal(tok->next, "##")) {
+            if (!fp->actual && equal(tok->next, "##")) {
                 tok = tok->next;
                 continue;
             }
-            for (Token *t = fp->actual; t->kind != TK_EOF; t = t->next) {
+            if (!fp->actual) {
+                continue;
+            }
+            for (Token *t = fp->actual; t; t = t->next) {
                 cur = cur->next = copy_token(t);
             }
             continue;
@@ -295,11 +309,11 @@ static Token *subst(Macro *m) {
                 continue;
             }
             // x ## y => x(actual of y)
-            if (rhs->actual->kind == TK_EOF) {
+            if (!rhs->actual) {
                 continue;
             }
             *cur = *glue(cur, rhs->actual);
-            for (Token *t = rhs->actual->next; t->kind != TK_EOF; t = t->next) {
+            for (Token *t = rhs->actual->next; t; t = t->next) {
                 cur = cur->next = copy_token(t);
             }
             tok = tok->next;
@@ -496,6 +510,49 @@ static long eval_const_expr(Token **rest, Token *tok) {
     return val;
 }
 
+static char *read_include_path(Token **rest, Token *tok) {
+    // #include "filepath"
+    if (tok->kind == TK_STR) {
+        // Do not escape
+        char *filename = strndup(tok->loc + 1, tok->len - 2);
+        tok = tok->next;
+        if (!tok->at_bol)
+            warn_tok(tok, "preprocess: extra tokens after include directive");
+        *rest = skip_line(tok);
+        return filename;
+    }
+    // #include <foo.h>
+    if (equal(tok, "<")) {
+        Token *start = tok;
+        while (!equal(tok, ">")) {
+            if (tok->kind == TK_EOF)
+                error_tok(tok, "preprocess: expect `>`");
+            tok = tok->next;
+        }
+        char *filename = join_token(start->next, tok);
+        tok = skip(tok, ">");
+        *rest = skip_line(tok);
+        // TODO: actual include path
+        char *path = pathjoin(".", filename);
+        if (!file_exists(path))
+            error_tok(start, "`%s`: file not found", filename);
+        return path;
+    }
+    // #include MACRO
+    if (tok->kind == TK_IDENT) {
+        Token *tok2;
+        tok = read_pp_line(tok, &tok2);
+        tok2 = preprocess(tok2);
+        char *path = read_include_path(&tok2, tok2);
+        if (tok2->kind != TK_EOF) {
+            error_tok(tok, "preprocess: failed include");
+        }
+        *rest = tok;
+        return path;
+    }
+    error_tok(tok->next, "preprocess: expected include file path");
+}
+
 Token *preprocess(Token *tok) {
     Token head = {};
     Token *cur = &head;
@@ -513,18 +570,10 @@ Token *preprocess(Token *tok) {
         tok = tok->next;
         // #include TK_STR
         if (equal(tok, "include")) {
-            tok = tok->next;
-            if (tok->kind != TK_STR) {
-                error_tok(tok->next, "preprocess: expected include file path");
-            }
-            Token *tok2 = tokenize_file(tok->contents);
+            char *path = read_include_path(&tok, tok->next);
+            Token *tok2 = tokenize_file(path);
             if (!tok2)
                 error_tok(tok, "%s", strerror(errno));
-            tok = tok->next;
-            if (!tok->at_bol)
-                warn_tok(tok,
-                         "preprocess: extra tokens after include directive");
-            tok = skip_line(tok);
             tok = append(tok2, tok);
             continue;
         }
