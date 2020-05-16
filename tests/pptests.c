@@ -264,5 +264,13 @@ int main() {
            4
 #endif
           , "4");
+
+    asse\
+rt(
+        4,4,"\
+4");
+    assert(4,
+            size\
+of(int),"sizeof(int)");
     return 0;
 }

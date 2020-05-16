@@ -442,11 +442,43 @@ static char *read_filestring(char *path) {
     return buf;
 }
 
+static void remove_backslash_newline(char *p) {
+    char *q = p;
+    int cnt = 0;
+    // To keep logical input lineno, insert newline after concatenated line.
+    // "aaa\
+    // b
+    // c"
+    // =>
+    // "aaab
+    //
+    // c"
+    while (*p) {
+        if (startswith(p, "\\\n")) {
+            p += 2;
+            cnt++;
+        } else if (*p == '\n') {
+            *q++ = *p++;
+            for (; cnt > 0; cnt--) {
+                *q++ = '\n';
+            }
+        } else {
+            *q++ = *p++;
+        }
+    }
+    *q = '\0';
+}
+
 Token *tokenize_file(char *path) {
     char *before_path = current_filename;
     current_filename = path;
+    char *p = read_filestring(path);
+    if (!p)
+        return NULL;
+    remove_backslash_newline(p);
+
     static int fileno;
-    Token *tok = tokenize(path, ++fileno, read_filestring(path));
+    Token *tok = tokenize(path, ++fileno, p);
     current_filename = before_path;
     // emit .file directive for assembler
     printf(".file %d \"%s\"\n", fileno, path);
