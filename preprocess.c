@@ -210,9 +210,9 @@ static char *quote_string(char *str) {
     return buf;
 }
 
-static Token *stringize(Token *tok, Token *actual) {
+static char *join_token(Token *tok) {
     int len = 1;
-    for (Token *t = actual; t->kind != TK_EOF; t = t->next) {
+    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
         if (t != tok && t->has_space)
             len++;
         len += t->len;
@@ -220,14 +220,28 @@ static Token *stringize(Token *tok, Token *actual) {
     char *buf = malloc(len);
 
     int pos = 0;
-    for (Token *t = actual; t->kind != TK_EOF; t = t->next) {
-        if (t != actual && t->has_space) {
+    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+        if (t != tok && t->has_space) {
             buf[pos++] = ' ';
         }
         strncpy(buf + pos, t->loc, t->len);
         pos += t->len;
     }
     buf[pos] = '\0';
+    return buf;
+}
+
+static Token *new_string_token(char *buf, Token *tmpl) {
+    return tokenize(tmpl->filename, tmpl->fileno, buf);
+}
+static Token *new_number_token(int val, Token *tmpl) {
+    char *buf = malloc(20);
+    sprintf(buf, "%d\n", val);
+    return tokenize(tmpl->filename, tmpl->fileno, buf);
+}
+
+static Token *stringize(Token *tok, Token *actual) {
+    char *buf = join_token(actual);
     buf = quote_string(buf);
     return tokenize(tok->filename, tok->fileno, buf);
 }
@@ -285,7 +299,7 @@ static Token *subst(Macro *m) {
                 continue;
             }
             *cur = *glue(cur, rhs->actual);
-            for (Token *t = rhs->actual->next; t->kind != TK_EOF; t=t->next) {
+            for (Token *t = rhs->actual->next; t->kind != TK_EOF; t = t->next) {
                 cur = cur->next = copy_token(t);
             }
             tok = tok->next;
@@ -433,6 +447,35 @@ static void read_macro_def(Token **rest, Token *tok) {
     *rest = tok;
     return;
 }
+static Token *read_const_expr(Token *tok2, Token **line) {
+    tok2 = read_pp_line(tok2, line);
+    Token head = {};
+    Token *cur = &head;
+
+    Token *tok = *line;
+    while (tok->kind != TK_EOF) {
+        if (equal(tok, "defined")) {
+            Token *defined = tok;
+            tok = tok->next;
+            bool has_paren = consume(&tok, tok, "(");
+            if (tok->kind != TK_IDENT)
+                error_tok(tok, "preprocess: macro name must be an identifier");
+            bool m = find_macro(tok);
+            tok = tok->next;
+            if (has_paren) {
+                tok = skip(tok, ")");
+            }
+            cur = cur->next = new_number_token(m ? 1 : 0, defined);
+            continue;
+        }
+        cur = cur->next = tok;
+        tok = tok->next;
+    }
+
+    cur->next = tok;
+    *line = head.next;
+    return tok2;
+}
 
 Token *preprocess(Token *tok) {
     Token head = {};
@@ -481,7 +524,7 @@ Token *preprocess(Token *tok) {
         // #if const-expr
         if (equal(tok, "if")) {
             Token *if_line;
-            tok = read_pp_line(tok->next, &if_line);
+            tok = read_const_expr(tok->next, &if_line);
             if_line = preprocess(if_line);
             long val = const_expr(&if_line, if_line);
             if (if_line->kind != TK_EOF)
@@ -521,7 +564,7 @@ Token *preprocess(Token *tok) {
             if (current_if->ctx == IN_ELSE)
                 error_tok(tok, "preprocess: #elif after #else");
             Token *if_line;
-            tok = read_pp_line(tok->next, &if_line);
+            tok = read_const_expr(tok->next, &if_line);
             if_line = preprocess(if_line);
             long val = const_expr(&if_line, if_line);
             if (if_line->kind != TK_EOF)
