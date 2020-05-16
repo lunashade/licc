@@ -7,8 +7,8 @@ static char *KEYWORDS[] = {
     "continue", "switch",  "case",  "default", "extern", "_Alignof", "_Alignas",
     "volatile", "const",   "float", "double"};
 static char *MULTIPUNCT[] = { // must be length descending order
-    "...", "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=",
-    "/=",  "%=",  "&=",  "|=", "^=", "++", "--", "&&", "||", "<<", ">>"};
+    "...", "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=", "/=",
+    "%=",  "&=",  "|=",  "^=", "++", "--", "&&", "||", "<<", ">>", "##"};
 // error report
 char *current_filename;
 static char *current_input;

@@ -232,12 +232,27 @@ static Token *stringize(Token *tok, Token *actual) {
     return tokenize(tok->filename, tok->fileno, buf);
 }
 
+static Token *glue(Token *cur, Token *tok) {
+    char *buf = malloc(cur->len + tok->len + 1);
+    sprintf(buf, "%.*s%.*s", cur->len, cur->loc, tok->len, tok->loc);
+
+    Token *tok2 = tokenize(cur->filename, cur->fileno, buf);
+    if (tok2->next->kind != TK_EOF) {
+        error_tok(cur, "glued token `%s` is invalid", buf);
+    }
+    return tok2;
+}
+
 static Token *subst(Macro *m) {
     Token head = {};
     Token *cur = &head;
     for (Token *tok = m->body; tok->kind != TK_EOF; tok = tok->next) {
         MacroParams *fp = find_param(tok, m->params);
         if (fp) {
+            if (fp->actual->kind == TK_EOF && equal(tok->next, "##")) {
+                tok = tok->next;
+                continue;
+            }
             for (Token *t = fp->actual; t->kind != TK_EOF; t = t->next) {
                 cur = cur->next = copy_token(t);
             }
@@ -245,12 +260,36 @@ static Token *subst(Macro *m) {
         }
         // stringize
         if (equal(tok, "#")) {
+            // tok  tok->next
+            // #    IDENT(end)
             MacroParams *fp = find_param(tok->next, m->params);
             if (fp) {
                 cur = cur->next = stringize(tok, fp->actual);
                 tok = tok->next;
                 continue;
             }
+        }
+        // glue
+        if (equal(tok, "##")) {
+            // tok  tok->next
+            // ##   any(end)
+            MacroParams *rhs = find_param(tok->next, m->params);
+            if (!rhs) {
+                // x ## 2 => x2
+                *cur = *glue(cur, tok->next);
+                tok = tok->next;
+                continue;
+            }
+            // x ## y => x(actual of y)
+            if (rhs->actual->kind == TK_EOF) {
+                continue;
+            }
+            *cur = *glue(cur, rhs->actual);
+            for (Token *t = rhs->actual->next; t->kind != TK_EOF; t=t->next) {
+                cur = cur->next = copy_token(t);
+            }
+            tok = tok->next;
+            continue;
         }
         cur = cur->next = copy_token(tok);
         continue;
