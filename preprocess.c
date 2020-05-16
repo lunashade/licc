@@ -131,6 +131,8 @@ struct Macro {
     int n_param;
 };
 static Macro *macro;
+static Macro *file_macro;
+static Macro *line_macro;
 static Macro *push_macro(char *name) {
     Macro *m = calloc(1, sizeof(Macro));
     m->next = macro;
@@ -188,6 +190,9 @@ static void init_macros(void) {
     define_macro("__signed__", "signed");
     define_macro("__typeof__", "typeof");
     define_macro("__volatile__", "volatile");
+
+    file_macro = push_macro("__FILE__");
+    line_macro = push_macro("__LINE__");
 }
 
 static bool ishidden(Token *tok) {
@@ -294,6 +299,7 @@ static char *join_token(Token *tok, Token *end) {
 }
 
 static Token *new_string_token(char *buf, Token *tmpl) {
+    buf = quote_string(buf);
     return tokenize(tmpl->filename, tmpl->fileno, buf);
 }
 static Token *new_number_token(int val, Token *tmpl) {
@@ -304,8 +310,7 @@ static Token *new_number_token(int val, Token *tmpl) {
 
 static Token *stringize(Token *tok, Token *actual) {
     char *buf = join_token(actual, NULL);
-    buf = quote_string(buf);
-    return tokenize(tok->filename, tok->fileno, buf);
+    return new_string_token(buf, tok);
 }
 
 static Token *glue(Token *cur, Token *tok) {
@@ -400,6 +405,18 @@ static bool expand_macro(Token **rest, Token *tok) {
     Hideset *tokhs = new_hideset(get_ident(macro_ident));
     Hideset *hs1 = hsunion(tokhs, macro_ident->hideset);
     if (!m->funclike) {
+        if (m == file_macro) {
+            Token *tok2 = new_string_token(tok->filename, tok);
+            *rest = tok2;
+            (*rest)->next = tok->next;
+            return true;
+        }
+        if (m == line_macro) {
+            Token *tok2 = new_number_token(tok->lineno, tok);
+            tok2->next = tok->next;
+            *rest = tok2;
+            return true;
+        }
         Token *body = hsadd(hs1, m->body);
         *rest = append(body, tok->next);
         return true;

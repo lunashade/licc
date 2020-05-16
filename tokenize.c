@@ -481,6 +481,7 @@ Token *tokenize_file(char *path) {
     Token *tok = tokenize(path, ++fileno, p);
     current_filename = before_path;
     // emit .file directive for assembler
-    printf(".file %d \"%s\"\n", fileno, path);
+    if (!opt_E)
+        printf(".file %d \"%s\"\n", fileno, path);
     return tok;
 }

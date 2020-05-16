@@ -1,3 +1,5 @@
+char *main_fn = __FILE__;
+int main_ln = __LINE__;
 // You can format this file with the following one-liner:
 // $ perl -i -pe 's{assert\((.*?), (.*), ".*"\);}{($a,$b)=($1,$2); (($c=$2) =~ s/([\\"])/\\\1/g); "assert($a, $b, \"$c\");"}ge' tests/tests.c
 //
@@ -1171,7 +1173,7 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 #define M1 4
     assert(4, M1, "M1");
 #define M1 3 + 4 +
-    assert(12, M1 5, "M1");
+    assert(12, M1 5, "M1 5");
 #define ASSERT assert(
 #define END )
 #define if 5
@@ -1181,7 +1183,7 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 #undef if
 #undef END
 #undef ASSERT
-    assert(3, ({int x; if (1) x=3; x; }), "if (1); 3;");
+    assert(3, ({int x; if (1) x=3; x; }), "({int x; if (1) x=3; x; })");
 
 #define M2 5
 #define M3 0
@@ -1247,15 +1249,15 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
 #define M8() 8
     int M8 = 88;
     assert(8, M8(), "M8()");
-    assert(88, M8, "M8()");
+    assert(88, M8, "M8");
 #define M9 ()
     assert(3, ret3 M9, "ret3 M9");
 
 #define M10(a, b) a*b
     assert(12, M10(3,4), "M10(3,4)");
-    assert(24, M10(3+4,4+5), "M10(3,4)");
+    assert(24, M10(3+4,4+5), "M10(3+4,4+5)");
 #define M11(a, b) (a) * (b)
-    assert(63, M11(3+4,4+5), "M11(3,4)");
+    assert(63, M11(3+4,4+5), "M11(3+4,4+5)");
 #define M12(a,b) a b
     assert(9, M12(, 4+5), "M12(, 4+5)");
     assert(20, M10((2+3), 4), "M10((2+3), 4)");
@@ -1333,6 +1335,11 @@ rt(
 of(int),"sizeof(int)");
     assert(3, INCLUDE3, "INCLUDE3");
     assert(4, INC4, "INC4");
+
+    assert(0, strcmp("tests.c", main_fn), "strcmp(\"tests.c\", main_fn)");
+    assert(2, main_ln, "main_ln");
+    assert(0, strcmp("include1.h", include1_fn), "strcmp(\"include1.h\", include1_fn)");
+    assert(5, include1_ln, "include1_ln");
     printf("OK\n");
     return 0;
 }
