@@ -62,17 +62,21 @@ static Token *read_pp_line(Token *tok, Token **pp_line) {
 }
 
 // read token sequence until "," or ")", copy to actual
-static Token *read_actual(Token *tok, Token **actual) {
+static Token *read_actual(Token *tok, Token **actual, bool read_rest) {
     Token head = {};
     Token *cur = &head;
     int level = 0;
-    for (; level > 0 || (!equal(tok, ",") && !equal(tok, ")"));
-         tok = tok->next) {
+    for (;;) {
+        if (level == 0 && equal(tok, ")"))
+            break;
+        if (level == 0 && !read_rest && equal(tok, ","))
+            break;
         cur = cur->next = copy_token(tok);
         if (equal(tok, "("))
             level++;
         if (equal(tok, ")"))
             level--;
+        tok = tok->next;
     }
     *actual = head.next;
     return tok;
@@ -110,14 +114,12 @@ typedef struct MacroParams MacroParams;
 struct MacroParams {
     MacroParams *next;
     char *name;
-    Token *tok;
     Token *actual; // actual token sequence
 };
 
-static MacroParams *new_params(Token *tok) {
+static MacroParams *new_params(char *name) {
     MacroParams *fp = calloc(1, sizeof(MacroParams));
-    fp->tok = copy_token(tok);
-    fp->name = get_ident(fp->tok);
+    fp->name = name;
     return fp;
 }
 typedef struct Macro Macro;
@@ -129,6 +131,7 @@ struct Macro {
     bool funclike;
     MacroParams *params;
     int n_param;
+    bool is_variadic;
 };
 static Macro *macro;
 static Macro *file_macro;
@@ -423,6 +426,7 @@ static bool expand_macro(Token **rest, Token *tok) {
     }
     if (!equal(tok->next, "("))
         return false;
+    // read actuals
     tok = skip(tok->next, "(");
     MacroParams *fp = m->params;
     for (int i = 0; i < m->n_param; i++) {
@@ -430,13 +434,26 @@ static bool expand_macro(Token **rest, Token *tok) {
             tok = skip(tok, ",");
         }
         Token *actual;
-        tok = read_actual(tok, &actual);
+        tok = read_actual(tok, &actual, false);
         fp->actual = actual;
         fp = fp->next;
+    }
+    if (m->is_variadic && !equal(tok, ")")) {
+        // read variadic
+        if (equal(tok, ","))
+            tok = skip(tok, ",");
+        Token *actual = NULL;
+        tok = read_actual(tok, &actual, true);
+        warn_tok(tok, "");
+        MacroParams *vaargs = new_params("__VA_ARGS__");
+        vaargs->actual = actual;
+        vaargs->next = m->params;
+        m->params = vaargs;
     }
     Token *rparen = tok;
     Hideset *hs2 = hsintersect(hs1, hsunion(tokhs, rparen->hideset));
     tok = skip(tok, ")");
+
     Token *body = subst(m);
     body = hsadd(hs2, body);
     *rest = append(body, tok);
@@ -513,16 +530,24 @@ static void read_macro_def(Token **rest, Token *tok) {
         MacroParams head = {};
         MacroParams *cur = &head;
         int cnt = 0;
+        bool is_variadic = false;
         while (!equal(tok, ")")) {
-            if (cnt++ > 0) {
+            if (cnt > 0) {
                 tok = skip(tok, ",");
             }
-            cur = cur->next = new_params(tok);
+            if (equal(tok, "...")) {
+                is_variadic = true;
+                tok = tok->next;
+                break;
+            }
+            cnt++;
+            cur = cur->next = new_params(get_ident(tok));
             tok = tok->next;
         }
         tok = skip(tok, ")");
         m->params = head.next;
         m->n_param = cnt;
+        m->is_variadic = is_variadic;
     }
     Token *body;
     tok = read_pp_line(tok, &body);

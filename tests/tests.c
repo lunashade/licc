@@ -69,6 +69,9 @@ int M13(int x) {
     return x*x;
 }
 
+int add2(int x, int y) {
+    return x+y;
+}
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 _Bool true_fn();
@@ -1347,6 +1350,21 @@ of(int),"sizeof(int)");
     assert(5, sizeof(__func__), "sizeof(__func__)");
     assert(0, strcmp("main", __func__), "strcmp(\"main\", __func__)");
     assert(0, strcmp("func_fn", func_fn()), "strcmp(\"func_fn\", func_fn())");
+#undef M14
+#define M14(...) 3
+    assert(3, M14(), "M14()");
+
+#define M14(...) __VA_ARGS__
+    assert(5, M14(5), "M14(5)");
+
+#define M14(...) add2(__VA_ARGS__)
+    assert(8, M14(2, 6), "M14(2, 6)");
+
+#define M14(...) add6(1,2,__VA_ARGS__,6)
+    assert(21, M14(3,4,5), "M14(3,4,5)");
+
+#define M14(x, ...) add6(1,2,x,__VA_ARGS__,6)
+    assert(21, M14(3,4,5), "M14(3,4,5)");
     printf("OK\n");
     return 0;
 }
