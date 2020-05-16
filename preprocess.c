@@ -477,6 +477,25 @@ static Token *read_const_expr(Token *tok2, Token **line) {
     return tok2;
 }
 
+static long eval_const_expr(Token **rest, Token *tok) {
+    Token *if_line;
+    tok = read_const_expr(tok->next, &if_line);
+    if_line = preprocess(if_line);
+    for (Token *t = if_line; t->kind != TK_EOF; t = t->next) {
+        if (t->kind == TK_IDENT) {
+            // replace remaining ident -> 0
+            Token *next = t->next;
+            *t = *new_number_token(0, t);
+            t->next = next;
+        }
+    }
+    long val = const_expr(&if_line, if_line);
+    if (if_line->kind != TK_EOF)
+        error_tok(if_line, "preprocess: extra token after #if const-expr");
+    *rest = tok;
+    return val;
+}
+
 Token *preprocess(Token *tok) {
     Token head = {};
     Token *cur = &head;
@@ -523,13 +542,7 @@ Token *preprocess(Token *tok) {
         }
         // #if const-expr
         if (equal(tok, "if")) {
-            Token *if_line;
-            tok = read_const_expr(tok->next, &if_line);
-            if_line = preprocess(if_line);
-            long val = const_expr(&if_line, if_line);
-            if (if_line->kind != TK_EOF)
-                error_tok(if_line,
-                          "preprocess: extra token after #if const-expr");
+            long val = eval_const_expr(&tok, tok);
             push_if(tok, val);
 
             if (!val) {
@@ -563,13 +576,7 @@ Token *preprocess(Token *tok) {
                 error_tok(tok, "preprocess: stray #elif");
             if (current_if->ctx == IN_ELSE)
                 error_tok(tok, "preprocess: #elif after #else");
-            Token *if_line;
-            tok = read_const_expr(tok->next, &if_line);
-            if_line = preprocess(if_line);
-            long val = const_expr(&if_line, if_line);
-            if (if_line->kind != TK_EOF)
-                error_tok(if_line,
-                          "preprocess: extra token after #elif const-expr");
+            long val = eval_const_expr(&tok, tok);
             // if current_if->val is true, don't update to skip elif or else
             if (current_if->val) {
                 tok = skip_to_endif(tok);

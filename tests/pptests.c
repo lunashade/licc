@@ -257,5 +257,12 @@ int main() {
            4
 #endif
           , "4");
+    assert(4,
+#if NO_SUCH_MACRO
+           3
+#else
+           4
+#endif
+          , "4");
     return 0;
 }
