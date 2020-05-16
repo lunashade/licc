@@ -54,6 +54,7 @@ char *strstr(char *haystack, char *needle);
 static void va_end(va_list ap) {}
 long strtoul(char *nptr, char **endptr, int base);
 char *strchr(char *s, char c);
+char *strncpy(char *s1, const char *s2, int n);
 double strtod(char *s, char **endptr);
 void exit(int code);
 EOF
