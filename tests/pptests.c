@@ -205,5 +205,16 @@ int main() {
 #define M14(x) M13(x) + 3
     assert(10, M13(2), "M13(2)");
     printf("OK\n"); 
+#undef M11
+#define M11(x) #x
+    assert('a', M11( a!b  `""c)[0], "M11( a!b  `\"\"c)[0]");
+    assert('!', M11( a!b  `""c)[1], "M11( a!b  `\"\"c)[1]");
+    assert('b', M11( a!b  `""c)[2], "M11( a!b  `\"\"c)[2]");
+    assert(' ', M11( a!b  `""c)[3], "M11( a!b  `\"\"c)[3]");
+    assert('`', M11( a!b  `""c)[4], "M11( a!b  `\"\"c)[4]");
+    assert('"', M11( a!b  `""c)[5], "M11( a!b  `\"\"c)[5]");
+    assert('"', M11( a!b  `""c)[6], "M11( a!b  `\"\"c)[6]");
+    assert('c', M11( a!b  `""c)[7], "M11( a!b  `\"\"c)[7]");
+    assert(0, M11( a!b  `""c)[8], "M11( a!b  `\"\"c)[8]");
     return 0;
 }

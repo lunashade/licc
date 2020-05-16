@@ -97,7 +97,7 @@ bool is_keyword(Token *tok) {
     return false;
 }
 
-static void add_line_info(Token *tok, int fileno) {
+static void add_line_info(Token *tok, char *filename, int fileno) {
     char *p = current_input;
     int lineno = 1;
     bool at_bol = true;
@@ -115,6 +115,7 @@ static void add_line_info(Token *tok, int fileno) {
                 has_space = true;
             }
         }
+        t->filename = filename;
         t->fileno = fileno;
         t->lineno = lineno;
         t->at_bol = at_bol;
@@ -404,7 +405,7 @@ Token *tokenize(char *filename, int fileno, char *p) {
         error_at(p, "tokenize: invalid token character");
     }
     new_token(cur, TK_EOF, p, 0);
-    add_line_info(head.next, fileno);
+    add_line_info(head.next, filename, fileno);
     return head.next;
 }
 
@@ -448,6 +449,6 @@ Token *tokenize_file(char *path) {
     Token *tok = tokenize(path, ++fileno, read_filestring(path));
     current_filename = before_path;
     // emit .file directive for assembler
-    printf(".file %d \"%s\"\n", fileno, current_filename);
+    printf(".file %d \"%s\"\n", fileno, path);
     return tok;
 }

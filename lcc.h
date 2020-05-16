@@ -50,11 +50,13 @@ struct Token {
 
     int lineno;     // line number
     int fileno;     // file number
+    char *filename; // filename
     bool at_bol;    // beginning of line
     bool has_space; // has space before this
     Hideset *hideset;
 };
 
+Token *tokenize(char *filename, int fileno, char *p);
 Token *tokenize_file(char *filename);
 bool is_keyword(Token *tok);
 bool equal(Token *tok, char *s);
