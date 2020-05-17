@@ -75,7 +75,7 @@ lcc() {
     $CC -Isrc -Iinclude -I/usr/local/include -I/usr/include \
         -I/usr/include/linux -I/usr/include/x86_64-linux-gnu \
         -I/usr/include/i386-linux-gnu/ \
-        src/$1 > $TMP/${1%.c}.s
+        src/$1 -o $TMP/${1%.c}.s
     gcc -c -o $TMP/${1%.c}.o $TMP/${1%.c}.s
 }
 

@@ -1,5 +1,5 @@
 CFLAGS=-std=c11 -g -static -fno-common
-LCCFLAGS=-I.
+LCCFLAGS=-I. -o -
 SRCS=$(wildcard src/*.c)
 OBJS=$(SRCS:.c=.o)
 
