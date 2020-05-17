@@ -1,15 +1,15 @@
 CFLAGS=-std=c11 -g -static -fno-common
 LCCFLAGS=-I.
-SRCS=$(wildcard *.c)
+SRCS=$(wildcard src/*.c)
 OBJS=$(SRCS:.c=.o)
 
 test-all: fmt test test-stage2 test-stage3
 
-$(OBJS): lcc.h
+$(OBJS): src/lcc.h
 
 lcc: $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-lcc-stage2: lcc $(SRCS) lcc.h self.sh
+lcc-stage2: lcc $(SRCS) src/lcc.h self.sh
 	./self.sh $(patsubst lcc-%,tmp-%,$@) $$PWD/$< $@
 lcc-stage3: lcc-stage2
 	./self.sh $(patsubst lcc-%,tmp-%,$@) $$PWD/$< $@
