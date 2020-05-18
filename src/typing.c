@@ -53,10 +53,16 @@ Type *pointer_to(Type *base) {
     return ty;
 }
 
-Type *array_of(Type *base, int size) {
-    Type *ty = new_type(TY_ARRAY, size * (base->size), base->align);
+Type *array_of(Type *base, int len) {
+    // AMD64 SystemV ABI says that:
+    // "An array uses the same alignment as its elements, except that a local or
+    // global array variable of length at least 16 bytes or a C99
+    // variable-length array variable always has alignment of at least 16 bytes"
+    int size = len * (base->size);
+    int align = (size >= 16 && base->align < 16) ? 16 : base->align;
+    Type *ty = new_type(TY_ARRAY, size, align);
     ty->base = base;
-    ty->array_len = size;
+    ty->array_len = len;
     return ty;
 }
 

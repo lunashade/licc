@@ -348,7 +348,7 @@ int main() {
     assert(3, ({ struct {int a; int b;} x[3]; int *p=x; p[3]=3; x[1].b; }), "({ struct {int a; int b;} x[3]; int *p=x; p[3]=3; x[1].b; })");
 
     assert(6, ({ struct {int a[3]; int b[5];} x; int *p=&x; x.a[0]=6; p[0]; }), "({ struct {int a[3]; int b[5];} x; int *p=&x; x.a[0]=6; p[0]; })");
-    assert(7, ({ struct {int a[3]; int b[5];} x; int *p=&x; x.b[0]=7; p[3]; }), "({ struct {int a[3]; int b[5];} x; int *p=&x; x.b[0]=7; p[3]; })");
+    assert(7, ({ struct {char a[3]; char b[5];} x; char *p=&x; x.b[0]=7; p[3]; }), "({ struct {char a[3]; char b[5];} x; char *p=&x; x.b[0]=7; p[3]; })");
 
     assert(6, ({ struct { struct { int b; } a; } x; x.a.b=6; x.a.b; }), "({ struct { struct { int b; } a; } x; x.a.b=6; x.a.b; })");
 
@@ -794,7 +794,7 @@ typedef long int TypeX, *TypeY[4], (*TypeZ)[2];
     assert(1, _Alignof(char[3]), "_Alignof(char[3])");
     assert(4, _Alignof(int[3]), "_Alignof(int[3])");
     assert(1, _Alignof(struct {char a; char b;}[2]), "_Alignof(struct {char a; char b;}[2])");
-    assert(8, _Alignof(struct {char a; long b;}[2]), "_Alignof(struct {char a; long b;}[2])");
+    assert(16, _Alignof(struct {char a; long b;}[2]), "_Alignof(struct {char a; long b;}[2])");
 
     assert(0, (long)(char *)&g_aligned1 % 512, "(long)(char *)&g_aligned1 % 512");
     assert(0, (long)(char *)&g_aligned2 % 512, "(long)(char *)&g_aligned2 % 512");
@@ -1354,6 +1354,20 @@ of(int),"sizeof(int)");
 
 #define M14(x, ...) add6(1,2,x,__VA_ARGS__,6)
     assert(21, M14(3,4,5), "M14(3,4,5)");
+
+    assert(1, _Alignof(char [15]), "_Alignof(char [15])");
+    assert(16, _Alignof(char [16]), "_Alignof(char [16])");
+    assert(16, _Alignof(char [17]), "_Alignof(char [17])");
+
+    assert(8, _Alignof(long[1]), "_Alignof(long[1])");
+    assert(16, _Alignof(long[2]), "_Alignof(long[2])");
+    assert(16, _Alignof(long[3]), "_Alignof(long[3])");
+
+    assert(16, _Alignof(struct {char x[20];}), "_Alignof(struct {char x[20];})");
+
+    assert(4, _Alignof(struct {char a; int b;}), "_Alignof(struct {char a; int b;})");
+    assert(16, _Alignof(struct {char a; int b;}[2]), "_Alignof(struct {char a; int b;}[2])");
+    assert(16, _Alignof(struct {char a; int b;}[3]), "_Alignof(struct {char a; int b;}[3])");
     printf("OK\n");
     return 0;
 }
