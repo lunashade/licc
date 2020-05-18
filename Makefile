@@ -7,27 +7,30 @@ test-all: fmt test test-nopic test-stage2 test-stage3
 
 $(OBJS): src/lcc.h
 
-lcc: $(OBJS)
+bin/lcc: $(OBJS)
+	@mkdir bin -p
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-lcc-stage2: lcc $(SRCS) src/lcc.h self.sh
-	./self.sh $(patsubst lcc-%,tmp-%,$@) $$PWD/$< $@
-lcc-stage3: lcc-stage2
-	./self.sh $(patsubst lcc-%,tmp-%,$@) $$PWD/$< $@
+bin/lcc-stage2: bin/lcc $(SRCS) src/lcc.h self.sh
+	@mkdir bin -p
+	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
+bin/lcc-stage3: bin/lcc-stage2
+	@mkdir bin -p
+	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
 
-test: lcc tests/extern.o
+test: bin/lcc tests/extern.o
 	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp.s
 	cc -o tmp tmp.s tests/extern.o
 	./tmp
-test-nopic: lcc tests/extern.o
+test-nopic: bin/lcc tests/extern.o
 	(cd tests; ../$< -fno-pic $(LCCFLAGS) tests.c ) > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
-test-stage2: lcc-stage2 tests/extern.o
+test-stage2: bin/lcc-stage2 tests/extern.o
 	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp2.s
 	cc -o tmp2 tmp2.s tests/extern.o
 	./tmp2
-test-stage3: lcc-stage3
-	@diff lcc-stage2 lcc-stage3 && echo "stage3 OK"
+test-stage3: bin/lcc-stage3
+	@diff bin/lcc-stage2 bin/lcc-stage3 && echo "stage3 OK"
 
 fmt:
 	clang-format -i $(SRCS)
