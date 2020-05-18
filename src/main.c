@@ -132,7 +132,10 @@ int main(int argc, char **argv) {
               strerror(errno));
     tempfile = fdopen(fd, "w");
 
-    Token *tok = read_file(input_path);
+    Token *tok = tokenize_file(input_path);
+    if (!tok)
+        error("%s: %s", input_path, strerror(errno));
+    tok = preprocess(tok);
     if (opt_E) {
         print_tokens(tok);
         exit(0);

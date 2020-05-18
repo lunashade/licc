@@ -90,9 +90,7 @@ void warn_tok(Token *tok, char *fmt, ...);
 // Preprocessor
 //
 void init_macros(void);
-Token *read_file(char *);
 Token *preprocess(Token *);
-Token *preprocess_file(char *);
 
 //
 // Parser

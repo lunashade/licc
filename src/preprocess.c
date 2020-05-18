@@ -1,5 +1,6 @@
 #include "lcc.h"
 
+static Token *preprocess2(Token *tok);
 //
 static char *pathjoin(char *dir, char *file) {
     char *buf = malloc(strlen(dir) + strlen(file) + 2);
@@ -588,7 +589,7 @@ static Token *read_const_expr(Token *tok2, Token **line) {
 static long eval_const_expr(Token **rest, Token *tok) {
     Token *if_line;
     tok = read_const_expr(tok->next, &if_line);
-    if_line = preprocess(if_line);
+    if_line = preprocess2(if_line);
     for (Token *t = if_line; t->kind != TK_EOF; t = t->next) {
         if (t->kind == TK_IDENT) {
             // replace remaining ident -> 0
@@ -647,7 +648,7 @@ static char *read_include_path(Token **rest, Token *tok) {
     if (tok->kind == TK_IDENT) {
         Token *tok2;
         tok = read_pp_line(tok, &tok2);
-        tok2 = preprocess(tok2);
+        tok2 = preprocess2(tok2);
         char *path = read_include_path(&tok2, tok2);
         if (tok2->kind != TK_EOF) {
             error_tok(tok, "preprocess: failed include");
@@ -658,7 +659,7 @@ static char *read_include_path(Token **rest, Token *tok) {
     error_tok(tok->next, "preprocess: expected include file path");
 }
 
-Token *preprocess(Token *tok) {
+static Token *preprocess2(Token *tok) {
     Token head = {};
     Token *cur = &head;
 
@@ -781,17 +782,11 @@ Token *preprocess(Token *tok) {
     return head.next;
 }
 
-Token *preprocess_all(Token *tok) {
-    tok = preprocess(tok);
+Token *preprocess(Token *tok) {
+    tok = preprocess2(tok);
     if (current_if)
         error_tok(current_if->tok, "preprocess: unfinished if");
     concat_string_literals(tok);
     convert_keywords(tok);
-    return tok;
-}
-
-Token *read_file(char *filename) {
-    Token *tok = tokenize_file(filename);
-    tok = preprocess_all(tok);
     return tok;
 }
