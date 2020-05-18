@@ -15,15 +15,20 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-extern bool opt_E;
-extern bool opt_fpic;
-extern char **include_paths;
-extern char *input_path;
-extern FILE *output_file;
-
 typedef struct Type Type;
 typedef struct Member Member;
 typedef struct Relocation Relocation;
+
+//
+// main.c
+//
+extern bool opt_E;
+extern bool opt_fpic;
+
+extern char **include_paths;
+extern char *current_filename;
+extern char *input_dir;
+extern FILE *tempfile;
 
 //
 // Tokenizer
@@ -34,7 +39,6 @@ struct Hideset {
     Hideset *next;
     char *name;
 };
-extern char *current_filename;
 
 typedef enum {
     TK_RESERVED, // Keywords, punctuators
@@ -60,12 +64,14 @@ struct Token {
 
     int lineno;     // line number
     int fileno;     // file number
+    char *input;    // input string
     char *filename; // filename
     bool at_bol;    // beginning of line
     bool has_space; // has space before this
     Hideset *hideset;
 };
 
+char **get_input_files(void);
 Token *tokenize(char *filename, int fileno, char *p);
 Token *tokenize_file(char *filename);
 bool is_keyword(Token *tok);

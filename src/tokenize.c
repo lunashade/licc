@@ -12,6 +12,9 @@ static char *MULTIPUNCT[] = { // must be length descending order
 // error report
 char *current_filename;
 static char *current_input;
+static char **input_files;
+
+char **get_input_files(void) { return input_files; }
 
 void error(char *fmt, ...) {
     va_list ap;
@@ -19,16 +22,16 @@ void error(char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     exit(1);
 }
-static void verror_at(int lineno, char *kind, char *loc, char *fmt,
-                      va_list ap) {
+static void verror_at(char *filename, char *input, int lineno, char *loc,
+                      char *fmt, va_list ap) {
     char *line = loc;
-    while (current_input < line && line[-1] != '\n')
+    while (input < line && line[-1] != '\n')
         line--;
     char *lineend = loc;
     while (*lineend != '\n')
         lineend++;
 
-    int indent = fprintf(stderr, "%s:%d:%s: ", current_filename, lineno, kind);
+    int indent = fprintf(stderr, "%s:%d: ", filename, lineno);
     fprintf(stderr, "%.*s\n", (int)(lineend - line), line);
     int pos = loc - line + indent;
     fprintf(stderr, "%*s", pos, ""); // print pos spaces.
@@ -44,19 +47,19 @@ void error_at(char *loc, char *fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
-    verror_at(lineno, "error", loc, fmt, ap);
+    verror_at(current_filename, current_input, lineno, loc, fmt, ap);
     exit(1);
 }
 
 void warn_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_at(tok->lineno, "warning", tok->loc, fmt, ap);
+    verror_at(tok->filename, tok->input, tok->lineno, tok->loc, fmt, ap);
 }
 void error_tok(Token *tok, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    verror_at(tok->lineno, "error", tok->loc, fmt, ap);
+    verror_at(tok->filename, tok->input, tok->lineno, tok->loc, fmt, ap);
     exit(1);
 }
 
@@ -67,6 +70,8 @@ static Token *new_token(Token *cur, TokenKind kind, char *str, int len) {
     tok->kind = kind;
     tok->loc = str;
     tok->len = len;
+    tok->filename = current_filename;
+    tok->input = current_input;
     cur->next = tok;
     return tok;
 }
@@ -115,7 +120,6 @@ static void add_line_info(Token *tok, char *filename, int fileno) {
                 has_space = true;
             }
         }
-        t->filename = filename;
         t->fileno = fileno;
         t->lineno = lineno;
         t->at_bol = at_bol;
@@ -344,6 +348,7 @@ static Token *read_string_literal(Token *cur, char *start) {
 }
 
 Token *tokenize(char *filename, int fileno, char *p) {
+    current_filename = filename;
     current_input = p;
 
     Token head = {};
@@ -470,18 +475,15 @@ static void remove_backslash_newline(char *p) {
 }
 
 Token *tokenize_file(char *path) {
-    char *before_path = current_filename;
-    current_filename = path;
     char *p = read_filestring(path);
     if (!p)
         return NULL;
     remove_backslash_newline(p);
 
     static int fileno;
-    Token *tok = tokenize(path, ++fileno, p);
-    current_filename = before_path;
-    // emit .file directive for assembler
-    if (!opt_E)
-        fprintf(output_file, ".file %d \"%s\"\n", fileno, path);
-    return tok;
+    input_files = realloc(input_files, sizeof(char *) * (fileno + 2));
+    input_files[fileno] = path;
+    input_files[fileno + 1] = NULL;
+    fileno++;
+    return tokenize(path, fileno, p);
 }

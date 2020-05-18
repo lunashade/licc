@@ -3,12 +3,16 @@
 bool opt_E = false;
 bool opt_fpic = true;
 char **include_paths;
-char *input_path;
-char *output_path;
-FILE *output_file;
+char *input_dir;
+FILE *tempfile;
+
+static char *input_path;
+static char *output_path;
+static char *tempfile_path;
 
 static void usage(int code) {
-    fprintf(stderr, "Usage: lcc [-E] [-o <output_path>] <file>\n");
+    fprintf(stderr, "Usage: lcc [-E] [-fpic,-fPIC] [-fno-pic,-fno-PIC] [-o "
+                    "<output_path>] [-I<include_dir>] <file>\n");
     exit(code);
 }
 static void add_include_path(char *path) {
@@ -88,23 +92,36 @@ static void parse_args(int argc, char **argv) {
         output_path = get_output_filename();
 }
 
-static void set_output_file() {
-    if (strcmp(output_path, "-") == 0) {
-        output_file = stdout;
-        return;
+static void copy_file(FILE *in, FILE *out) {
+    char buf[4096];
+    for (;;) {
+        int nr = fread(buf, 1, sizeof(buf), in);
+        if (nr == 0)
+            break;
+        fwrite(buf, 1, nr, out);
     }
-    output_file = fopen(output_path, "w");
-    if (!output_file)
-        error("cannot open output file: %s: %s", output_path, strerror(errno));
+}
+
+static void cleanup(void) {
+    if (tempfile_path)
+        unlink(tempfile_path);
 }
 
 int main(int argc, char **argv) {
     init_macros();
     add_default_include_paths(argv[0]);
     parse_args(argc, argv);
-    set_output_file();
+    atexit(cleanup);
 
-    current_filename = input_path;
+    input_dir = dirname(strdup(input_path));
+
+    tempfile_path = strdup("/tmp/lcc-XXXXXX");
+    int fd = mkstemp(tempfile_path);
+    if (!fd)
+        error("cannot create a temporary file: %s: %s", tempfile_path,
+              strerror(errno));
+    tempfile = fdopen(fd, "w");
+
     Token *tok = read_file(input_path);
     if (opt_E) {
         print_tokens(tok);
@@ -113,5 +130,18 @@ int main(int argc, char **argv) {
 
     Program *prog = parse(tok);
     codegen(prog);
+
+    // Write assembly to output file
+    fseek(tempfile, 0, SEEK_SET);
+    FILE *out;
+    if (strcmp(output_path, "-") == 0)
+        out = stdout;
+    else {
+        out = fopen(output_path, "w");
+        if (!out)
+            error("cannot open output file: %s: %s", output_path,
+                  strerror(errno));
+    }
+    copy_file(tempfile, out);
     return 0;
 }

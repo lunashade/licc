@@ -625,7 +625,7 @@ static char *read_include_path(Token **rest, Token *tok) {
         *rest = skip_line(tok);
         if (file_exists(filename))
             return filename;
-        char *path = pathjoin(dirname(strdup(input_path)), filename);
+        char *path = pathjoin(input_dir, filename);
         if (file_exists(path))
             return path;
         return search_include_paths(filename, start);

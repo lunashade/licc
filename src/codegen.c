@@ -3,6 +3,11 @@
 //
 // Codegen
 //
+static void emitf(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(tempfile, fmt, ap);
+}
 
 // register
 static char *argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -111,11 +116,11 @@ static void load(Type *ty) {
         return;
     }
     if (ty->kind == TY_DOUBLE) {
-        fprintf(output_file, "\tmovsd (%s), %s\n", reg(top - 1), freg(top - 1));
+        emitf("\tmovsd (%s), %s\n", reg(top - 1), freg(top - 1));
         return;
     }
     if (ty->kind == TY_FLOAT) {
-        fprintf(output_file, "\tmovss (%s), %s\n", reg(top - 1), freg(top - 1));
+        emitf("\tmovss (%s), %s\n", reg(top - 1), freg(top - 1));
         return;
     }
     char *rs = reg(top - 1);
@@ -126,14 +131,14 @@ static void load(Type *ty) {
     int sz = size_of(ty);
     char *insn = ty->is_unsigned ? "movz" : "movs";
     if (sz == 1) {
-        fprintf(output_file, "\t%sbl (%s), %s\n", insn, rs, rd);
+        emitf("\t%sbl (%s), %s\n", insn, rs, rd);
     } else if (sz == 2) {
-        fprintf(output_file, "\t%swl (%s), %s\n", insn, rs, rd);
+        emitf("\t%swl (%s), %s\n", insn, rs, rd);
     } else if (sz == 4) {
-        fprintf(output_file, "\tmov (%s), %s\n", rs, rd);
+        emitf("\tmov (%s), %s\n", rs, rd);
     } else {
         assert(sz == 8);
-        fprintf(output_file, "\tmov (%s), %s\n", rs, rd);
+        emitf("\tmov (%s), %s\n", rs, rd);
     }
     return;
 }
@@ -143,8 +148,8 @@ static void store(Type *ty) {
     if (ty->kind == TY_STRUCT) {
         char *rs = reg_pop();
         for (int i = 0; i < size_of(ty); i++) {
-            fprintf(output_file, "\tmov %d(%s), %%al\n", i, rs);
-            fprintf(output_file, "\tmov %%al, %d(%s)\n", i, rd);
+            emitf("\tmov %d(%s), %%al\n", i, rs);
+            emitf("\tmov %%al, %d(%s)\n", i, rd);
         }
         reg_push(); // address to top
         return;
@@ -152,13 +157,13 @@ static void store(Type *ty) {
     if (is_flonum(ty)) {
         char *insn = (ty->kind == TY_FLOAT) ? "movss" : "movsd";
         char *rs = freg(--top);
-        fprintf(output_file, "\t%s %s, (%s)\n", insn, rs, rd);
+        emitf("\t%s %s, (%s)\n", insn, rs, rd);
         reg_push();
         return;
     }
 
     char *rs = reg_pop_sz(size_of(ty));
-    fprintf(output_file, "\tmov %s, (%s)\n", rs, rd);
+    emitf("\tmov %s, (%s)\n", rs, rd);
     reg_push(); // address to top
     return;
 }
@@ -166,13 +171,13 @@ static void store(Type *ty) {
 // compare stack-top value to zero, push 1 or 0 to top
 static void cmpzero(Type *ty) {
     if (ty->kind == TY_FLOAT) {
-        fprintf(output_file, "\txorpd %%xmm0, %%xmm0\n");
-        fprintf(output_file, "\tucomiss %s, %%xmm0\n", freg(--top));
+        emitf("\txorpd %%xmm0, %%xmm0\n");
+        emitf("\tucomiss %s, %%xmm0\n", freg(--top));
     } else if (ty->kind == TY_DOUBLE) {
-        fprintf(output_file, "\txorpd %%xmm0, %%xmm0\n");
-        fprintf(output_file, "\tucomisd %s, %%xmm0\n", freg(--top));
+        emitf("\txorpd %%xmm0, %%xmm0\n");
+        emitf("\tucomisd %s, %%xmm0\n", freg(--top));
     } else {
-        fprintf(output_file, "\tcmp $0, %s\n", regx(ty, --top));
+        emitf("\tcmp $0, %s\n", regx(ty, --top));
     }
 }
 
@@ -187,8 +192,8 @@ static void cast(Type *from, Type *to) {
 
     if (to->kind == TY_BOOL) {
         cmpzero(from);
-        fprintf(output_file, "\tsetne %sb\n", r);
-        fprintf(output_file, "\tmovzx %sb, %s\n", r, r);
+        emitf("\tsetne %sb\n", r);
+        emitf("\tmovzx %sb, %s\n", r, r);
         top++;
         return;
     }
@@ -198,27 +203,27 @@ static void cast(Type *from, Type *to) {
         if (to->kind == TY_FLOAT)
             return;
         if (to->kind == TY_DOUBLE)
-            fprintf(output_file, "\tcvtss2sd %s, %s\n", fr, fr);
+            emitf("\tcvtss2sd %s, %s\n", fr, fr);
         else
-            fprintf(output_file, "\tcvttss2si %s, %s\n", fr, r);
+            emitf("\tcvttss2si %s, %s\n", fr, r);
         return;
     }
     if (from->kind == TY_DOUBLE) {
         if (to->kind == TY_DOUBLE)
             return;
         if (to->kind == TY_FLOAT)
-            fprintf(output_file, "\tcvtsd2ss %s, %s\n", fr, fr);
+            emitf("\tcvtsd2ss %s, %s\n", fr, fr);
         else
-            fprintf(output_file, "\tcvttsd2si %s, %s\n", fr, r);
+            emitf("\tcvttsd2si %s, %s\n", fr, r);
         return;
     }
     // INTEGER -> FLONUM
     if (to->kind == TY_FLOAT) {
-        fprintf(output_file, "\tcvtsi2ss %s, %s\n", r, fr);
+        emitf("\tcvtsi2ss %s, %s\n", r, fr);
         return;
     }
     if (to->kind == TY_DOUBLE) {
-        fprintf(output_file, "\tcvtsi2sd %s, %s\n", r, fr);
+        emitf("\tcvtsi2sd %s, %s\n", r, fr);
         return;
     }
 
@@ -226,13 +231,13 @@ static void cast(Type *from, Type *to) {
     char *insn = to->is_unsigned ? "movzx" : "movsx";
 
     if (size_of(to) == 1) {
-        fprintf(output_file, "\t%s %sb, %s\n", insn, r, r);
+        emitf("\t%s %sb, %s\n", insn, r, r);
     } else if (size_of(to) == 2) {
-        fprintf(output_file, "\t%s %sw, %s\n", insn, r, r);
+        emitf("\t%s %sw, %s\n", insn, r, r);
     } else if (size_of(to) == 4) {
-        fprintf(output_file, "\tmov %sd, %sd\n", r, r);
+        emitf("\tmov %sd, %sd\n", r, r);
     } else if (is_integer(from) && size_of(from) < 8 && !from->is_unsigned) {
-        fprintf(output_file, "\tmovsx %sd, %s\n", r, r);
+        emitf("\tmovsx %sd, %s\n", r, r);
     }
 }
 
@@ -245,19 +250,16 @@ static void gen_stmt(Node *node);
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local) {
-            fprintf(output_file, "\tlea -%d(%%rbp), %s\n", node->var->offset,
-                    reg_push());
+            emitf("\tlea -%d(%%rbp), %s\n", node->var->offset, reg_push());
             return;
         }
         if (!opt_fpic) {
-            fprintf(output_file, "\tmov $%s, %s\n", node->var->name,
-                    reg_push());
+            emitf("\tmov $%s, %s\n", node->var->name, reg_push());
         } else if (node->var->is_static) {
-            fprintf(output_file, "\tlea %s(%%rip), %s\n", node->var->name,
-                    reg_push());
+            emitf("\tlea %s(%%rip), %s\n", node->var->name, reg_push());
         } else {
-            fprintf(output_file, "\tmov %s@GOTPCREL(%%rip), %s\n",
-                    node->var->name, reg_push());
+            emitf("\tmov %s@GOTPCREL(%%rip), %s\n", node->var->name,
+                  reg_push());
         }
         return;
     }
@@ -273,8 +275,7 @@ static void gen_addr(Node *node) {
     }
     if (node->kind == ND_MEMBER) {
         gen_addr(node->lhs);
-        fprintf(output_file, "\tadd $%d, %s\n", node->member->offset,
-                reg_pop());
+        emitf("\tadd $%d, %s\n", node->member->offset, reg_pop());
         reg_push();
         return;
     }
@@ -289,17 +290,17 @@ static void builtin_va_start(Node *node) {
         else
             gp++;
 
-    fprintf(output_file, "\tmov -%d(%%rbp), %%rax\n", node->args[0]->offset);
-    fprintf(output_file, "\tmovl $%d, (%%rax)\n", gp * 8);
-    fprintf(output_file, "\tmovl $%d, 4(%%rax)\n", 48 + fp * 8);
-    fprintf(output_file, "\tmov %%rbp, 16(%%rax)\n");
-    fprintf(output_file, "\tsubq $128, 16(%%rax)\n");
+    emitf("\tmov -%d(%%rbp), %%rax\n", node->args[0]->offset);
+    emitf("\tmovl $%d, (%%rax)\n", gp * 8);
+    emitf("\tmovl $%d, 4(%%rax)\n", 48 + fp * 8);
+    emitf("\tmov %%rbp, 16(%%rax)\n");
+    emitf("\tsubq $128, 16(%%rax)\n");
     top++;
 }
 
 // code generate expression
 static void gen_expr(Node *node) {
-    fprintf(output_file, ".loc %d %d\n", node->tok->fileno, node->tok->lineno);
+    emitf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
     switch (node->kind) {
     case ND_NOP_EXPR:
         top++;
@@ -308,24 +309,24 @@ static void gen_expr(Node *node) {
         switch (node->ty->kind) {
         case TY_FLOAT: {
             float fval = node->fval;
-            fprintf(output_file, "\tmov $%u, %%rax\n", *(int *)&fval);
-            fprintf(output_file, "\tpush %%rax\n");
-            fprintf(output_file, "\tmovss (%%rsp), %s\n", freg(top++));
-            fprintf(output_file, "\tadd $8, %%rsp\n");
+            emitf("\tmov $%u, %%rax\n", *(int *)&fval);
+            emitf("\tpush %%rax\n");
+            emitf("\tmovss (%%rsp), %s\n", freg(top++));
+            emitf("\tadd $8, %%rsp\n");
             return;
         }
         case TY_DOUBLE: {
-            fprintf(output_file, "\tmov $%lu, %%rax\n", *(long *)&node->fval);
-            fprintf(output_file, "\tpush %%rax\n");
-            fprintf(output_file, "\tmovsd (%%rsp), %s\n", freg(top++));
-            fprintf(output_file, "\tadd $8, %%rsp\n");
+            emitf("\tmov $%lu, %%rax\n", *(long *)&node->fval);
+            emitf("\tpush %%rax\n");
+            emitf("\tmovsd (%%rsp), %s\n", freg(top++));
+            emitf("\tadd $8, %%rsp\n");
             return;
         }
         case TY_LONG:
-            fprintf(output_file, "\tmovabs $%lu, %s\n", node->val, reg_push());
+            emitf("\tmovabs $%lu, %s\n", node->val, reg_push());
             return;
         default:
-            fprintf(output_file, "\tmov $%lu, %s\n", node->val, reg_push());
+            emitf("\tmov $%lu, %s\n", node->val, reg_push());
             return;
         }
     case ND_VAR:
@@ -337,13 +338,13 @@ static void gen_expr(Node *node) {
         int label = next_label();
         gen_expr(node->cond);
         cmpzero(node->cond->ty);
-        fprintf(output_file, "\tje .L.else.%d\n", label);
+        emitf("\tje .L.else.%d\n", label);
         gen_expr(node->then);
         top--;
-        fprintf(output_file, "\tjmp .L.end.%d\n", label);
-        fprintf(output_file, ".L.else.%d:\n", label);
+        emitf("\tjmp .L.end.%d\n", label);
+        emitf(".L.else.%d:\n", label);
         gen_expr(node->els);
-        fprintf(output_file, ".L.end.%d:\n", label);
+        emitf(".L.end.%d:\n", label);
         return;
     }
     case ND_CAST:
@@ -367,15 +368,15 @@ static void gen_expr(Node *node) {
         return;
     case ND_BITNOT:
         gen_expr(node->lhs);
-        fprintf(output_file, "\tnot %s\n", reg_pop());
+        emitf("\tnot %s\n", reg_pop());
         reg_push();
         return;
     case ND_NOT: {
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
         char *rd = reg_push();
-        fprintf(output_file, "\tsete %sb\n", rd);
-        fprintf(output_file, "\tmovzx %sb, %s\n", rd, rd);
+        emitf("\tsete %sb\n", rd);
+        emitf("\tmovzx %sb, %s\n", rd, rd);
         return;
     }
     case ND_LOGOR: {
@@ -383,17 +384,17 @@ static void gen_expr(Node *node) {
 
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
-        fprintf(output_file, "\tjne .L.true.%d\n", label);
+        emitf("\tjne .L.true.%d\n", label);
         gen_expr(node->rhs);
         cmpzero(node->rhs->ty);
-        fprintf(output_file, "\tjne .L.true.%d\n", label);
+        emitf("\tjne .L.true.%d\n", label);
 
         char *rd = reg_push();
-        fprintf(output_file, "\tmov $0, %s\n", rd);
-        fprintf(output_file, "\tjmp .L.end.%d\n", label);
-        fprintf(output_file, ".L.true.%d:\n", label);
-        fprintf(output_file, "\tmov $1, %s\n", rd);
-        fprintf(output_file, ".L.end.%d:\n", label);
+        emitf("\tmov $0, %s\n", rd);
+        emitf("\tjmp .L.end.%d\n", label);
+        emitf(".L.true.%d:\n", label);
+        emitf("\tmov $1, %s\n", rd);
+        emitf(".L.end.%d:\n", label);
         return;
     }
     case ND_LOGAND: {
@@ -401,17 +402,17 @@ static void gen_expr(Node *node) {
 
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
-        fprintf(output_file, "\tje .L.false.%d\n", label);
+        emitf("\tje .L.false.%d\n", label);
         gen_expr(node->rhs);
         cmpzero(node->rhs->ty);
-        fprintf(output_file, "\tje .L.false.%d\n", label);
+        emitf("\tje .L.false.%d\n", label);
 
         char *rd = reg_push();
-        fprintf(output_file, "\tmov $1, %s\n", rd);
-        fprintf(output_file, "\tjmp .L.end.%d\n", label);
-        fprintf(output_file, ".L.false.%d:\n", label);
-        fprintf(output_file, "\tmov $0, %s\n", rd);
-        fprintf(output_file, ".L.end.%d:\n", label);
+        emitf("\tmov $1, %s\n", rd);
+        emitf("\tjmp .L.end.%d\n", label);
+        emitf(".L.false.%d:\n", label);
+        emitf("\tmov $0, %s\n", rd);
+        emitf(".L.end.%d:\n", label);
         return;
     }
     case ND_COMMA:
@@ -432,15 +433,15 @@ static void gen_expr(Node *node) {
             return;
         }
 
-        fprintf(output_file, "\tsub $64, %%rsp\n");
-        fprintf(output_file, "\tmov %%r10, (%%rsp)\n");
-        fprintf(output_file, "\tmov %%r11, 8(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm8, 16(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm9, 24(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm10, 32(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm11, 40(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm12, 48(%%rsp)\n");
-        fprintf(output_file, "\tmovsd %%xmm13, 56(%%rsp)\n");
+        emitf("\tsub $64, %%rsp\n");
+        emitf("\tmov %%r10, (%%rsp)\n");
+        emitf("\tmov %%r11, 8(%%rsp)\n");
+        emitf("\tmovsd %%xmm8, 16(%%rsp)\n");
+        emitf("\tmovsd %%xmm9, 24(%%rsp)\n");
+        emitf("\tmovsd %%xmm10, 32(%%rsp)\n");
+        emitf("\tmovsd %%xmm11, 40(%%rsp)\n");
+        emitf("\tmovsd %%xmm12, 48(%%rsp)\n");
+        emitf("\tmovsd %%xmm13, 56(%%rsp)\n");
         gen_expr(node->lhs);
 
         // push arguments then pop to register
@@ -449,11 +450,9 @@ static void gen_expr(Node *node) {
             Var *arg = node->args[i];
             if (is_flonum(arg->ty)) {
                 if (arg->ty->kind == TY_FLOAT) {
-                    fprintf(output_file, "\tmovss -%d(%%rbp), %%xmm%d\n",
-                            arg->offset, fp++);
+                    emitf("\tmovss -%d(%%rbp), %%xmm%d\n", arg->offset, fp++);
                 } else {
-                    fprintf(output_file, "\tmovsd -%d(%%rbp), %%xmm%d\n",
-                            arg->offset, fp++);
+                    emitf("\tmovsd -%d(%%rbp), %%xmm%d\n", arg->offset, fp++);
                 }
                 continue;
             }
@@ -461,46 +460,46 @@ static void gen_expr(Node *node) {
             char *insn = (arg->ty->is_unsigned) ? "movz" : "movs";
             switch (sz) {
             case 1:
-                fprintf(output_file, "\t%sbl -%d(%%rbp), %s\n", insn,
-                        arg->offset, argregx(arg->ty, i));
+                emitf("\t%sbl -%d(%%rbp), %s\n", insn, arg->offset,
+                      argregx(arg->ty, i));
                 break;
             case 2:
-                fprintf(output_file, "\t%swl -%d(%%rbp), %s\n", insn,
-                        arg->offset, argregx(arg->ty, i));
+                emitf("\t%swl -%d(%%rbp), %s\n", insn, arg->offset,
+                      argregx(arg->ty, i));
                 break;
             case 4:
-                fprintf(output_file, "\tmovl -%d(%%rbp), %s\n", arg->offset,
-                        argregx(arg->ty, i));
+                emitf("\tmovl -%d(%%rbp), %s\n", arg->offset,
+                      argregx(arg->ty, i));
                 break;
             default:
                 assert(sz == 8);
-                fprintf(output_file, "\tmov -%d(%%rbp), %s\n", arg->offset,
-                        argregx(arg->ty, i));
+                emitf("\tmov -%d(%%rbp), %s\n", arg->offset,
+                      argregx(arg->ty, i));
                 break;
             }
         }
 
-        fprintf(output_file, "\tmov $%d, %%rax\n", fp);
-        fprintf(output_file, "\tcall *%s\n", reg(--top));
+        emitf("\tmov $%d, %%rax\n", fp);
+        emitf("\tcall *%s\n", reg(--top));
         if (node->ty->kind == TY_BOOL)
-            fprintf(output_file, "\tmovzx %%al, %%eax\n");
+            emitf("\tmovzx %%al, %%eax\n");
 
-        fprintf(output_file, "\tmov (%%rsp), %%r10\n");
-        fprintf(output_file, "\tmov 8(%%rsp), %%r11\n");
-        fprintf(output_file, "\tmovsd 16(%%rsp), %%xmm8\n");
-        fprintf(output_file, "\tmovsd 24(%%rsp), %%xmm9\n");
-        fprintf(output_file, "\tmovsd 32(%%rsp), %%xmm10\n");
-        fprintf(output_file, "\tmovsd 40(%%rsp), %%xmm11\n");
-        fprintf(output_file, "\tmovsd 48(%%rsp), %%xmm12\n");
-        fprintf(output_file, "\tmovsd 56(%%rsp), %%xmm13\n");
-        fprintf(output_file, "\tadd $64, %%rsp\n");
+        emitf("\tmov (%%rsp), %%r10\n");
+        emitf("\tmov 8(%%rsp), %%r11\n");
+        emitf("\tmovsd 16(%%rsp), %%xmm8\n");
+        emitf("\tmovsd 24(%%rsp), %%xmm9\n");
+        emitf("\tmovsd 32(%%rsp), %%xmm10\n");
+        emitf("\tmovsd 40(%%rsp), %%xmm11\n");
+        emitf("\tmovsd 48(%%rsp), %%xmm12\n");
+        emitf("\tmovsd 56(%%rsp), %%xmm13\n");
+        emitf("\tadd $64, %%rsp\n");
 
         if (node->ty->kind == TY_FLOAT) {
-            fprintf(output_file, "\tmovss %%xmm0, %s\n", freg(top++));
+            emitf("\tmovss %%xmm0, %s\n", freg(top++));
         } else if (node->ty->kind == TY_DOUBLE) {
-            fprintf(output_file, "\tmovsd %%xmm0, %s\n", freg(top++));
+            emitf("\tmovsd %%xmm0, %s\n", freg(top++));
         } else {
-            fprintf(output_file, "\tmov %%rax, %s\n", reg(top++));
+            emitf("\tmov %%rax, %s\n", reg(top++));
         }
         return;
     }
@@ -517,176 +516,176 @@ static void gen_expr(Node *node) {
     top--;
 
     if (node->kind == ND_SHL) {
-        fprintf(output_file, "\tmov %s, %%rcx\n",
-                reg(top)); // rs with 8-bit register
-        fprintf(output_file, "\tshl %%cl, %s\n", rd);
+        emitf("\tmov %s, %%rcx\n",
+              reg(top)); // rs with 8-bit register
+        emitf("\tshl %%cl, %s\n", rd);
         return;
     }
     if (node->kind == ND_SHR) {
-        fprintf(output_file, "\tmov %s, %%rcx\n",
-                reg(top)); // rs with 8-bit register
+        emitf("\tmov %s, %%rcx\n",
+              reg(top)); // rs with 8-bit register
         if (node->ty->is_unsigned)
-            fprintf(output_file, "\tshr %%cl, %s\n", rd);
+            emitf("\tshr %%cl, %s\n", rd);
         else
-            fprintf(output_file, "\tsar %%cl, %s\n", rd);
+            emitf("\tsar %%cl, %s\n", rd);
         return;
     }
     if (node->kind == ND_ADD) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "addss" : "addsd";
-            fprintf(output_file, "\t%s %s, %s\n", insn, fs, fd);
+            emitf("\t%s %s, %s\n", insn, fs, fd);
             return;
         }
-        fprintf(output_file, "\tadd %s, %s\n", rs, rd);
+        emitf("\tadd %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_SUB) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "subss" : "subsd";
-            fprintf(output_file, "\t%s %s, %s\n", insn, fs, fd);
+            emitf("\t%s %s, %s\n", insn, fs, fd);
             return;
         }
-        fprintf(output_file, "\tsub %s, %s\n", rs, rd);
+        emitf("\tsub %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_MUL) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "mulss" : "mulsd";
-            fprintf(output_file, "\t%s %s, %s\n", insn, fs, fd);
+            emitf("\t%s %s, %s\n", insn, fs, fd);
             return;
         }
-        fprintf(output_file, "\timul %s, %s\n", rs, rd);
+        emitf("\timul %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_DIV) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "divss" : "divsd";
-            fprintf(output_file, "\t%s %s, %s\n", insn, fs, fd);
+            emitf("\t%s %s, %s\n", insn, fs, fd);
             return;
         }
         if (size_of(node->ty) == 8) {
-            fprintf(output_file, "\tmov %s, %%rax\n", rd);
+            emitf("\tmov %s, %%rax\n", rd);
             if (node->ty->is_unsigned) {
-                fprintf(output_file, "\tmov $0, %%rdx\n");
-                fprintf(output_file, "\tdiv %s\n", rs);
+                emitf("\tmov $0, %%rdx\n");
+                emitf("\tdiv %s\n", rs);
             } else {
-                fprintf(output_file, "\tcqo\n");
-                fprintf(output_file, "\tidiv %s\n", rs);
+                emitf("\tcqo\n");
+                emitf("\tidiv %s\n", rs);
             }
-            fprintf(output_file, "\tmov %%rax, %s\n", rd);
+            emitf("\tmov %%rax, %s\n", rd);
         } else {
-            fprintf(output_file, "\tmov %s, %%eax\n", rd);
+            emitf("\tmov %s, %%eax\n", rd);
             if (node->ty->is_unsigned) {
-                fprintf(output_file, "\tmov $0, %%edx\n");
-                fprintf(output_file, "\tdiv %s\n", rs);
+                emitf("\tmov $0, %%edx\n");
+                emitf("\tdiv %s\n", rs);
             } else {
-                fprintf(output_file, "\tcdq\n");
-                fprintf(output_file, "\tidiv %s\n", rs);
+                emitf("\tcdq\n");
+                emitf("\tidiv %s\n", rs);
             }
-            fprintf(output_file, "\tmov %%eax, %s\n", rd);
+            emitf("\tmov %%eax, %s\n", rd);
         }
         return;
     }
     if (node->kind == ND_MOD) {
         if (size_of(node->ty) == 8) {
-            fprintf(output_file, "\tmov %s, %%rax\n", rd);
+            emitf("\tmov %s, %%rax\n", rd);
             if (node->ty->is_unsigned) {
-                fprintf(output_file, "\tmov $0, %%rdx\n");
-                fprintf(output_file, "\tdiv %s\n", rs);
+                emitf("\tmov $0, %%rdx\n");
+                emitf("\tdiv %s\n", rs);
             } else {
-                fprintf(output_file, "\tcqo\n");
-                fprintf(output_file, "\tidiv %s\n", rs);
+                emitf("\tcqo\n");
+                emitf("\tidiv %s\n", rs);
             }
-            fprintf(output_file, "\tmov %%rdx, %s\n", rd);
+            emitf("\tmov %%rdx, %s\n", rd);
         } else {
-            fprintf(output_file, "\tmov %s, %%eax\n", rd);
+            emitf("\tmov %s, %%eax\n", rd);
             if (node->ty->is_unsigned) {
-                fprintf(output_file, "\tmov $0, %%edx\n");
-                fprintf(output_file, "\tdiv %s\n", rs);
+                emitf("\tmov $0, %%edx\n");
+                emitf("\tdiv %s\n", rs);
             } else {
-                fprintf(output_file, "\tcdq\n");
-                fprintf(output_file, "\tidiv %s\n", rs);
+                emitf("\tcdq\n");
+                emitf("\tidiv %s\n", rs);
             }
-            fprintf(output_file, "\tmov %%edx, %s\n", rd);
+            emitf("\tmov %%edx, %s\n", rd);
         }
         return;
     }
     if (node->kind == ND_OR) {
-        fprintf(output_file, "\tor %s, %s\n", rs, rd);
+        emitf("\tor %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_AND) {
-        fprintf(output_file, "\tand %s, %s\n", rs, rd);
+        emitf("\tand %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_XOR) {
-        fprintf(output_file, "\txor %s, %s\n", rs, rd);
+        emitf("\txor %s, %s\n", rs, rd);
         return;
     }
     if (node->kind == ND_EQ) {
         if (node->lhs->ty->kind == TY_FLOAT)
-            fprintf(output_file, "\tucomiss %s, %s\n", fs, fd);
+            emitf("\tucomiss %s, %s\n", fs, fd);
         else if (node->lhs->ty->kind == TY_DOUBLE)
-            fprintf(output_file, "\tucomisd %s, %s\n", fs, fd);
+            emitf("\tucomisd %s, %s\n", fs, fd);
         else
-            fprintf(output_file, "\tcmp %s, %s\n", rs, rd);
+            emitf("\tcmp %s, %s\n", rs, rd);
 
-        fprintf(output_file, "\tsete %%al\n");
-        fprintf(output_file, "\tmovzx %%al, %s\n", rd);
+        emitf("\tsete %%al\n");
+        emitf("\tmovzx %%al, %s\n", rd);
         return;
     }
     if (node->kind == ND_NE) {
         if (node->lhs->ty->kind == TY_FLOAT)
-            fprintf(output_file, "\tucomiss %s, %s\n", fs, fd);
+            emitf("\tucomiss %s, %s\n", fs, fd);
         else if (node->lhs->ty->kind == TY_DOUBLE)
-            fprintf(output_file, "\tucomisd %s, %s\n", fs, fd);
+            emitf("\tucomisd %s, %s\n", fs, fd);
         else
-            fprintf(output_file, "\tcmp %s, %s\n", rs, rd);
-        fprintf(output_file, "\tsetne %%al\n");
-        fprintf(output_file, "\tmovzx %%al, %s\n", rd);
+            emitf("\tcmp %s, %s\n", rs, rd);
+        emitf("\tsetne %%al\n");
+        emitf("\tmovzx %%al, %s\n", rd);
         return;
     }
     if (node->kind == ND_LT) {
         if (node->lhs->ty->kind == TY_FLOAT) {
-            fprintf(output_file, "\tucomiss %s, %s\n", fs, fd);
-            fprintf(output_file, "\tsetb %%al\n");
+            emitf("\tucomiss %s, %s\n", fs, fd);
+            emitf("\tsetb %%al\n");
         } else if (node->lhs->ty->kind == TY_DOUBLE) {
-            fprintf(output_file, "\tucomisd %s, %s\n", fs, fd);
-            fprintf(output_file, "\tsetb %%al\n");
+            emitf("\tucomisd %s, %s\n", fs, fd);
+            emitf("\tsetb %%al\n");
         } else {
-            fprintf(output_file, "\tcmp %s, %s\n", rs, rd);
+            emitf("\tcmp %s, %s\n", rs, rd);
             if (node->lhs->ty->is_unsigned) {
-                fprintf(output_file, "\tsetb %%al\n");
+                emitf("\tsetb %%al\n");
             } else {
-                fprintf(output_file, "\tsetl %%al\n");
+                emitf("\tsetl %%al\n");
             }
         }
-        fprintf(output_file, "\tmovzx %%al, %s\n", rd);
+        emitf("\tmovzx %%al, %s\n", rd);
         return;
     }
     if (node->kind == ND_LE) {
         if (node->lhs->ty->kind == TY_FLOAT) {
-            fprintf(output_file, "\tucomiss %s, %s\n", fs, fd);
-            fprintf(output_file, "\tsetbe %%al\n");
+            emitf("\tucomiss %s, %s\n", fs, fd);
+            emitf("\tsetbe %%al\n");
         } else if (node->lhs->ty->kind == TY_DOUBLE) {
-            fprintf(output_file, "\tucomisd %s, %s\n", fs, fd);
-            fprintf(output_file, "\tsetbe %%al\n");
+            emitf("\tucomisd %s, %s\n", fs, fd);
+            emitf("\tsetbe %%al\n");
         } else {
-            fprintf(output_file, "\tcmp %s, %s\n", rs, rd);
+            emitf("\tcmp %s, %s\n", rs, rd);
             if (node->lhs->ty->is_unsigned) {
-                fprintf(output_file, "\tsetbe %%al\n");
+                emitf("\tsetbe %%al\n");
             } else {
-                fprintf(output_file, "\tsetle %%al\n");
+                emitf("\tsetle %%al\n");
             }
         }
-        fprintf(output_file, "\tmovzx %%al, %s\n", rd);
+        emitf("\tmovzx %%al, %s\n", rd);
         return;
     }
     error_tok(node->tok, "codegen: gen_expr: invalid expression");
 }
 
 static void gen_stmt(Node *node) {
-    fprintf(output_file, ".loc %d %d\n", node->tok->fileno, node->tok->lineno);
+    emitf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
     if (node->kind == ND_BLOCK) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
@@ -706,25 +705,24 @@ static void gen_stmt(Node *node) {
         for (Node *n = node->case_next; n; n = n->case_next) {
             n->case_label = next_label();
             n->case_end_label = label;
-            fprintf(output_file, "\tcmp $%ld, %s\n", n->val, rd);
-            fprintf(output_file, "\tje .L.case.%d\n", n->case_label);
+            emitf("\tcmp $%ld, %s\n", n->val, rd);
+            emitf("\tje .L.case.%d\n", n->case_label);
         }
         if (node->default_case) {
             node->default_case->case_label = next_label();
             node->default_case->case_end_label = label;
-            fprintf(output_file, "\tjmp .L.case.%d\n",
-                    node->default_case->case_label);
+            emitf("\tjmp .L.case.%d\n", node->default_case->case_label);
         }
 
-        fprintf(output_file, "\tjmp .L.break.%d\n", label);
+        emitf("\tjmp .L.break.%d\n", label);
         gen_stmt(node->then);
-        fprintf(output_file, "\t.L.break.%d:\n", label);
+        emitf("\t.L.break.%d:\n", label);
 
         breaklabel = brk;
         return;
     }
     if (node->kind == ND_CASE) {
-        fprintf(output_file, ".L.case.%d:\n", node->case_label);
+        emitf(".L.case.%d:\n", node->case_label);
         gen_stmt(node->then);
         return;
     }
@@ -732,12 +730,12 @@ static void gen_stmt(Node *node) {
         if (node->lhs) {
             gen_expr(node->lhs);
             if (is_flonum(node->lhs->ty)) {
-                fprintf(output_file, "\tmovsd %s, %%xmm0\n", freg(--top));
+                emitf("\tmovsd %s, %%xmm0\n", freg(--top));
             } else {
-                fprintf(output_file, "\tmov %s, %%rax\n", reg(--top));
+                emitf("\tmov %s, %%rax\n", reg(--top));
             }
         }
-        fprintf(output_file, "\tjmp .L.return.%s\n", current_fn->name);
+        emitf("\tjmp .L.return.%s\n", current_fn->name);
         return;
     }
     if (node->kind == ND_DO) {
@@ -746,13 +744,13 @@ static void gen_stmt(Node *node) {
         int cnt = continuelabel;
         continuelabel = breaklabel = label;
 
-        fprintf(output_file, ".L.begin.%d:\n", label);
+        emitf(".L.begin.%d:\n", label);
         gen_stmt(node->then);
-        fprintf(output_file, ".L.continue.%d:\n", label);
+        emitf(".L.continue.%d:\n", label);
         gen_expr(node->cond);
         cmpzero(node->cond->ty);
-        fprintf(output_file, "\tjne .L.begin.%d\n", label);
-        fprintf(output_file, ".L.break.%d:\n", label);
+        emitf("\tjne .L.begin.%d\n", label);
+        emitf(".L.break.%d:\n", label);
 
         continuelabel = cnt;
         breaklabel = brk;
@@ -766,18 +764,18 @@ static void gen_stmt(Node *node) {
 
         if (node->init)
             gen_stmt(node->init);
-        fprintf(output_file, ".L.begin.%d:\n", lfor);
+        emitf(".L.begin.%d:\n", lfor);
         if (node->cond) {
             gen_expr(node->cond);
             cmpzero(node->cond->ty);
-            fprintf(output_file, "\tje .L.break.%d\n", lfor);
+            emitf("\tje .L.break.%d\n", lfor);
         }
         gen_stmt(node->then);
-        fprintf(output_file, ".L.continue.%d:\n", lfor);
+        emitf(".L.continue.%d:\n", lfor);
         if (node->inc)
             gen_stmt(node->inc);
-        fprintf(output_file, "\tjmp .L.begin.%d\n", lfor);
-        fprintf(output_file, ".L.break.%d:\n", lfor);
+        emitf("\tjmp .L.begin.%d\n", lfor);
+        emitf(".L.break.%d:\n", lfor);
 
         continuelabel = pastcnt;
         breaklabel = pastbrk;
@@ -787,14 +785,14 @@ static void gen_stmt(Node *node) {
         if (continuelabel == 0) {
             error_tok(node->tok, "codegen: stray continue");
         }
-        fprintf(output_file, "\tjmp .L.continue.%d\n", continuelabel);
+        emitf("\tjmp .L.continue.%d\n", continuelabel);
         return;
     }
     if (node->kind == ND_BREAK) {
         if (breaklabel == 0) {
             error_tok(node->tok, "codegen: stray break");
         }
-        fprintf(output_file, "\tjmp .L.break.%d\n", breaklabel);
+        emitf("\tjmp .L.break.%d\n", breaklabel);
         return;
     }
     if (node->kind == ND_IF) {
@@ -802,26 +800,24 @@ static void gen_stmt(Node *node) {
         cmpzero(node->cond->ty);
         int lif = next_label();
         if (node->els) {
-            fprintf(output_file, "\tje .L.els.%d\n", lif);
+            emitf("\tje .L.els.%d\n", lif);
             gen_stmt(node->then);
-            fprintf(output_file, "\tjmp .L.end.%d\n", lif);
-            fprintf(output_file, ".L.els.%d:\n", lif);
+            emitf("\tjmp .L.end.%d\n", lif);
+            emitf(".L.els.%d:\n", lif);
             gen_stmt(node->els);
         } else {
-            fprintf(output_file, "\tje .L.end.%d\n", lif);
+            emitf("\tje .L.end.%d\n", lif);
             gen_stmt(node->then);
         }
-        fprintf(output_file, ".L.end.%d:\n", lif);
+        emitf(".L.end.%d:\n", lif);
         return;
     }
     if (node->kind == ND_GOTO) {
-        fprintf(output_file, "\tjmp .L.label.%s.%s\n", current_fn->name,
-                node->labelname);
+        emitf("\tjmp .L.label.%s.%s\n", current_fn->name, node->labelname);
         return;
     }
     if (node->kind == ND_LABEL) {
-        fprintf(output_file, "\t.L.label.%s.%s:\n", current_fn->name,
-                node->labelname);
+        emitf("\t.L.label.%s.%s:\n", current_fn->name, node->labelname);
         gen_stmt(node->lhs);
         return;
     }
@@ -834,31 +830,31 @@ static void gen_stmt(Node *node) {
 }
 
 static void emit_string_literal(char *contents, int len) {
-    fprintf(output_file, "\t.ascii \"");
+    emitf("\t.ascii \"");
     for (int i = 0; i < len; i++) {
         char c = contents[i];
         if (iscntrl(c) || c == '\"' || c == '\\') {
             char d1 = c / 64;
             char d2 = (c % 64) / 8;
             char d3 = (c % 8);
-            fprintf(output_file, "\\%d%d%d", d1, d2, d3);
+            emitf("\\%d%d%d", d1, d2, d3);
         } else {
-            fprintf(output_file, "%c", c);
+            emitf("%c", c);
         }
     }
-    fprintf(output_file, "\"\n");
+    emitf("\"\n");
 }
 
 static void emit_bss(Program *prog) {
-    fprintf(output_file, ".bss\n");
+    emitf(".bss\n");
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (gv->contents)
             continue;
-        fprintf(output_file, ".align %d\n", gv->align);
+        emitf(".align %d\n", gv->align);
         if (!gv->is_static)
-            fprintf(output_file, ".globl %s\n", gv->name);
-        fprintf(output_file, "%s:\n", gv->name);
-        fprintf(output_file, "\t.zero %d\n", size_of(gv->ty));
+            emitf(".globl %s\n", gv->name);
+        emitf("%s:\n", gv->name);
+        emitf("\t.zero %d\n", size_of(gv->ty));
     }
 }
 
@@ -867,26 +863,25 @@ static void emit_init_data(Var *var) {
     int pos = 0;
     while (pos < size_of(var->ty)) {
         if (reloc && reloc->offset == pos) {
-            fprintf(output_file, "\t.quad %s+%ld\n", reloc->label,
-                    reloc->addend);
+            emitf("\t.quad %s+%ld\n", reloc->label, reloc->addend);
             reloc = reloc->next;
             pos += 8;
         } else {
-            fprintf(output_file, "\t.byte %d\n", var->contents[pos++]);
+            emitf("\t.byte %d\n", var->contents[pos++]);
         }
     }
 }
 
 static void emit_data(Program *prog) {
-    fprintf(output_file, ".data\n");
+    emitf(".data\n");
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (!gv->contents)
             continue;
-        fprintf(output_file, ".align %d\n", gv->align);
+        emitf(".align %d\n", gv->align);
         if (!gv->is_static)
-            fprintf(output_file, ".globl %s\n", gv->name);
-        fprintf(output_file, "%s:\n", gv->name);
+            emitf(".globl %s\n", gv->name);
+        emitf("%s:\n", gv->name);
         if (gv->ascii)
             emit_string_literal(gv->contents, size_of(gv->ty));
         else
@@ -895,38 +890,38 @@ static void emit_data(Program *prog) {
 }
 
 static void emit_text(Program *prog) {
-    fprintf(output_file, ".text\n");
+    emitf(".text\n");
     for (Function *fn = prog->fns; fn; fn = fn->next) {
         if (!fn->is_static)
-            fprintf(output_file, ".globl %s\n", fn->name);
-        fprintf(output_file, "%s:\n", fn->name);
+            emitf(".globl %s\n", fn->name);
+        emitf("%s:\n", fn->name);
         current_fn = fn;
 
         // prologue
         // save stack pointer
-        fprintf(output_file, "\tpush %%rbp\n");
-        fprintf(output_file, "\tmov %%rsp, %%rbp\n");
-        fprintf(output_file, "\tsub $%d, %%rsp\n", fn->stacksize);
+        emitf("\tpush %%rbp\n");
+        emitf("\tmov %%rsp, %%rbp\n");
+        emitf("\tsub $%d, %%rsp\n", fn->stacksize);
         // save callee-saved registers
-        fprintf(output_file, "\tmov %%r12, -8(%%rbp)\n");
-        fprintf(output_file, "\tmov %%r13, -16(%%rbp)\n");
-        fprintf(output_file, "\tmov %%r14, -24(%%rbp)\n");
-        fprintf(output_file, "\tmov %%r15, -32(%%rbp)\n");
+        emitf("\tmov %%r12, -8(%%rbp)\n");
+        emitf("\tmov %%r13, -16(%%rbp)\n");
+        emitf("\tmov %%r14, -24(%%rbp)\n");
+        emitf("\tmov %%r15, -32(%%rbp)\n");
 
         if (fn->is_variadic) {
-            fprintf(output_file, "\tmov %%rdi, -128(%%rbp)\n");
-            fprintf(output_file, "\tmov %%rsi, -120(%%rbp)\n");
-            fprintf(output_file, "\tmov %%rdx, -112(%%rbp)\n");
-            fprintf(output_file, "\tmov %%rcx, -104(%%rbp)\n");
-            fprintf(output_file, "\tmov %%r8, -96(%%rbp)\n");
-            fprintf(output_file, "\tmov %%r9, -88(%%rbp)\n");
+            emitf("\tmov %%rdi, -128(%%rbp)\n");
+            emitf("\tmov %%rsi, -120(%%rbp)\n");
+            emitf("\tmov %%rdx, -112(%%rbp)\n");
+            emitf("\tmov %%rcx, -104(%%rbp)\n");
+            emitf("\tmov %%r8, -96(%%rbp)\n");
+            emitf("\tmov %%r9, -88(%%rbp)\n");
 
-            fprintf(output_file, "\tmovsd %%xmm0, -80(%%rbp)\n");
-            fprintf(output_file, "\tmovsd %%xmm1, -72(%%rbp)\n");
-            fprintf(output_file, "\tmovsd %%xmm2, -64(%%rbp)\n");
-            fprintf(output_file, "\tmovsd %%xmm3, -56(%%rbp)\n");
-            fprintf(output_file, "\tmovsd %%xmm4, -48(%%rbp)\n");
-            fprintf(output_file, "\tmovsd %%xmm5, -40(%%rbp)\n");
+            emitf("\tmovsd %%xmm0, -80(%%rbp)\n");
+            emitf("\tmovsd %%xmm1, -72(%%rbp)\n");
+            emitf("\tmovsd %%xmm2, -64(%%rbp)\n");
+            emitf("\tmovsd %%xmm3, -56(%%rbp)\n");
+            emitf("\tmovsd %%xmm4, -48(%%rbp)\n");
+            emitf("\tmovsd %%xmm5, -40(%%rbp)\n");
         }
         // push arguments to the stack
         int gp = 0, fp = 0;
@@ -938,14 +933,12 @@ static void emit_text(Program *prog) {
         }
         for (Var *v = fn->params; v; v = v->next) {
             if (v->ty->kind == TY_FLOAT) {
-                fprintf(output_file, "\tmovss %%xmm%d, -%d(%%rbp)\n", --fp,
-                        v->offset);
+                emitf("\tmovss %%xmm%d, -%d(%%rbp)\n", --fp, v->offset);
             } else if (v->ty->kind == TY_DOUBLE) {
-                fprintf(output_file, "\tmovsd %%xmm%d, -%d(%%rbp)\n", --fp,
-                        v->offset);
+                emitf("\tmovsd %%xmm%d, -%d(%%rbp)\n", --fp, v->offset);
             } else {
-                fprintf(output_file, "\tmov %s, -%d(%%rbp)\n",
-                        argreg(size_of(v->ty), --gp), v->offset);
+                emitf("\tmov %s, -%d(%%rbp)\n", argreg(size_of(v->ty), --gp),
+                      v->offset);
             }
         }
         for (Node *n = fn->node; n; n = n->next) {
@@ -956,19 +949,23 @@ static void emit_text(Program *prog) {
 
         // Epilogue
         // recover callee-saved registers
-        fprintf(output_file, ".L.return.%s:\n", current_fn->name);
-        fprintf(output_file, "\tmov -8(%%rbp), %%r12\n");
-        fprintf(output_file, "\tmov -16(%%rbp), %%r13\n");
-        fprintf(output_file, "\tmov -24(%%rbp), %%r14\n");
-        fprintf(output_file, "\tmov -32(%%rbp), %%r15\n");
+        emitf(".L.return.%s:\n", current_fn->name);
+        emitf("\tmov -8(%%rbp), %%r12\n");
+        emitf("\tmov -16(%%rbp), %%r13\n");
+        emitf("\tmov -24(%%rbp), %%r14\n");
+        emitf("\tmov -32(%%rbp), %%r15\n");
         // recover stack pointer
-        fprintf(output_file, "\tmov %%rbp, %%rsp\n");
-        fprintf(output_file, "\tpop %%rbp\n");
-        fprintf(output_file, "\tret\n");
+        emitf("\tmov %%rbp, %%rsp\n");
+        emitf("\tpop %%rbp\n");
+        emitf("\tret\n");
     }
 }
 
 void codegen(Program *prog) {
+    char **paths = get_input_files();
+    for (int i = 0; paths[i]; i++)
+        emitf("\t.file %d \"%s\"\n", i + 1, paths[i]);
+
     for (Function *fn = prog->fns; fn; fn = fn->next) {
         // calle-saved registers take 32 bytes
         // and variable-argument save area takes 8 * 6 * 2 = 96 bytes.
