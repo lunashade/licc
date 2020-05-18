@@ -16,6 +16,7 @@
 
 extern bool opt_E;
 extern char **include_paths;
+extern char *input_path;
 extern FILE *output_file;
 
 typedef struct Type Type;

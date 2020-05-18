@@ -12,6 +12,15 @@ static bool file_exists(char *path) {
     return !stat(path, &st);
 }
 
+static char *dirname(char *path) {
+    char *dir = strdup(path);
+    char *p = strrchr(dir, '/');
+    if (!p)
+        return NULL;
+    *p = '\0';
+    return dir;
+}
+
 // Token
 static Token *copy_token(Token *tok) {
     Token *tok2 = malloc(sizeof(Token));
@@ -618,13 +627,20 @@ static char *read_include_path(Token **rest, Token *tok) {
     if (tok->kind == TK_STR) {
         // Do not escape
         Token *start = tok;
+        char *dir = dirname(input_path);
         char *filename = strndup(tok->loc + 1, tok->len - 2);
+        char *path;
+        if (dir) {
+            path = pathjoin(dir, filename);
+        } else {
+            path = filename;
+        }
         tok = tok->next;
         if (!tok->at_bol)
             warn_tok(tok, "preprocess: extra tokens after include directive");
         *rest = skip_line(tok);
-        if (file_exists(filename))
-            return filename;
+        if (file_exists(path))
+            return path;
         return search_include_paths(filename, start);
     }
     // #include <foo.h>

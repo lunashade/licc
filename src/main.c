@@ -10,6 +10,14 @@ static void usage(int code) {
     fprintf(stderr, "Usage: lcc [-E] [-o <output_path>] <file>\n");
     exit(code);
 }
+static void add_include_path(char *path) {
+    static int len = 2;
+    include_paths = realloc(include_paths, sizeof(char *) * len);
+    include_paths[len - 2] = path;
+    include_paths[len - 1] = NULL;
+    len++;
+}
+
 static char *get_output_filename() {
     char *filename = basename(strdup(input_path));
     int len = strlen(filename);
@@ -27,7 +35,6 @@ static char *get_output_filename() {
 static void parse_args(int argc, char **argv) {
     input_path = NULL;
     output_path = NULL;
-    include_paths = malloc(sizeof(char *) * argc);
     int npaths = 0;
 
     for (int i = 0; i < argc; i++) {
@@ -46,7 +53,7 @@ static void parse_args(int argc, char **argv) {
             continue;
         }
         if (!strncmp(argv[i], "-I", 2)) {
-            include_paths[npaths++] = argv[i] + 2;
+            add_include_path(argv[i] + 2);
             continue;
         }
 
@@ -55,7 +62,6 @@ static void parse_args(int argc, char **argv) {
         }
         input_path = argv[i];
     }
-    include_paths[npaths] = NULL;
     if (!input_path)
         error("no input file");
     if (!output_path)
