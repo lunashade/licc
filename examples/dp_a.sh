@@ -2,9 +2,9 @@
 
 cd $(dirname $0)/..
 
-make lcc
-./lcc examples/dp_a/main.c > tmp.s || exit
-cc -static -o tmp_dp tmp.s
+make bin/lcc
+bin/lcc -c examples/dp_a/main.c -o tmp.o
+gcc -o tmp_dp tmp.o
 
 for i in {1..3}; do
     got=$(cat "examples/dp_a/sample-$i.in" | ./tmp_dp)

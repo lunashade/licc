@@ -1,4 +1,5 @@
 // https://atcoder.jp/contests/dp/tasks/dp_a
+#include <stdio.h>
 
 int dp[100010];
 int N;
