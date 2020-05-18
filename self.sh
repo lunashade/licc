@@ -72,8 +72,7 @@ EOF
 }
 
 lcc() {
-    $CC src/$1 -o $TMP/${1%.c}.s
-    gcc -c -o $TMP/${1%.c}.o $TMP/${1%.c}.s
+    $CC src/$1 -c -o $TMP/${1%.c}.o
 }
 
 cc() {

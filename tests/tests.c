@@ -1341,9 +1341,9 @@ of(int),"sizeof(int)");
     assert(3, INCLUDE3, "INCLUDE3");
     assert(4, INC4, "INC4");
 
-    assert(0, strcmp("tests.c", main_fn), "strcmp(\"tests.c\", main_fn)");
+    assert(0, strcmp("tests/tests.c", main_fn), "strcmp(\"tests/tests.c\", main_fn)");
     assert(2, main_ln, "main_ln");
-    assert(0, strcmp("include1.h", include1_fn), "strcmp(\"include1.h\", include1_fn)");
+    assert(0, strcmp("tests/include1.h", include1_fn), "strcmp(\"tests/include1.h\", include1_fn)");
     assert(5, include1_ln, "include1_ln");
 
     assert(5, sizeof(__func__), "sizeof(__func__)");

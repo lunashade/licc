@@ -1,6 +1,8 @@
 #include "lcc.h"
 
 bool opt_E = false;
+bool opt_S;
+bool opt_c;
 bool opt_fpic = true;
 char **include_paths;
 char *input_dir;
@@ -11,7 +13,7 @@ static char *output_path;
 static char *tempfile_path;
 
 static void usage(int code) {
-    fprintf(stderr, "Usage: lcc [-E] [-fpic,-fPIC] [-fno-pic,-fno-PIC] [-o "
+    fprintf(stderr, "Usage: lcc [-ESc] [-fpic,-fPIC] [-fno-pic,-fno-PIC] [-o "
                     "<output_path>] [-I<include_dir>] <file>\n");
     exit(code);
 }
@@ -62,6 +64,14 @@ static void parse_args(int argc, char **argv) {
                 usage(1);
             }
             output_path = argv[i];
+            continue;
+        }
+        if (!strcmp(argv[i], "-S")) {
+            opt_S = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-c")) {
+            opt_c = true;
             continue;
         }
         if (!strcmp(argv[i], "-E")) {
@@ -131,17 +141,39 @@ int main(int argc, char **argv) {
     Program *prog = parse(tok);
     codegen(prog);
 
-    // Write assembly to output file
-    fseek(tempfile, 0, SEEK_SET);
-    FILE *out;
-    if (strcmp(output_path, "-") == 0)
-        out = stdout;
-    else {
-        out = fopen(output_path, "w");
-        if (!out)
-            error("cannot open output file: %s: %s", output_path,
-                  strerror(errno));
+    if (opt_S) {
+        // Write assembly to output file
+        fseek(tempfile, 0, SEEK_SET);
+        FILE *out;
+        if (strcmp(output_path, "-") == 0)
+            out = stdout;
+        else {
+            out = fopen(output_path, "w");
+            if (!out)
+                error("cannot open output file: %s: %s", output_path,
+                      strerror(errno));
+        }
+        copy_file(tempfile, out);
+        exit(0);
     }
-    copy_file(tempfile, out);
+    // Run assembler
+    fclose(tempfile);
+    pid_t pid;
+    if ((pid = fork()) == 0) {
+        // child process, run assembler
+        execlp("as", "-c", "-o", output_path, tempfile_path, (char *)0);
+        fprintf(stderr, "exec failed: as: %s", strerror(errno));
+    }
+    // Wait for child process
+    for (;;) {
+        int status;
+        int w = waitpid(pid, &status, 0);
+        if (!w) {
+            error("waitpid failed: %s", strerror(errno));
+            exit(1);
+        }
+        if (WIFEXITED(status))
+            break;
+    }
     return 0;
 }
