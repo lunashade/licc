@@ -947,6 +947,11 @@ static void emit_text(Program *prog) {
                 error("top: %d\n", top);
         }
 
+        /* C11 spec says in 5.1.2.2.3:
+         * "reaching the } that terminates the main function
+         * returns a value of 0." */
+        if (!strcmp(fn->name, "main"))
+            emitf("\tmov $0, %%rax\n");
         // Epilogue
         // recover callee-saved registers
         emitf(".L.return.%s:\n", current_fn->name);

@@ -1369,5 +1369,4 @@ of(int),"sizeof(int)");
     assert(16, _Alignof(struct {char a; int b;}[2]), "_Alignof(struct {char a; int b;}[2])");
     assert(16, _Alignof(struct {char a; int b;}[3]), "_Alignof(struct {char a; int b;}[3])");
     printf("OK\n");
-    return 0;
 }
