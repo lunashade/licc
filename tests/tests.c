@@ -8,28 +8,19 @@ int main_ln = __LINE__;
 /*
  *  This is a block comment
  */
+#include <stdio.h>
+#include <string.h>
 #include "include1.h"
 #include "include3.h"
 #include "include4.h"
-int printf();
 int exit();
-typedef struct {
-    int gp_offset;
-    int fp_offset;
-    void *overflow_arg_area;
-    void *reg_save_area;
-} va_list[1];
 int;
 struct {char a; int b;};
 int あ = 3;
 const int 🍣 = 42;
 typedef struct {char a; int b;} Ty1;
-int add_all1(int x, ...);
-int add_all3(int x, int y, int z,...);
-int strcmp(char *p, char *q);
-int memcmp(char *, char *);
-int sprintf(char *buf, char *fmt, ...);
-int vsprintf(char *buf, char *fmt, va_list ap);
+int add_all1(int , ...);
+int add_all3(int , int , int ,...);
 char *fmt(char *buf, char *fmt, ...) {
     va_list ap;
     __builtin_va_start(ap, fmt);
@@ -123,12 +114,11 @@ int testno;
 
 int assert(int want, int got, char *code) {
     testno = testno + 1;
-    if (want == got) {
-        printf("%s => %d\n", code, got);
-    } else {
+    if (want != got) {
         printf("%d: %s => want %d, got %d\n", testno, code, want, got);
         exit(1);
     }
+    // printf("%s => %d\n", code, got);
     return 0;
 }
 char int_to_char(int x) {return x;}
