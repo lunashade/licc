@@ -12,15 +12,6 @@ static bool file_exists(char *path) {
     return !stat(path, &st);
 }
 
-static char *dirname(char *path) {
-    char *dir = strdup(path);
-    char *p = strrchr(dir, '/');
-    if (!p)
-        return NULL;
-    *p = '\0';
-    return dir;
-}
-
 // Token
 static Token *copy_token(Token *tok) {
     Token *tok2 = malloc(sizeof(Token));
@@ -158,7 +149,7 @@ static void define_macro(char *name, char *buf) {
     push_macro(name)->body = tok;
 }
 
-static void init_macros(void) {
+void init_macros(void) {
     // Define predefined macros
     define_macro("__lcc__", "1");
     define_macro("_LP64", "1");
@@ -627,18 +618,14 @@ static char *read_include_path(Token **rest, Token *tok) {
     if (tok->kind == TK_STR) {
         // Do not escape
         Token *start = tok;
-        char *dir = dirname(input_path);
         char *filename = strndup(tok->loc + 1, tok->len - 2);
-        char *path;
-        if (dir) {
-            path = pathjoin(dir, filename);
-        } else {
-            path = filename;
-        }
         tok = tok->next;
         if (!tok->at_bol)
             warn_tok(tok, "preprocess: extra tokens after include directive");
         *rest = skip_line(tok);
+        if (file_exists(filename))
+            return filename;
+        char *path = pathjoin(dirname(strdup(input_path)), filename);
         if (file_exists(path))
             return path;
         return search_include_paths(filename, start);
@@ -795,7 +782,6 @@ Token *preprocess(Token *tok) {
 }
 
 Token *preprocess_all(Token *tok) {
-    init_macros();
     tok = preprocess(tok);
     if (current_if)
         error_tok(current_if->tok, "preprocess: unfinished if");

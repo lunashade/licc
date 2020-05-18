@@ -19,6 +19,17 @@ static void add_include_path(char *path) {
     len++;
 }
 
+static void add_default_include_paths(char *argv0) {
+    // Add ./include
+    char *buf = malloc(strlen(argv0) + 10);
+    sprintf(buf, "%s/include", dirname(strdup(argv0)));
+    add_include_path(buf);
+
+    add_include_path("/usr/local/include");
+    add_include_path("/usr/include/x86_64-linux-gnu");
+    add_include_path("/usr/include");
+}
+
 static char *get_output_filename() {
     char *filename = basename(strdup(input_path));
     int len = strlen(filename);
@@ -88,6 +99,8 @@ static void set_output_file() {
 }
 
 int main(int argc, char **argv) {
+    init_macros();
+    add_default_include_paths(argv[0]);
     parse_args(argc, argv);
     set_output_file();
 
