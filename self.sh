@@ -91,4 +91,4 @@ lcc tokenize.c
 lcc preprocess.c
 lcc debug.c
 
-(cd $TMP; gcc -static -o ../$OUT *.o)
+(cd $TMP; gcc -o ../$OUT *.o)

@@ -1,6 +1,7 @@
 #include "lcc.h"
 
-bool opt_E;
+bool opt_E = false;
+bool opt_fpic = true;
 char **include_paths;
 char *input_path;
 char *output_path;
@@ -50,6 +51,14 @@ static void parse_args(int argc, char **argv) {
         }
         if (!strcmp(argv[i], "-E")) {
             opt_E = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-fpic") || !strcmp(argv[i], "-fPIC")) {
+            opt_fpic = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-fno-pic") || !strcmp(argv[i], "-fno-PIC")) {
+            opt_fpic = false;
             continue;
         }
         if (!strncmp(argv[i], "-I", 2)) {

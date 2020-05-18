@@ -9,9 +9,8 @@ int main_ln = __LINE__;
  *  This is a block comment
  */
 #include "include1.h"
-#include <include3.h>
-#define MINC <include4.h
-#include MINC>
+#include "include3.h"
+#include "include4.h"
 int printf();
 int exit();
 typedef struct {

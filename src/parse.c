@@ -641,6 +641,7 @@ Program *parse(Token *tok) {
         Type *ty = declarator(&tok, tok, basety);
 
         if (ctx.type_def) {
+            // typedef int a, *b;
             for (;;) {
                 if (!ty->name)
                     error_tok(ty->name_pos,
@@ -656,7 +657,8 @@ Program *parse(Token *tok) {
             continue;
         }
         if (ty->kind == TY_FUNC) {
-            current_fn = new_gvar(get_ident(ty->name), ty, true, false);
+            current_fn =
+                new_gvar(get_ident(ty->name), ty, ctx.is_static, false);
             if (!consume(&tok, tok, ";")) {
                 cur = cur->next = funcdef(&tok, start);
             }

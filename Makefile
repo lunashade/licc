@@ -1,9 +1,9 @@
-CFLAGS=-std=c11 -g -static -fno-common
+CFLAGS=-std=c11 -g -fno-common
 LCCFLAGS=-I. -o -
 SRCS=$(wildcard src/*.c)
 OBJS=$(SRCS:.c=.o)
 
-test-all: fmt test test-stage2 test-stage3
+test-all: fmt test test-nopic test-stage2 test-stage3
 
 $(OBJS): src/lcc.h
 
@@ -16,11 +16,15 @@ lcc-stage3: lcc-stage2
 
 test: lcc tests/extern.o
 	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp.s
+	cc -o tmp tmp.s tests/extern.o
+	./tmp
+test-nopic: lcc tests/extern.o
+	(cd tests; ../$< -fno-pic $(LCCFLAGS) tests.c ) > tmp.s
 	cc -static -o tmp tmp.s tests/extern.o
 	./tmp
 test-stage2: lcc-stage2 tests/extern.o
 	(cd tests; ../$< $(LCCFLAGS) tests.c ) > tmp2.s
-	cc -static -o tmp2 tmp2.s tests/extern.o
+	cc -o tmp2 tmp2.s tests/extern.o
 	./tmp2
 test-stage3: lcc-stage3
 	@diff lcc-stage2 lcc-stage3 && echo "stage3 OK"

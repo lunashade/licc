@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 extern bool opt_E;
+extern bool opt_fpic;
 extern char **include_paths;
 extern char *input_path;
 extern FILE *output_file;

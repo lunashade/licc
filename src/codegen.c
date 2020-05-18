@@ -244,12 +244,21 @@ static void gen_stmt(Node *node);
 // code generate address of node
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
-        if (node->var->is_local)
+        if (node->var->is_local) {
             fprintf(output_file, "\tlea -%d(%%rbp), %s\n", node->var->offset,
                     reg_push());
-        else
+            return;
+        }
+        if (!opt_fpic) {
             fprintf(output_file, "\tmov $%s, %s\n", node->var->name,
                     reg_push());
+        } else if (node->var->is_static) {
+            fprintf(output_file, "\tlea %s(%%rip), %s\n", node->var->name,
+                    reg_push());
+        } else {
+            fprintf(output_file, "\tmov %s@GOTPCREL(%%rip), %s\n",
+                    node->var->name, reg_push());
+        }
         return;
     }
     if (node->kind == ND_DEREF) {
