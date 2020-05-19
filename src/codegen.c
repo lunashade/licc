@@ -1,5 +1,9 @@
 #include "lcc.h"
 
+// code generation
+static void gen_addr(Node *node);
+static void gen_expr(Node *node);
+static void gen_stmt(Node *node);
 //
 // Codegen
 //
@@ -25,13 +29,13 @@ static char *freg64[] = {"%xmm8",  "%xmm9",  "%xmm10",
 
 static char *freg(int idx) {
     if (idx < 0 || sizeof(freg64) / sizeof(*freg64) <= idx)
-        error("registor out of range: %d", idx);
+        error("freg: registor out of range: %d", idx);
     return freg64[idx];
 }
 
 static char *argreg(int sz, int idx) {
     if (idx < 0 || sizeof(argreg64) / sizeof(*argreg64) <= idx)
-        error("registor out of range: %d", idx);
+        error("argreg: registor out of range: %d", idx);
     if (sz == 1) {
         return argreg8[idx];
     }
@@ -57,13 +61,13 @@ static char *argregx(Type *ty, int idx) {
 
 static char *reg(int idx) {
     if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
-        error("registor out of range: %d", idx);
+        error("reg: registor out of range: %d", idx);
     return reg64[idx];
 }
 
 static char *regsz(int sz, int idx) {
     if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
-        error("registor out of range: %d", idx);
+        error("regsz: registor out of range: %d", idx);
     if (sz == 1) {
         return reg8[idx];
     }
@@ -81,7 +85,7 @@ static char *regsz(int sz, int idx) {
 
 static char *regx(Type *ty, int idx) {
     if (idx < 0 || sizeof(reg64) / sizeof(*reg64) <= idx)
-        error("registor out of range: %d", idx);
+        error("regx: registor out of range: %d", idx);
     if (is_pointing(ty) || size_of(ty) == 8) {
         return regsz(8, idx);
     } else {
@@ -241,10 +245,188 @@ static void cast(Type *from, Type *to) {
     }
 }
 
-// code generation
-static void gen_addr(Node *node);
-static void gen_expr(Node *node);
-static void gen_stmt(Node *node);
+static void builtin_va_start(Node *node) {
+    int gp = 0, fp = 0;
+    for (Var *var = current_fn->params; var; var = var->next)
+        if (is_flonum(var->ty))
+            fp++;
+        else
+            gp++;
+
+    emitf("\tmov -%d(%%rbp), %%rax\n", node->args[0]->offset);
+    emitf("\tmovl $%d, (%%rax)\n", gp * 8);
+    emitf("\tmovl $%d, 4(%%rax)\n", 48 + fp * 8);
+    emitf("\tmov %%rbp, 16(%%rax)\n");
+    emitf("\tsubq $128, 16(%%rax)\n");
+    top++;
+}
+
+static void load_fp_arg(Type *ty, int offset, int fp) {
+    // load FP to register
+    if (ty->kind == TY_FLOAT) {
+        emitf("\tmovss -%d(%%rbp), %%xmm%d\n", offset, fp);
+    } else {
+        emitf("\tmovsd -%d(%%rbp), %%xmm%d\n", offset, fp);
+    }
+}
+
+static void load_gp_arg(Type *ty, int offset, int i) {
+    int sz = size_of(ty);
+    char *insn = (ty->is_unsigned) ? "movz" : "movs";
+    switch (sz) {
+    case 1:
+        emitf("\t%sbl -%d(%%rbp), %s\n", insn, offset, argregx(ty, i));
+        break;
+    case 2:
+        emitf("\t%swl -%d(%%rbp), %s\n", insn, offset, argregx(ty, i));
+        break;
+    case 4:
+        emitf("\tmovl -%d(%%rbp), %s\n", offset, argregx(ty, i));
+        break;
+    default:
+        assert(sz == 8);
+        emitf("\tmov -%d(%%rbp), %s\n", offset, argregx(ty, i));
+        break;
+    }
+}
+
+static void push_arg(Type *ty, int offset) {
+    if (is_flonum(ty)) {
+        if (ty->kind == TY_FLOAT) {
+            emitf("\tmov -%d(%%rbp), %%eax\n", offset);
+        } else {
+            emitf("\tmov -%d(%%rbp), %%rax\n", offset);
+        }
+    } else {
+        int sz = size_of(ty);
+        char *insn = (ty->is_unsigned) ? "movz" : "movs";
+        switch (sz) {
+        case 1:
+            emitf("\t%sbl -%d(%%rbp), %%eax\n", insn, offset);
+            break;
+        case 2:
+            emitf("\t%swl -%d(%%rbp), %%eax\n", insn, offset);
+            break;
+        case 4:
+            emitf("\tmovl -%d(%%rbp), %%eax\n", offset);
+            break;
+        default:
+            assert(sz == 8);
+            emitf("\tmov -%d(%%rbp), %%rax\n", offset);
+            break;
+        }
+    }
+
+    emitf("\tpush %%rax\n");
+}
+
+// Load function call arguments.
+// x86-64 ABI summary by rui314:
+// - Up to 6 arguments of integral type are passed using:
+//   RDI, RSI, RDX, RCX, R8 and R9
+// - Up to 8 arguments of floating-point type are passed using:
+//   XMM0 - XMM7
+// - If all registers of an appropriate type are already used,
+//   push an argument to the stack in the right-to-left order.
+// - Each argument passed on stack takes 8 bytes, and the end of
+//   the argument area must be aligned to a 16 byte boundary.
+// - If function is variadic, set the number of FP type arguments to RSP.
+static int load_args(Node *node) {
+    int gp = 0;
+    int fp = 0;
+    int stacksize = 0;
+    bool *pass_stack = calloc(node->nargs, sizeof(bool));
+
+    for (int i = 0; i < node->nargs; i++) {
+        Var *arg = node->args[i];
+
+        // pass by register
+        if (is_flonum(arg->ty)) {
+            if (fp < 8) {
+                load_fp_arg(arg->ty, arg->offset, fp++);
+                continue;
+            }
+        } else {
+            if (gp < 6) {
+                load_gp_arg(arg->ty, arg->offset, gp++);
+                continue;
+            }
+        }
+        // else, prepare the stack
+        pass_stack[i] = true;
+        stacksize += 8;
+    }
+
+    // align
+    if (stacksize && stacksize % 16) {
+        emitf("\tsub $8, %%rsp\n");
+        stacksize += 8;
+    }
+    // push argument in right-to-left order
+    for (int i = node->nargs - 1; i >= 0; i--) {
+        if (!pass_stack[i])
+            continue;
+        Var *arg = node->args[i];
+        push_arg(arg->ty, arg->offset);
+    }
+
+    // always store the number of FP arguments to RAX.
+    int n = 0;
+    for (int i = 0; i < node->nargs; i++) {
+        if (is_flonum(node->args[i]->ty))
+            n++;
+    }
+    emitf("\tmov $%d, %%rax\n", n);
+
+    return stacksize;
+}
+
+static void gen_funcall(Node *node) {
+    if (node->lhs->kind == ND_VAR &&
+        !strcmp(node->lhs->var->name, "__builtin_va_start")) {
+        builtin_va_start(node);
+        return;
+    }
+
+    emitf("\tsub $64, %%rsp\n");
+    emitf("\tmov %%r10, (%%rsp)\n");
+    emitf("\tmov %%r11, 8(%%rsp)\n");
+    emitf("\tmovsd %%xmm8, 16(%%rsp)\n");
+    emitf("\tmovsd %%xmm9, 24(%%rsp)\n");
+    emitf("\tmovsd %%xmm10, 32(%%rsp)\n");
+    emitf("\tmovsd %%xmm11, 40(%%rsp)\n");
+    emitf("\tmovsd %%xmm12, 48(%%rsp)\n");
+    emitf("\tmovsd %%xmm13, 56(%%rsp)\n");
+
+    gen_expr(node->lhs);
+    int memarg_size = load_args(node);
+
+    emitf("\tcall *%s\n", reg(--top));
+    if (memarg_size)
+        emitf("\tsub $%d, %%rsp\n", memarg_size);
+
+    if (node->ty->kind == TY_BOOL)
+        emitf("\tmovzx %%al, %%eax\n");
+
+    emitf("\tmov (%%rsp), %%r10\n");
+    emitf("\tmov 8(%%rsp), %%r11\n");
+    emitf("\tmovsd 16(%%rsp), %%xmm8\n");
+    emitf("\tmovsd 24(%%rsp), %%xmm9\n");
+    emitf("\tmovsd 32(%%rsp), %%xmm10\n");
+    emitf("\tmovsd 40(%%rsp), %%xmm11\n");
+    emitf("\tmovsd 48(%%rsp), %%xmm12\n");
+    emitf("\tmovsd 56(%%rsp), %%xmm13\n");
+    emitf("\tadd $64, %%rsp\n");
+
+    if (node->ty->kind == TY_FLOAT) {
+        emitf("\tmovss %%xmm0, %s\n", freg(top++));
+    } else if (node->ty->kind == TY_DOUBLE) {
+        emitf("\tmovsd %%xmm0, %s\n", freg(top++));
+    } else {
+        emitf("\tmov %%rax, %s\n", reg(top++));
+    }
+    return;
+}
 
 // code generate address of node
 static void gen_addr(Node *node) {
@@ -280,22 +462,6 @@ static void gen_addr(Node *node) {
         return;
     }
     error_tok(node->tok, "codegen: gen_addr: not an lvalue");
-}
-
-static void builtin_va_start(Node *node) {
-    int gp = 0, fp = 0;
-    for (Var *var = current_fn->params; var; var = var->next)
-        if (is_flonum(var->ty))
-            fp++;
-        else
-            gp++;
-
-    emitf("\tmov -%d(%%rbp), %%rax\n", node->args[0]->offset);
-    emitf("\tmovl $%d, (%%rax)\n", gp * 8);
-    emitf("\tmovl $%d, 4(%%rax)\n", 48 + fp * 8);
-    emitf("\tmov %%rbp, 16(%%rax)\n");
-    emitf("\tsubq $128, 16(%%rax)\n");
-    top++;
 }
 
 // code generate expression
@@ -426,83 +592,9 @@ static void gen_expr(Node *node) {
         }
         reg_push();
         return;
-    case ND_FUNCALL: {
-        if (node->lhs->kind == ND_VAR &&
-            !strcmp(node->lhs->var->name, "__builtin_va_start")) {
-            builtin_va_start(node);
-            return;
-        }
-
-        emitf("\tsub $64, %%rsp\n");
-        emitf("\tmov %%r10, (%%rsp)\n");
-        emitf("\tmov %%r11, 8(%%rsp)\n");
-        emitf("\tmovsd %%xmm8, 16(%%rsp)\n");
-        emitf("\tmovsd %%xmm9, 24(%%rsp)\n");
-        emitf("\tmovsd %%xmm10, 32(%%rsp)\n");
-        emitf("\tmovsd %%xmm11, 40(%%rsp)\n");
-        emitf("\tmovsd %%xmm12, 48(%%rsp)\n");
-        emitf("\tmovsd %%xmm13, 56(%%rsp)\n");
-        gen_expr(node->lhs);
-
-        // push arguments then pop to register
-        int gp = 0, fp = 0;
-        for (int i = 0; i < node->nargs; i++) {
-            Var *arg = node->args[i];
-            if (is_flonum(arg->ty)) {
-                if (arg->ty->kind == TY_FLOAT) {
-                    emitf("\tmovss -%d(%%rbp), %%xmm%d\n", arg->offset, fp++);
-                } else {
-                    emitf("\tmovsd -%d(%%rbp), %%xmm%d\n", arg->offset, fp++);
-                }
-                continue;
-            }
-            int sz = size_of(arg->ty);
-            char *insn = (arg->ty->is_unsigned) ? "movz" : "movs";
-            switch (sz) {
-            case 1:
-                emitf("\t%sbl -%d(%%rbp), %s\n", insn, arg->offset,
-                      argregx(arg->ty, i));
-                break;
-            case 2:
-                emitf("\t%swl -%d(%%rbp), %s\n", insn, arg->offset,
-                      argregx(arg->ty, i));
-                break;
-            case 4:
-                emitf("\tmovl -%d(%%rbp), %s\n", arg->offset,
-                      argregx(arg->ty, i));
-                break;
-            default:
-                assert(sz == 8);
-                emitf("\tmov -%d(%%rbp), %s\n", arg->offset,
-                      argregx(arg->ty, i));
-                break;
-            }
-        }
-
-        emitf("\tmov $%d, %%rax\n", fp);
-        emitf("\tcall *%s\n", reg(--top));
-        if (node->ty->kind == TY_BOOL)
-            emitf("\tmovzx %%al, %%eax\n");
-
-        emitf("\tmov (%%rsp), %%r10\n");
-        emitf("\tmov 8(%%rsp), %%r11\n");
-        emitf("\tmovsd 16(%%rsp), %%xmm8\n");
-        emitf("\tmovsd 24(%%rsp), %%xmm9\n");
-        emitf("\tmovsd 32(%%rsp), %%xmm10\n");
-        emitf("\tmovsd 40(%%rsp), %%xmm11\n");
-        emitf("\tmovsd 48(%%rsp), %%xmm12\n");
-        emitf("\tmovsd 56(%%rsp), %%xmm13\n");
-        emitf("\tadd $64, %%rsp\n");
-
-        if (node->ty->kind == TY_FLOAT) {
-            emitf("\tmovss %%xmm0, %s\n", freg(top++));
-        } else if (node->ty->kind == TY_DOUBLE) {
-            emitf("\tmovsd %%xmm0, %s\n", freg(top++));
-        } else {
-            emitf("\tmov %%rax, %s\n", reg(top++));
-        }
+    case ND_FUNCALL:
+        gen_funcall(node);
         return;
-    }
     }
 
     // binary node

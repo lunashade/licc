@@ -21,6 +21,7 @@ const int 🍣 = 42;
 typedef struct {char a; int b;} Ty1;
 int add_all1(int , ...);
 int add_all3(int , int , int ,...);
+
 char *fmt(char *buf, char *fmt, ...) {
     va_list ap;
     __builtin_va_start(ap, fmt);
@@ -62,6 +63,8 @@ int M13(int x) {
 int add2(int x, int y) {
     return x+y;
 }
+int add10(int x1,int x2,int x3,int x4,int x5,int x6,int x7,int x8,int x9,int x10);
+double adddouble10(double x1,double x2,double x3,double x4,double x5,double x6,double x7,double x8,double x9,double x10);
 struct {int a[2];} g9[2] = {{{9, 10}}};
 
 _Bool true_fn();
@@ -1368,5 +1371,9 @@ of(int),"sizeof(int)");
     assert(4, _Alignof(struct {char a; int b;}), "_Alignof(struct {char a; int b;})");
     assert(16, _Alignof(struct {char a; int b;}[2]), "_Alignof(struct {char a; int b;}[2])");
     assert(16, _Alignof(struct {char a; int b;}[3]), "_Alignof(struct {char a; int b;}[3])");
+
+    assert(55, add10(1,2,3,4,5,6,7,8,9,10), "add10(1,2,3,4,5,6,7,8,9,10)");
+    assert(55, adddouble10(1,2,3,4,5,6,7,8,9,10), "adddouble10(1,2,3,4,5,6,7,8,9,10)");
+    assert(0, ({ char buf[200]; sprintf(buf, "%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp("1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1", buf);  }), "({ char buf[200]; sprintf(buf, \"%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d\", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp(\"1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1\", buf);  })");
     printf("OK\n");
 }
