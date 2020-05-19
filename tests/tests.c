@@ -151,6 +151,12 @@ int sub(int x, int y) { return x - y; }
 int add6(int a, int b, int c, int d, int e, int f) {
     return a + b + c + d + e + f;
 }
+int add7(int a, int b, int c, int d, int e, int f, int g) {
+    return a + b + c + d + e + f + g;
+}
+double adddouble11(double x1,double x2,double x3,double x4,double x5,double x6,double x7,double x8,double x9,double x10,double x11) {
+    return x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10 + x11;
+}
 
 int addx(int *x, int y) { return *x + y; }
 
@@ -1375,5 +1381,7 @@ of(int),"sizeof(int)");
     assert(55, add10(1,2,3,4,5,6,7,8,9,10), "add10(1,2,3,4,5,6,7,8,9,10)");
     assert(55, adddouble10(1,2,3,4,5,6,7,8,9,10), "adddouble10(1,2,3,4,5,6,7,8,9,10)");
     assert(0, ({ char buf[200]; sprintf(buf, "%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp("1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1", buf);  }), "({ char buf[200]; sprintf(buf, \"%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d\", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp(\"1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1\", buf);  })");
+    assert(28, add7(1,2,3,4,5,6,7), "add7(1,2,3,4,5,6,7)");
+    assert(66, adddouble11(1,2,3,4,5,6,7,8,9,10,11), "adddouble11(1,2,3,4,5,6,7,8,9,10,11)");
     printf("OK\n");
 }

@@ -438,6 +438,10 @@ static void gen_funcall(Node *node) {
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local) {
+            if (node->var->offset < 0) {
+                emitfln("\tlea %d(%%rbp), %s", -node->var->offset, reg_push());
+                return;
+            }
             emitfln("\tlea -%d(%%rbp), %s", node->var->offset, reg_push());
             return;
         }
@@ -1023,21 +1027,45 @@ static void emit_text(Program *prog) {
         }
         // push arguments to the stack
         int gp = 0, fp = 0;
+        int memgp = 0, memfp = 0; // on-memory arguments
         for (Var *v = fn->params; v; v = v->next) {
-            if (is_flonum(v->ty))
-                fp++;
-            else
-                gp++;
-        }
-        for (Var *v = fn->params; v; v = v->next) {
-            if (v->ty->kind == TY_FLOAT) {
-                emitfln("\tmovss %%xmm%d, -%d(%%rbp)", --fp, v->offset);
-            } else if (v->ty->kind == TY_DOUBLE) {
-                emitfln("\tmovsd %%xmm%d, -%d(%%rbp)", --fp, v->offset);
+            if (is_flonum(v->ty)) {
+                if (fp < 8)
+                    fp++;
+                else
+                    memfp++;
             } else {
-                emitfln("\tmov %s, -%d(%%rbp)", argreg(size_of(v->ty), --gp),
-                        v->offset);
+                if (gp < 6)
+                    gp++;
+                else
+                    memgp++;
             }
+        }
+
+        for (Var *v = fn->params; v; v = v->next) {
+            if (is_flonum(v->ty)) {
+                if (memfp) {
+                    // load memarg
+                    v->offset = -(16 + 8 * (--memfp + memgp));
+                    continue;
+                }
+                // load from register
+                if (v->ty->kind == TY_FLOAT) {
+                    emitfln("\tmovss %%xmm%d, -%d(%%rbp)", --fp, v->offset);
+                } else {
+                    assert(v->ty->kind == TY_DOUBLE);
+                    emitfln("\tmovsd %%xmm%d, -%d(%%rbp)", --fp, v->offset);
+                }
+                continue;
+            }
+            // INTEGER type
+            if (memgp) {
+                v->offset = -(16 + 8 * (--memgp + memfp));
+                continue;
+            }
+            emitfln("\tmov %s, -%d(%%rbp)", argreg(size_of(v->ty), --gp),
+                    v->offset);
+            continue;
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
