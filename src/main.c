@@ -27,8 +27,8 @@ static void add_include_path(char *path) {
 
 static void add_default_include_paths(char *argv0) {
     // Add ./include
-    char *buf = malloc(strlen(argv0) + 13);
-    sprintf(buf, "%s/../include", dirname(strdup(argv0)));
+    char *buf = malloc(strlen(argv0) + 10);
+    sprintf(buf, "%s/include", dirname(strdup(argv0)));
     add_include_path(buf);
 
     add_include_path("/usr/local/include");

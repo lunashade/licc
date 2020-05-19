@@ -1,18 +1,22 @@
 CFLAGS=-std=c11 -g -fno-common
 SRCS=$(wildcard src/*.c)
 OBJS=$(SRCS:.c=.o)
+INCLUDES=$(wildcard include/*.h)
 
 test-all: fmt test test-nopic test-stage2 test-stage3
 
 $(OBJS): src/lcc.h
 
-bin/lcc: $(OBJS)
+bin/include: $(INCLUDES)
+	@mkdir -p $@
+	@cp $^ --target-directory=$@
+bin/lcc: $(OBJS) bin/include
 	@mkdir bin -p
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-bin/lcc-stage2: bin/lcc $(SRCS) src/lcc.h self.sh
+bin/lcc-stage2: bin/lcc $(SRCS) src/lcc.h self.sh bin/include
 	@mkdir bin -p
 	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
-bin/lcc-stage3: bin/lcc-stage2
+bin/lcc-stage3: bin/lcc-stage2 bin/include
 	@mkdir bin -p
 	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
 
@@ -36,6 +40,6 @@ fmt:
 	@tests/fmt.sh
 clean:
 	git clean -fX
-	rm tmp-* -rf
+	rm bin/* tmp-* -rf
 
 .PHONY: clean fmt test test-stage2 test-stage3 test-all
