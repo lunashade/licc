@@ -9,9 +9,9 @@ rm -rf $TMP
 mkdir -p $TMP
 
 lcc() {
-    src=$1
-    obj=$(basename "${src%.c}.o")
-    $CC -c -o $TMP/${obj} $src
+    src="$1"
+    obj="$TMP/$(basename $src .c).o"
+    $CC -c -o "$obj" "$src"
 }
 
 for f in src/*.c; do
