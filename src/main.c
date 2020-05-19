@@ -41,12 +41,19 @@ static char *get_output_filename() {
     int len = strlen(filename);
 
     if (3 <= len && strcmp(filename + len - 2, ".c") == 0) {
-        filename[len - 1] = 'o';
+        if (opt_S)
+            filename[len - 1] = 's';
+        else
+            filename[len - 1] = 'o';
+
         return filename;
     }
 
     char *buf = malloc(len + 3);
-    sprintf(buf, "%s.o", filename);
+    if (opt_S)
+        sprintf(buf, "%s.s", filename);
+    else
+        sprintf(buf, "%s.o", filename);
     return buf;
 }
 

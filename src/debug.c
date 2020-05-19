@@ -3,9 +3,9 @@
 void print_tokens(Token *head) {
     for (Token *tok = head; tok && tok->kind != TK_EOF; tok = tok->next) {
         if (tok->at_bol)
-            fprintf(stderr, "\n");
+            fprintf(stdout, "\n");
         else if (tok->has_space)
-            fprintf(stderr, " ");
-        fprintf(stderr, "%.*s", tok->len, tok->loc);
+            fprintf(stdout, " ");
+        fprintf(stdout, "%.*s", tok->len, tok->loc);
     }
 }
