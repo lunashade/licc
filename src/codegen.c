@@ -12,6 +12,12 @@ static void emitf(char *fmt, ...) {
     va_start(ap, fmt);
     vfprintf(tempfile, fmt, ap);
 }
+static void emitfln(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(tempfile, fmt, ap);
+    fprintf(tempfile, "\n");
+}
 
 // register
 static char *argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -120,11 +126,11 @@ static void load(Type *ty) {
         return;
     }
     if (ty->kind == TY_DOUBLE) {
-        emitf("\tmovsd (%s), %s\n", reg(top - 1), freg(top - 1));
+        emitfln("\tmovsd (%s), %s", reg(top - 1), freg(top - 1));
         return;
     }
     if (ty->kind == TY_FLOAT) {
-        emitf("\tmovss (%s), %s\n", reg(top - 1), freg(top - 1));
+        emitfln("\tmovss (%s), %s", reg(top - 1), freg(top - 1));
         return;
     }
     char *rs = reg(top - 1);
@@ -135,14 +141,14 @@ static void load(Type *ty) {
     int sz = size_of(ty);
     char *insn = ty->is_unsigned ? "movz" : "movs";
     if (sz == 1) {
-        emitf("\t%sbl (%s), %s\n", insn, rs, rd);
+        emitfln("\t%sbl (%s), %s", insn, rs, rd);
     } else if (sz == 2) {
-        emitf("\t%swl (%s), %s\n", insn, rs, rd);
+        emitfln("\t%swl (%s), %s", insn, rs, rd);
     } else if (sz == 4) {
-        emitf("\tmov (%s), %s\n", rs, rd);
+        emitfln("\tmov (%s), %s", rs, rd);
     } else {
         assert(sz == 8);
-        emitf("\tmov (%s), %s\n", rs, rd);
+        emitfln("\tmov (%s), %s", rs, rd);
     }
     return;
 }
@@ -152,8 +158,8 @@ static void store(Type *ty) {
     if (ty->kind == TY_STRUCT) {
         char *rs = reg_pop();
         for (int i = 0; i < size_of(ty); i++) {
-            emitf("\tmov %d(%s), %%al\n", i, rs);
-            emitf("\tmov %%al, %d(%s)\n", i, rd);
+            emitfln("\tmov %d(%s), %%al", i, rs);
+            emitfln("\tmov %%al, %d(%s)", i, rd);
         }
         reg_push(); // address to top
         return;
@@ -161,13 +167,13 @@ static void store(Type *ty) {
     if (is_flonum(ty)) {
         char *insn = (ty->kind == TY_FLOAT) ? "movss" : "movsd";
         char *rs = freg(--top);
-        emitf("\t%s %s, (%s)\n", insn, rs, rd);
+        emitfln("\t%s %s, (%s)", insn, rs, rd);
         reg_push();
         return;
     }
 
     char *rs = reg_pop_sz(size_of(ty));
-    emitf("\tmov %s, (%s)\n", rs, rd);
+    emitfln("\tmov %s, (%s)", rs, rd);
     reg_push(); // address to top
     return;
 }
@@ -175,13 +181,13 @@ static void store(Type *ty) {
 // compare stack-top value to zero, push 1 or 0 to top
 static void cmpzero(Type *ty) {
     if (ty->kind == TY_FLOAT) {
-        emitf("\txorpd %%xmm0, %%xmm0\n");
-        emitf("\tucomiss %s, %%xmm0\n", freg(--top));
+        emitfln("\txorpd %%xmm0, %%xmm0");
+        emitfln("\tucomiss %s, %%xmm0", freg(--top));
     } else if (ty->kind == TY_DOUBLE) {
-        emitf("\txorpd %%xmm0, %%xmm0\n");
-        emitf("\tucomisd %s, %%xmm0\n", freg(--top));
+        emitfln("\txorpd %%xmm0, %%xmm0");
+        emitfln("\tucomisd %s, %%xmm0", freg(--top));
     } else {
-        emitf("\tcmp $0, %s\n", regx(ty, --top));
+        emitfln("\tcmp $0, %s", regx(ty, --top));
     }
 }
 
@@ -196,8 +202,8 @@ static void cast(Type *from, Type *to) {
 
     if (to->kind == TY_BOOL) {
         cmpzero(from);
-        emitf("\tsetne %sb\n", r);
-        emitf("\tmovzx %sb, %s\n", r, r);
+        emitfln("\tsetne %sb", r);
+        emitfln("\tmovzx %sb, %s", r, r);
         top++;
         return;
     }
@@ -207,27 +213,27 @@ static void cast(Type *from, Type *to) {
         if (to->kind == TY_FLOAT)
             return;
         if (to->kind == TY_DOUBLE)
-            emitf("\tcvtss2sd %s, %s\n", fr, fr);
+            emitfln("\tcvtss2sd %s, %s", fr, fr);
         else
-            emitf("\tcvttss2si %s, %s\n", fr, r);
+            emitfln("\tcvttss2si %s, %s", fr, r);
         return;
     }
     if (from->kind == TY_DOUBLE) {
         if (to->kind == TY_DOUBLE)
             return;
         if (to->kind == TY_FLOAT)
-            emitf("\tcvtsd2ss %s, %s\n", fr, fr);
+            emitfln("\tcvtsd2ss %s, %s", fr, fr);
         else
-            emitf("\tcvttsd2si %s, %s\n", fr, r);
+            emitfln("\tcvttsd2si %s, %s", fr, r);
         return;
     }
     // INTEGER -> FLONUM
     if (to->kind == TY_FLOAT) {
-        emitf("\tcvtsi2ss %s, %s\n", r, fr);
+        emitfln("\tcvtsi2ss %s, %s", r, fr);
         return;
     }
     if (to->kind == TY_DOUBLE) {
-        emitf("\tcvtsi2sd %s, %s\n", r, fr);
+        emitfln("\tcvtsi2sd %s, %s", r, fr);
         return;
     }
 
@@ -235,13 +241,13 @@ static void cast(Type *from, Type *to) {
     char *insn = to->is_unsigned ? "movzx" : "movsx";
 
     if (size_of(to) == 1) {
-        emitf("\t%s %sb, %s\n", insn, r, r);
+        emitfln("\t%s %sb, %s", insn, r, r);
     } else if (size_of(to) == 2) {
-        emitf("\t%s %sw, %s\n", insn, r, r);
+        emitfln("\t%s %sw, %s", insn, r, r);
     } else if (size_of(to) == 4) {
-        emitf("\tmov %sd, %sd\n", r, r);
+        emitfln("\tmov %sd, %sd", r, r);
     } else if (is_integer(from) && size_of(from) < 8 && !from->is_unsigned) {
-        emitf("\tmovsx %sd, %s\n", r, r);
+        emitfln("\tmovsx %sd, %s", r, r);
     }
 }
 
@@ -253,20 +259,20 @@ static void builtin_va_start(Node *node) {
         else
             gp++;
 
-    emitf("\tmov -%d(%%rbp), %%rax\n", node->args[0]->offset);
-    emitf("\tmovl $%d, (%%rax)\n", gp * 8);
-    emitf("\tmovl $%d, 4(%%rax)\n", 48 + fp * 8);
-    emitf("\tmov %%rbp, 16(%%rax)\n");
-    emitf("\tsubq $128, 16(%%rax)\n");
+    emitfln("\tmov -%d(%%rbp), %%rax", node->args[0]->offset);
+    emitfln("\tmovl $%d, (%%rax)", gp * 8);
+    emitfln("\tmovl $%d, 4(%%rax)", 48 + fp * 8);
+    emitfln("\tmov %%rbp, 16(%%rax)");
+    emitfln("\tsubq $128, 16(%%rax)");
     top++;
 }
 
 static void load_fp_arg(Type *ty, int offset, int fp) {
     // load FP to register
     if (ty->kind == TY_FLOAT) {
-        emitf("\tmovss -%d(%%rbp), %%xmm%d\n", offset, fp);
+        emitfln("\tmovss -%d(%%rbp), %%xmm%d", offset, fp);
     } else {
-        emitf("\tmovsd -%d(%%rbp), %%xmm%d\n", offset, fp);
+        emitfln("\tmovsd -%d(%%rbp), %%xmm%d", offset, fp);
     }
 }
 
@@ -275,17 +281,17 @@ static void load_gp_arg(Type *ty, int offset, int i) {
     char *insn = (ty->is_unsigned) ? "movz" : "movs";
     switch (sz) {
     case 1:
-        emitf("\t%sbl -%d(%%rbp), %s\n", insn, offset, argregx(ty, i));
+        emitfln("\t%sbl -%d(%%rbp), %s", insn, offset, argregx(ty, i));
         break;
     case 2:
-        emitf("\t%swl -%d(%%rbp), %s\n", insn, offset, argregx(ty, i));
+        emitfln("\t%swl -%d(%%rbp), %s", insn, offset, argregx(ty, i));
         break;
     case 4:
-        emitf("\tmovl -%d(%%rbp), %s\n", offset, argregx(ty, i));
+        emitfln("\tmovl -%d(%%rbp), %s", offset, argregx(ty, i));
         break;
     default:
         assert(sz == 8);
-        emitf("\tmov -%d(%%rbp), %s\n", offset, argregx(ty, i));
+        emitfln("\tmov -%d(%%rbp), %s", offset, argregx(ty, i));
         break;
     }
 }
@@ -293,31 +299,31 @@ static void load_gp_arg(Type *ty, int offset, int i) {
 static void push_arg(Type *ty, int offset) {
     if (is_flonum(ty)) {
         if (ty->kind == TY_FLOAT) {
-            emitf("\tmov -%d(%%rbp), %%eax\n", offset);
+            emitfln("\tmov -%d(%%rbp), %%eax", offset);
         } else {
-            emitf("\tmov -%d(%%rbp), %%rax\n", offset);
+            emitfln("\tmov -%d(%%rbp), %%rax", offset);
         }
     } else {
         int sz = size_of(ty);
         char *insn = (ty->is_unsigned) ? "movz" : "movs";
         switch (sz) {
         case 1:
-            emitf("\t%sbl -%d(%%rbp), %%eax\n", insn, offset);
+            emitfln("\t%sbl -%d(%%rbp), %%eax", insn, offset);
             break;
         case 2:
-            emitf("\t%swl -%d(%%rbp), %%eax\n", insn, offset);
+            emitfln("\t%swl -%d(%%rbp), %%eax", insn, offset);
             break;
         case 4:
-            emitf("\tmovl -%d(%%rbp), %%eax\n", offset);
+            emitfln("\tmovl -%d(%%rbp), %%eax", offset);
             break;
         default:
             assert(sz == 8);
-            emitf("\tmov -%d(%%rbp), %%rax\n", offset);
+            emitfln("\tmov -%d(%%rbp), %%rax", offset);
             break;
         }
     }
 
-    emitf("\tpush %%rax\n");
+    emitfln("\tpush %%rax");
 }
 
 // Load function call arguments.
@@ -359,7 +365,7 @@ static int load_args(Node *node) {
 
     // align
     if (stacksize && stacksize % 16) {
-        emitf("\tsub $8, %%rsp\n");
+        emitfln("\tsub $8, %%rsp");
         stacksize += 8;
     }
     // push argument in right-to-left order
@@ -376,7 +382,7 @@ static int load_args(Node *node) {
         if (is_flonum(node->args[i]->ty))
             n++;
     }
-    emitf("\tmov $%d, %%rax\n", n);
+    emitfln("\tmov $%d, %%rax", n);
 
     return stacksize;
 }
@@ -388,42 +394,42 @@ static void gen_funcall(Node *node) {
         return;
     }
 
-    emitf("\tsub $64, %%rsp\n");
-    emitf("\tmov %%r10, (%%rsp)\n");
-    emitf("\tmov %%r11, 8(%%rsp)\n");
-    emitf("\tmovsd %%xmm8, 16(%%rsp)\n");
-    emitf("\tmovsd %%xmm9, 24(%%rsp)\n");
-    emitf("\tmovsd %%xmm10, 32(%%rsp)\n");
-    emitf("\tmovsd %%xmm11, 40(%%rsp)\n");
-    emitf("\tmovsd %%xmm12, 48(%%rsp)\n");
-    emitf("\tmovsd %%xmm13, 56(%%rsp)\n");
+    emitfln("\tsub $64, %%rsp");
+    emitfln("\tmov %%r10, (%%rsp)");
+    emitfln("\tmov %%r11, 8(%%rsp)");
+    emitfln("\tmovsd %%xmm8, 16(%%rsp)");
+    emitfln("\tmovsd %%xmm9, 24(%%rsp)");
+    emitfln("\tmovsd %%xmm10, 32(%%rsp)");
+    emitfln("\tmovsd %%xmm11, 40(%%rsp)");
+    emitfln("\tmovsd %%xmm12, 48(%%rsp)");
+    emitfln("\tmovsd %%xmm13, 56(%%rsp)");
 
     gen_expr(node->lhs);
     int memarg_size = load_args(node);
 
-    emitf("\tcall *%s\n", reg(--top));
+    emitfln("\tcall *%s", reg(--top));
     if (memarg_size)
-        emitf("\tsub $%d, %%rsp\n", memarg_size);
+        emitfln("\tsub $%d, %%rsp", memarg_size);
 
     if (node->ty->kind == TY_BOOL)
-        emitf("\tmovzx %%al, %%eax\n");
+        emitfln("\tmovzx %%al, %%eax");
 
-    emitf("\tmov (%%rsp), %%r10\n");
-    emitf("\tmov 8(%%rsp), %%r11\n");
-    emitf("\tmovsd 16(%%rsp), %%xmm8\n");
-    emitf("\tmovsd 24(%%rsp), %%xmm9\n");
-    emitf("\tmovsd 32(%%rsp), %%xmm10\n");
-    emitf("\tmovsd 40(%%rsp), %%xmm11\n");
-    emitf("\tmovsd 48(%%rsp), %%xmm12\n");
-    emitf("\tmovsd 56(%%rsp), %%xmm13\n");
-    emitf("\tadd $64, %%rsp\n");
+    emitfln("\tmov (%%rsp), %%r10");
+    emitfln("\tmov 8(%%rsp), %%r11");
+    emitfln("\tmovsd 16(%%rsp), %%xmm8");
+    emitfln("\tmovsd 24(%%rsp), %%xmm9");
+    emitfln("\tmovsd 32(%%rsp), %%xmm10");
+    emitfln("\tmovsd 40(%%rsp), %%xmm11");
+    emitfln("\tmovsd 48(%%rsp), %%xmm12");
+    emitfln("\tmovsd 56(%%rsp), %%xmm13");
+    emitfln("\tadd $64, %%rsp");
 
     if (node->ty->kind == TY_FLOAT) {
-        emitf("\tmovss %%xmm0, %s\n", freg(top++));
+        emitfln("\tmovss %%xmm0, %s", freg(top++));
     } else if (node->ty->kind == TY_DOUBLE) {
-        emitf("\tmovsd %%xmm0, %s\n", freg(top++));
+        emitfln("\tmovsd %%xmm0, %s", freg(top++));
     } else {
-        emitf("\tmov %%rax, %s\n", reg(top++));
+        emitfln("\tmov %%rax, %s", reg(top++));
     }
     return;
 }
@@ -432,16 +438,16 @@ static void gen_funcall(Node *node) {
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local) {
-            emitf("\tlea -%d(%%rbp), %s\n", node->var->offset, reg_push());
+            emitfln("\tlea -%d(%%rbp), %s", node->var->offset, reg_push());
             return;
         }
         if (!opt_fpic) {
-            emitf("\tmov $%s, %s\n", node->var->name, reg_push());
+            emitfln("\tmov $%s, %s", node->var->name, reg_push());
         } else if (node->var->is_static) {
-            emitf("\tlea %s(%%rip), %s\n", node->var->name, reg_push());
+            emitfln("\tlea %s(%%rip), %s", node->var->name, reg_push());
         } else {
-            emitf("\tmov %s@GOTPCREL(%%rip), %s\n", node->var->name,
-                  reg_push());
+            emitfln("\tmov %s@GOTPCREL(%%rip), %s", node->var->name,
+                    reg_push());
         }
         return;
     }
@@ -457,7 +463,7 @@ static void gen_addr(Node *node) {
     }
     if (node->kind == ND_MEMBER) {
         gen_addr(node->lhs);
-        emitf("\tadd $%d, %s\n", node->member->offset, reg_pop());
+        emitfln("\tadd $%d, %s", node->member->offset, reg_pop());
         reg_push();
         return;
     }
@@ -466,7 +472,7 @@ static void gen_addr(Node *node) {
 
 // code generate expression
 static void gen_expr(Node *node) {
-    emitf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
+    emitfln(".loc %d %d", node->tok->fileno, node->tok->lineno);
     switch (node->kind) {
     case ND_NOP_EXPR:
         top++;
@@ -475,24 +481,24 @@ static void gen_expr(Node *node) {
         switch (node->ty->kind) {
         case TY_FLOAT: {
             float fval = node->fval;
-            emitf("\tmov $%u, %%rax\n", *(int *)&fval);
-            emitf("\tpush %%rax\n");
-            emitf("\tmovss (%%rsp), %s\n", freg(top++));
-            emitf("\tadd $8, %%rsp\n");
+            emitfln("\tmov $%u, %%rax", *(int *)&fval);
+            emitfln("\tpush %%rax");
+            emitfln("\tmovss (%%rsp), %s", freg(top++));
+            emitfln("\tadd $8, %%rsp");
             return;
         }
         case TY_DOUBLE: {
-            emitf("\tmov $%lu, %%rax\n", *(long *)&node->fval);
-            emitf("\tpush %%rax\n");
-            emitf("\tmovsd (%%rsp), %s\n", freg(top++));
-            emitf("\tadd $8, %%rsp\n");
+            emitfln("\tmov $%lu, %%rax", *(long *)&node->fval);
+            emitfln("\tpush %%rax");
+            emitfln("\tmovsd (%%rsp), %s", freg(top++));
+            emitfln("\tadd $8, %%rsp");
             return;
         }
         case TY_LONG:
-            emitf("\tmovabs $%lu, %s\n", node->val, reg_push());
+            emitfln("\tmovabs $%lu, %s", node->val, reg_push());
             return;
         default:
-            emitf("\tmov $%lu, %s\n", node->val, reg_push());
+            emitfln("\tmov $%lu, %s", node->val, reg_push());
             return;
         }
     case ND_VAR:
@@ -504,13 +510,13 @@ static void gen_expr(Node *node) {
         int label = next_label();
         gen_expr(node->cond);
         cmpzero(node->cond->ty);
-        emitf("\tje .L.else.%d\n", label);
+        emitfln("\tje .L.else.%d", label);
         gen_expr(node->then);
         top--;
-        emitf("\tjmp .L.end.%d\n", label);
-        emitf(".L.else.%d:\n", label);
+        emitfln("\tjmp .L.end.%d", label);
+        emitfln(".L.else.%d:", label);
         gen_expr(node->els);
-        emitf(".L.end.%d:\n", label);
+        emitfln(".L.end.%d:", label);
         return;
     }
     case ND_CAST:
@@ -534,15 +540,15 @@ static void gen_expr(Node *node) {
         return;
     case ND_BITNOT:
         gen_expr(node->lhs);
-        emitf("\tnot %s\n", reg_pop());
+        emitfln("\tnot %s", reg_pop());
         reg_push();
         return;
     case ND_NOT: {
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
         char *rd = reg_push();
-        emitf("\tsete %sb\n", rd);
-        emitf("\tmovzx %sb, %s\n", rd, rd);
+        emitfln("\tsete %sb", rd);
+        emitfln("\tmovzx %sb, %s", rd, rd);
         return;
     }
     case ND_LOGOR: {
@@ -550,17 +556,17 @@ static void gen_expr(Node *node) {
 
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
-        emitf("\tjne .L.true.%d\n", label);
+        emitfln("\tjne .L.true.%d", label);
         gen_expr(node->rhs);
         cmpzero(node->rhs->ty);
-        emitf("\tjne .L.true.%d\n", label);
+        emitfln("\tjne .L.true.%d", label);
 
         char *rd = reg_push();
-        emitf("\tmov $0, %s\n", rd);
-        emitf("\tjmp .L.end.%d\n", label);
-        emitf(".L.true.%d:\n", label);
-        emitf("\tmov $1, %s\n", rd);
-        emitf(".L.end.%d:\n", label);
+        emitfln("\tmov $0, %s", rd);
+        emitfln("\tjmp .L.end.%d", label);
+        emitfln(".L.true.%d:", label);
+        emitfln("\tmov $1, %s", rd);
+        emitfln(".L.end.%d:", label);
         return;
     }
     case ND_LOGAND: {
@@ -568,17 +574,17 @@ static void gen_expr(Node *node) {
 
         gen_expr(node->lhs);
         cmpzero(node->lhs->ty);
-        emitf("\tje .L.false.%d\n", label);
+        emitfln("\tje .L.false.%d", label);
         gen_expr(node->rhs);
         cmpzero(node->rhs->ty);
-        emitf("\tje .L.false.%d\n", label);
+        emitfln("\tje .L.false.%d", label);
 
         char *rd = reg_push();
-        emitf("\tmov $1, %s\n", rd);
-        emitf("\tjmp .L.end.%d\n", label);
-        emitf(".L.false.%d:\n", label);
-        emitf("\tmov $0, %s\n", rd);
-        emitf(".L.end.%d:\n", label);
+        emitfln("\tmov $1, %s", rd);
+        emitfln("\tjmp .L.end.%d", label);
+        emitfln(".L.false.%d:", label);
+        emitfln("\tmov $0, %s", rd);
+        emitfln(".L.end.%d:", label);
         return;
     }
     case ND_COMMA:
@@ -608,176 +614,176 @@ static void gen_expr(Node *node) {
     top--;
 
     if (node->kind == ND_SHL) {
-        emitf("\tmov %s, %%rcx\n",
-              reg(top)); // rs with 8-bit register
-        emitf("\tshl %%cl, %s\n", rd);
+        emitfln("\tmov %s, %%rcx",
+                reg(top)); // rs with 8-bit register
+        emitfln("\tshl %%cl, %s", rd);
         return;
     }
     if (node->kind == ND_SHR) {
-        emitf("\tmov %s, %%rcx\n",
-              reg(top)); // rs with 8-bit register
+        emitfln("\tmov %s, %%rcx",
+                reg(top)); // rs with 8-bit register
         if (node->ty->is_unsigned)
-            emitf("\tshr %%cl, %s\n", rd);
+            emitfln("\tshr %%cl, %s", rd);
         else
-            emitf("\tsar %%cl, %s\n", rd);
+            emitfln("\tsar %%cl, %s", rd);
         return;
     }
     if (node->kind == ND_ADD) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "addss" : "addsd";
-            emitf("\t%s %s, %s\n", insn, fs, fd);
+            emitfln("\t%s %s, %s", insn, fs, fd);
             return;
         }
-        emitf("\tadd %s, %s\n", rs, rd);
+        emitfln("\tadd %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_SUB) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "subss" : "subsd";
-            emitf("\t%s %s, %s\n", insn, fs, fd);
+            emitfln("\t%s %s, %s", insn, fs, fd);
             return;
         }
-        emitf("\tsub %s, %s\n", rs, rd);
+        emitfln("\tsub %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_MUL) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "mulss" : "mulsd";
-            emitf("\t%s %s, %s\n", insn, fs, fd);
+            emitfln("\t%s %s, %s", insn, fs, fd);
             return;
         }
-        emitf("\timul %s, %s\n", rs, rd);
+        emitfln("\timul %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_DIV) {
         if (is_flonum(node->ty)) {
             char *insn = (node->ty->kind == TY_FLOAT) ? "divss" : "divsd";
-            emitf("\t%s %s, %s\n", insn, fs, fd);
+            emitfln("\t%s %s, %s", insn, fs, fd);
             return;
         }
         if (size_of(node->ty) == 8) {
-            emitf("\tmov %s, %%rax\n", rd);
+            emitfln("\tmov %s, %%rax", rd);
             if (node->ty->is_unsigned) {
-                emitf("\tmov $0, %%rdx\n");
-                emitf("\tdiv %s\n", rs);
+                emitfln("\tmov $0, %%rdx");
+                emitfln("\tdiv %s", rs);
             } else {
-                emitf("\tcqo\n");
-                emitf("\tidiv %s\n", rs);
+                emitfln("\tcqo");
+                emitfln("\tidiv %s", rs);
             }
-            emitf("\tmov %%rax, %s\n", rd);
+            emitfln("\tmov %%rax, %s", rd);
         } else {
-            emitf("\tmov %s, %%eax\n", rd);
+            emitfln("\tmov %s, %%eax", rd);
             if (node->ty->is_unsigned) {
-                emitf("\tmov $0, %%edx\n");
-                emitf("\tdiv %s\n", rs);
+                emitfln("\tmov $0, %%edx");
+                emitfln("\tdiv %s", rs);
             } else {
-                emitf("\tcdq\n");
-                emitf("\tidiv %s\n", rs);
+                emitfln("\tcdq");
+                emitfln("\tidiv %s", rs);
             }
-            emitf("\tmov %%eax, %s\n", rd);
+            emitfln("\tmov %%eax, %s", rd);
         }
         return;
     }
     if (node->kind == ND_MOD) {
         if (size_of(node->ty) == 8) {
-            emitf("\tmov %s, %%rax\n", rd);
+            emitfln("\tmov %s, %%rax", rd);
             if (node->ty->is_unsigned) {
-                emitf("\tmov $0, %%rdx\n");
-                emitf("\tdiv %s\n", rs);
+                emitfln("\tmov $0, %%rdx");
+                emitfln("\tdiv %s", rs);
             } else {
-                emitf("\tcqo\n");
-                emitf("\tidiv %s\n", rs);
+                emitfln("\tcqo");
+                emitfln("\tidiv %s", rs);
             }
-            emitf("\tmov %%rdx, %s\n", rd);
+            emitfln("\tmov %%rdx, %s", rd);
         } else {
-            emitf("\tmov %s, %%eax\n", rd);
+            emitfln("\tmov %s, %%eax", rd);
             if (node->ty->is_unsigned) {
-                emitf("\tmov $0, %%edx\n");
-                emitf("\tdiv %s\n", rs);
+                emitfln("\tmov $0, %%edx");
+                emitfln("\tdiv %s", rs);
             } else {
-                emitf("\tcdq\n");
-                emitf("\tidiv %s\n", rs);
+                emitfln("\tcdq");
+                emitfln("\tidiv %s", rs);
             }
-            emitf("\tmov %%edx, %s\n", rd);
+            emitfln("\tmov %%edx, %s", rd);
         }
         return;
     }
     if (node->kind == ND_OR) {
-        emitf("\tor %s, %s\n", rs, rd);
+        emitfln("\tor %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_AND) {
-        emitf("\tand %s, %s\n", rs, rd);
+        emitfln("\tand %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_XOR) {
-        emitf("\txor %s, %s\n", rs, rd);
+        emitfln("\txor %s, %s", rs, rd);
         return;
     }
     if (node->kind == ND_EQ) {
         if (node->lhs->ty->kind == TY_FLOAT)
-            emitf("\tucomiss %s, %s\n", fs, fd);
+            emitfln("\tucomiss %s, %s", fs, fd);
         else if (node->lhs->ty->kind == TY_DOUBLE)
-            emitf("\tucomisd %s, %s\n", fs, fd);
+            emitfln("\tucomisd %s, %s", fs, fd);
         else
-            emitf("\tcmp %s, %s\n", rs, rd);
+            emitfln("\tcmp %s, %s", rs, rd);
 
-        emitf("\tsete %%al\n");
-        emitf("\tmovzx %%al, %s\n", rd);
+        emitfln("\tsete %%al");
+        emitfln("\tmovzx %%al, %s", rd);
         return;
     }
     if (node->kind == ND_NE) {
         if (node->lhs->ty->kind == TY_FLOAT)
-            emitf("\tucomiss %s, %s\n", fs, fd);
+            emitfln("\tucomiss %s, %s", fs, fd);
         else if (node->lhs->ty->kind == TY_DOUBLE)
-            emitf("\tucomisd %s, %s\n", fs, fd);
+            emitfln("\tucomisd %s, %s", fs, fd);
         else
-            emitf("\tcmp %s, %s\n", rs, rd);
-        emitf("\tsetne %%al\n");
-        emitf("\tmovzx %%al, %s\n", rd);
+            emitfln("\tcmp %s, %s", rs, rd);
+        emitfln("\tsetne %%al");
+        emitfln("\tmovzx %%al, %s", rd);
         return;
     }
     if (node->kind == ND_LT) {
         if (node->lhs->ty->kind == TY_FLOAT) {
-            emitf("\tucomiss %s, %s\n", fs, fd);
-            emitf("\tsetb %%al\n");
+            emitfln("\tucomiss %s, %s", fs, fd);
+            emitfln("\tsetb %%al");
         } else if (node->lhs->ty->kind == TY_DOUBLE) {
-            emitf("\tucomisd %s, %s\n", fs, fd);
-            emitf("\tsetb %%al\n");
+            emitfln("\tucomisd %s, %s", fs, fd);
+            emitfln("\tsetb %%al");
         } else {
-            emitf("\tcmp %s, %s\n", rs, rd);
+            emitfln("\tcmp %s, %s", rs, rd);
             if (node->lhs->ty->is_unsigned) {
-                emitf("\tsetb %%al\n");
+                emitfln("\tsetb %%al");
             } else {
-                emitf("\tsetl %%al\n");
+                emitfln("\tsetl %%al");
             }
         }
-        emitf("\tmovzx %%al, %s\n", rd);
+        emitfln("\tmovzx %%al, %s", rd);
         return;
     }
     if (node->kind == ND_LE) {
         if (node->lhs->ty->kind == TY_FLOAT) {
-            emitf("\tucomiss %s, %s\n", fs, fd);
-            emitf("\tsetbe %%al\n");
+            emitfln("\tucomiss %s, %s", fs, fd);
+            emitfln("\tsetbe %%al");
         } else if (node->lhs->ty->kind == TY_DOUBLE) {
-            emitf("\tucomisd %s, %s\n", fs, fd);
-            emitf("\tsetbe %%al\n");
+            emitfln("\tucomisd %s, %s", fs, fd);
+            emitfln("\tsetbe %%al");
         } else {
-            emitf("\tcmp %s, %s\n", rs, rd);
+            emitfln("\tcmp %s, %s", rs, rd);
             if (node->lhs->ty->is_unsigned) {
-                emitf("\tsetbe %%al\n");
+                emitfln("\tsetbe %%al");
             } else {
-                emitf("\tsetle %%al\n");
+                emitfln("\tsetle %%al");
             }
         }
-        emitf("\tmovzx %%al, %s\n", rd);
+        emitfln("\tmovzx %%al, %s", rd);
         return;
     }
     error_tok(node->tok, "codegen: gen_expr: invalid expression");
 }
 
 static void gen_stmt(Node *node) {
-    emitf(".loc %d %d\n", node->tok->fileno, node->tok->lineno);
+    emitfln(".loc %d %d", node->tok->fileno, node->tok->lineno);
     if (node->kind == ND_BLOCK) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
@@ -797,24 +803,24 @@ static void gen_stmt(Node *node) {
         for (Node *n = node->case_next; n; n = n->case_next) {
             n->case_label = next_label();
             n->case_end_label = label;
-            emitf("\tcmp $%ld, %s\n", n->val, rd);
-            emitf("\tje .L.case.%d\n", n->case_label);
+            emitfln("\tcmp $%ld, %s", n->val, rd);
+            emitfln("\tje .L.case.%d", n->case_label);
         }
         if (node->default_case) {
             node->default_case->case_label = next_label();
             node->default_case->case_end_label = label;
-            emitf("\tjmp .L.case.%d\n", node->default_case->case_label);
+            emitfln("\tjmp .L.case.%d", node->default_case->case_label);
         }
 
-        emitf("\tjmp .L.break.%d\n", label);
+        emitfln("\tjmp .L.break.%d", label);
         gen_stmt(node->then);
-        emitf("\t.L.break.%d:\n", label);
+        emitfln("\t.L.break.%d:", label);
 
         breaklabel = brk;
         return;
     }
     if (node->kind == ND_CASE) {
-        emitf(".L.case.%d:\n", node->case_label);
+        emitfln(".L.case.%d:", node->case_label);
         gen_stmt(node->then);
         return;
     }
@@ -822,12 +828,12 @@ static void gen_stmt(Node *node) {
         if (node->lhs) {
             gen_expr(node->lhs);
             if (is_flonum(node->lhs->ty)) {
-                emitf("\tmovsd %s, %%xmm0\n", freg(--top));
+                emitfln("\tmovsd %s, %%xmm0", freg(--top));
             } else {
-                emitf("\tmov %s, %%rax\n", reg(--top));
+                emitfln("\tmov %s, %%rax", reg(--top));
             }
         }
-        emitf("\tjmp .L.return.%s\n", current_fn->name);
+        emitfln("\tjmp .L.return.%s", current_fn->name);
         return;
     }
     if (node->kind == ND_DO) {
@@ -836,13 +842,13 @@ static void gen_stmt(Node *node) {
         int cnt = continuelabel;
         continuelabel = breaklabel = label;
 
-        emitf(".L.begin.%d:\n", label);
+        emitfln(".L.begin.%d:", label);
         gen_stmt(node->then);
-        emitf(".L.continue.%d:\n", label);
+        emitfln(".L.continue.%d:", label);
         gen_expr(node->cond);
         cmpzero(node->cond->ty);
-        emitf("\tjne .L.begin.%d\n", label);
-        emitf(".L.break.%d:\n", label);
+        emitfln("\tjne .L.begin.%d", label);
+        emitfln(".L.break.%d:", label);
 
         continuelabel = cnt;
         breaklabel = brk;
@@ -856,18 +862,18 @@ static void gen_stmt(Node *node) {
 
         if (node->init)
             gen_stmt(node->init);
-        emitf(".L.begin.%d:\n", lfor);
+        emitfln(".L.begin.%d:", lfor);
         if (node->cond) {
             gen_expr(node->cond);
             cmpzero(node->cond->ty);
-            emitf("\tje .L.break.%d\n", lfor);
+            emitfln("\tje .L.break.%d", lfor);
         }
         gen_stmt(node->then);
-        emitf(".L.continue.%d:\n", lfor);
+        emitfln(".L.continue.%d:", lfor);
         if (node->inc)
             gen_stmt(node->inc);
-        emitf("\tjmp .L.begin.%d\n", lfor);
-        emitf(".L.break.%d:\n", lfor);
+        emitfln("\tjmp .L.begin.%d", lfor);
+        emitfln(".L.break.%d:", lfor);
 
         continuelabel = pastcnt;
         breaklabel = pastbrk;
@@ -877,14 +883,14 @@ static void gen_stmt(Node *node) {
         if (continuelabel == 0) {
             error_tok(node->tok, "codegen: stray continue");
         }
-        emitf("\tjmp .L.continue.%d\n", continuelabel);
+        emitfln("\tjmp .L.continue.%d", continuelabel);
         return;
     }
     if (node->kind == ND_BREAK) {
         if (breaklabel == 0) {
             error_tok(node->tok, "codegen: stray break");
         }
-        emitf("\tjmp .L.break.%d\n", breaklabel);
+        emitfln("\tjmp .L.break.%d", breaklabel);
         return;
     }
     if (node->kind == ND_IF) {
@@ -892,24 +898,24 @@ static void gen_stmt(Node *node) {
         cmpzero(node->cond->ty);
         int lif = next_label();
         if (node->els) {
-            emitf("\tje .L.els.%d\n", lif);
+            emitfln("\tje .L.els.%d", lif);
             gen_stmt(node->then);
-            emitf("\tjmp .L.end.%d\n", lif);
-            emitf(".L.els.%d:\n", lif);
+            emitfln("\tjmp .L.end.%d", lif);
+            emitfln(".L.els.%d:", lif);
             gen_stmt(node->els);
         } else {
-            emitf("\tje .L.end.%d\n", lif);
+            emitfln("\tje .L.end.%d", lif);
             gen_stmt(node->then);
         }
-        emitf(".L.end.%d:\n", lif);
+        emitfln(".L.end.%d:", lif);
         return;
     }
     if (node->kind == ND_GOTO) {
-        emitf("\tjmp .L.label.%s.%s\n", current_fn->name, node->labelname);
+        emitfln("\tjmp .L.label.%s.%s", current_fn->name, node->labelname);
         return;
     }
     if (node->kind == ND_LABEL) {
-        emitf("\t.L.label.%s.%s:\n", current_fn->name, node->labelname);
+        emitfln("\t.L.label.%s.%s:", current_fn->name, node->labelname);
         gen_stmt(node->lhs);
         return;
     }
@@ -938,15 +944,15 @@ static void emit_string_literal(char *contents, int len) {
 }
 
 static void emit_bss(Program *prog) {
-    emitf(".bss\n");
+    emitfln(".bss");
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (gv->contents)
             continue;
-        emitf(".align %d\n", gv->align);
+        emitfln(".align %d", gv->align);
         if (!gv->is_static)
-            emitf(".globl %s\n", gv->name);
-        emitf("%s:\n", gv->name);
-        emitf("\t.zero %d\n", size_of(gv->ty));
+            emitfln(".globl %s", gv->name);
+        emitfln("%s:", gv->name);
+        emitfln("\t.zero %d", size_of(gv->ty));
     }
 }
 
@@ -955,25 +961,25 @@ static void emit_init_data(Var *var) {
     int pos = 0;
     while (pos < size_of(var->ty)) {
         if (reloc && reloc->offset == pos) {
-            emitf("\t.quad %s+%ld\n", reloc->label, reloc->addend);
+            emitfln("\t.quad %s+%ld", reloc->label, reloc->addend);
             reloc = reloc->next;
             pos += 8;
         } else {
-            emitf("\t.byte %d\n", var->contents[pos++]);
+            emitfln("\t.byte %d", var->contents[pos++]);
         }
     }
 }
 
 static void emit_data(Program *prog) {
-    emitf(".data\n");
+    emitfln(".data");
 
     for (Var *gv = prog->globals; gv; gv = gv->next) {
         if (!gv->contents)
             continue;
-        emitf(".align %d\n", gv->align);
+        emitfln(".align %d", gv->align);
         if (!gv->is_static)
-            emitf(".globl %s\n", gv->name);
-        emitf("%s:\n", gv->name);
+            emitfln(".globl %s", gv->name);
+        emitfln("%s:", gv->name);
         if (gv->ascii)
             emit_string_literal(gv->contents, size_of(gv->ty));
         else
@@ -982,38 +988,38 @@ static void emit_data(Program *prog) {
 }
 
 static void emit_text(Program *prog) {
-    emitf(".text\n");
+    emitfln(".text");
     for (Function *fn = prog->fns; fn; fn = fn->next) {
         if (!fn->is_static)
-            emitf(".globl %s\n", fn->name);
-        emitf("%s:\n", fn->name);
+            emitfln(".globl %s", fn->name);
+        emitfln("%s:", fn->name);
         current_fn = fn;
 
         // prologue
         // save stack pointer
-        emitf("\tpush %%rbp\n");
-        emitf("\tmov %%rsp, %%rbp\n");
-        emitf("\tsub $%d, %%rsp\n", fn->stacksize);
+        emitfln("\tpush %%rbp");
+        emitfln("\tmov %%rsp, %%rbp");
+        emitfln("\tsub $%d, %%rsp", fn->stacksize);
         // save callee-saved registers
-        emitf("\tmov %%r12, -8(%%rbp)\n");
-        emitf("\tmov %%r13, -16(%%rbp)\n");
-        emitf("\tmov %%r14, -24(%%rbp)\n");
-        emitf("\tmov %%r15, -32(%%rbp)\n");
+        emitfln("\tmov %%r12, -8(%%rbp)");
+        emitfln("\tmov %%r13, -16(%%rbp)");
+        emitfln("\tmov %%r14, -24(%%rbp)");
+        emitfln("\tmov %%r15, -32(%%rbp)");
 
         if (fn->is_variadic) {
-            emitf("\tmov %%rdi, -128(%%rbp)\n");
-            emitf("\tmov %%rsi, -120(%%rbp)\n");
-            emitf("\tmov %%rdx, -112(%%rbp)\n");
-            emitf("\tmov %%rcx, -104(%%rbp)\n");
-            emitf("\tmov %%r8, -96(%%rbp)\n");
-            emitf("\tmov %%r9, -88(%%rbp)\n");
+            emitfln("\tmov %%rdi, -128(%%rbp)");
+            emitfln("\tmov %%rsi, -120(%%rbp)");
+            emitfln("\tmov %%rdx, -112(%%rbp)");
+            emitfln("\tmov %%rcx, -104(%%rbp)");
+            emitfln("\tmov %%r8, -96(%%rbp)");
+            emitfln("\tmov %%r9, -88(%%rbp)");
 
-            emitf("\tmovsd %%xmm0, -80(%%rbp)\n");
-            emitf("\tmovsd %%xmm1, -72(%%rbp)\n");
-            emitf("\tmovsd %%xmm2, -64(%%rbp)\n");
-            emitf("\tmovsd %%xmm3, -56(%%rbp)\n");
-            emitf("\tmovsd %%xmm4, -48(%%rbp)\n");
-            emitf("\tmovsd %%xmm5, -40(%%rbp)\n");
+            emitfln("\tmovsd %%xmm0, -80(%%rbp)");
+            emitfln("\tmovsd %%xmm1, -72(%%rbp)");
+            emitfln("\tmovsd %%xmm2, -64(%%rbp)");
+            emitfln("\tmovsd %%xmm3, -56(%%rbp)");
+            emitfln("\tmovsd %%xmm4, -48(%%rbp)");
+            emitfln("\tmovsd %%xmm5, -40(%%rbp)");
         }
         // push arguments to the stack
         int gp = 0, fp = 0;
@@ -1025,43 +1031,43 @@ static void emit_text(Program *prog) {
         }
         for (Var *v = fn->params; v; v = v->next) {
             if (v->ty->kind == TY_FLOAT) {
-                emitf("\tmovss %%xmm%d, -%d(%%rbp)\n", --fp, v->offset);
+                emitfln("\tmovss %%xmm%d, -%d(%%rbp)", --fp, v->offset);
             } else if (v->ty->kind == TY_DOUBLE) {
-                emitf("\tmovsd %%xmm%d, -%d(%%rbp)\n", --fp, v->offset);
+                emitfln("\tmovsd %%xmm%d, -%d(%%rbp)", --fp, v->offset);
             } else {
-                emitf("\tmov %s, -%d(%%rbp)\n", argreg(size_of(v->ty), --gp),
-                      v->offset);
+                emitfln("\tmov %s, -%d(%%rbp)", argreg(size_of(v->ty), --gp),
+                        v->offset);
             }
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
             if (top != 0)
-                error("top: %d\n", top);
+                error("top: %d", top);
         }
 
         /* C11 spec says in 5.1.2.2.3:
          * "reaching the } that terminates the main function
          * returns a value of 0." */
         if (!strcmp(fn->name, "main"))
-            emitf("\tmov $0, %%rax\n");
+            emitfln("\tmov $0, %%rax");
         // Epilogue
         // recover callee-saved registers
-        emitf(".L.return.%s:\n", current_fn->name);
-        emitf("\tmov -8(%%rbp), %%r12\n");
-        emitf("\tmov -16(%%rbp), %%r13\n");
-        emitf("\tmov -24(%%rbp), %%r14\n");
-        emitf("\tmov -32(%%rbp), %%r15\n");
+        emitfln(".L.return.%s:", current_fn->name);
+        emitfln("\tmov -8(%%rbp), %%r12");
+        emitfln("\tmov -16(%%rbp), %%r13");
+        emitfln("\tmov -24(%%rbp), %%r14");
+        emitfln("\tmov -32(%%rbp), %%r15");
         // recover stack pointer
-        emitf("\tmov %%rbp, %%rsp\n");
-        emitf("\tpop %%rbp\n");
-        emitf("\tret\n");
+        emitfln("\tmov %%rbp, %%rsp");
+        emitfln("\tpop %%rbp");
+        emitfln("\tret");
     }
 }
 
 void codegen(Program *prog) {
     char **paths = get_input_files();
     for (int i = 0; paths[i]; i++)
-        emitf("\t.file %d \"%s\"\n", i + 1, paths[i]);
+        emitfln("\t.file %d \"%s\"", i + 1, paths[i]);
 
     for (Function *fn = prog->fns; fn; fn = fn->next) {
         // calle-saved registers take 32 bytes
