@@ -5,35 +5,35 @@ INCLUDES=$(wildcard include/*.h)
 
 test-all: fmt test test-nopic test-stage2 test-stage3
 
-$(OBJS): src/lcc.h
+$(OBJS): src/licc.h
 
 bin/include: $(INCLUDES)
 	@mkdir -p $@
 	@cp $^ --target-directory=$@
-bin/lcc: $(OBJS) bin/include
+bin/licc: $(OBJS) bin/include
 	@mkdir bin -p
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-bin/lcc-stage2: bin/lcc $(SRCS) src/lcc.h self.sh bin/include
+bin/licc-stage2: bin/licc $(SRCS) src/licc.h self.sh bin/include
 	@mkdir bin -p
-	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
-bin/lcc-stage3: bin/lcc-stage2 bin/include
+	./self.sh $(patsubst bin/licc-%,tmp-%,$@) $$PWD/$< $@
+bin/licc-stage3: bin/licc-stage2 bin/include
 	@mkdir bin -p
-	./self.sh $(patsubst bin/lcc-%,tmp-%,$@) $$PWD/$< $@
+	./self.sh $(patsubst bin/licc-%,tmp-%,$@) $$PWD/$< $@
 
-test: bin/lcc tests/extern.o
+test: bin/licc tests/extern.o
 	$< tests/tests.c -c -o tmp.o
 	cc -o tmp tmp.o tests/extern.o
 	./tmp
-test-nopic: bin/lcc tests/extern.o
+test-nopic: bin/licc tests/extern.o
 	$< tests/tests.c -c -o tmp.o -fno-pic
 	cc -static -o tmp tmp.o tests/extern.o
 	./tmp
-test-stage2: bin/lcc-stage2 tests/extern.o
+test-stage2: bin/licc-stage2 tests/extern.o
 	$< tests/tests.c -c -o tmp.o
 	cc -o tmp tmp.o tests/extern.o
 	./tmp
-test-stage3: bin/lcc-stage3
-	@diff bin/lcc-stage2 bin/lcc-stage3 && echo "stage3 OK"
+test-stage3: bin/licc-stage3
+	@diff bin/licc-stage2 bin/licc-stage3 && echo "stage3 OK"
 
 fmt:
 	clang-format -i $(SRCS)

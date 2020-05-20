@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 static char *KEYWORDS[] = {
     "return",   "if",      "else",  "for",     "while",  "sizeof",   "int",

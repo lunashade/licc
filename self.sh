@@ -8,14 +8,14 @@ OUT=$3
 rm -rf $TMP
 mkdir -p $TMP
 
-lcc() {
+licc() {
     src="$1"
     obj="$TMP/$(basename $src .c).o"
     $CC -c -o "$obj" "$src"
 }
 
 for f in src/*.c; do
-    lcc "$f"
+    licc "$f"
 done
 
 (cd $TMP; gcc -o ../$OUT *.o)

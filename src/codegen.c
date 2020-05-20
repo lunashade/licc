@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 // code generation
 static void gen_addr(Node *node);

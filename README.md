@@ -6,7 +6,7 @@ little C compiler for study.
 
 ### build, test
 
-`make lcc`, `make test`
+`make licc`, `make test`
 
 
 ## reference

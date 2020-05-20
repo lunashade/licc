@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 static Function *funcdef(Token **rest, Token *tok);
 

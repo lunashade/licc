@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 bool opt_E = false;
 bool opt_S;
@@ -13,7 +13,7 @@ static char *output_path;
 static char *tempfile_path;
 
 static void usage(int code) {
-    fprintf(stderr, "Usage: lcc [-ESc] [-fpic,-fPIC] [-fno-pic,-fno-PIC] [-o "
+    fprintf(stderr, "Usage: licc [-ESc] [-fpic,-fPIC] [-fno-pic,-fno-PIC] [-o "
                     "<output_path>] [-I<include_dir>] <file>\n");
     exit(code);
 }
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 
     input_dir = dirname(strdup(input_path));
 
-    tempfile_path = strdup("/tmp/lcc-XXXXXX");
+    tempfile_path = strdup("/tmp/licc-XXXXXX");
     int fd = mkstemp(tempfile_path);
     if (!fd)
         error("cannot create a temporary file: %s: %s", tempfile_path,

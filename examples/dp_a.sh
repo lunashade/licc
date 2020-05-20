@@ -2,8 +2,8 @@
 
 cd $(dirname $0)/..
 
-make bin/lcc
-bin/lcc -c examples/dp_a/main.c -o tmp.o
+make bin/licc
+bin/licc -c examples/dp_a/main.c -o tmp.o
 gcc -o tmp_dp tmp.o
 
 for i in {1..3}; do

@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 static Token *preprocess2(Token *tok);
 //
@@ -152,7 +152,7 @@ static void define_macro(char *name, char *buf) {
 
 void init_macros(void) {
     // Define predefined macros
-    define_macro("__lcc__", "1");
+    define_macro("__licc__", "1");
     define_macro("_LP64", "1");
     define_macro("__ELF__", "1");
     define_macro("__LP64__", "1");

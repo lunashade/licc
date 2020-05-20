@@ -1,4 +1,4 @@
-#include "lcc.h"
+#include "licc.h"
 
 void print_tokens(Token *head) {
     for (Token *tok = head; tok && tok->kind != TK_EOF; tok = tok->next) {
