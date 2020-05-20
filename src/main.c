@@ -74,7 +74,7 @@ static void parse_args(int argc, char **argv) {
     output_path = NULL;
     int npaths = 0;
 
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--help")) {
             usage(0);
         }
