@@ -20,6 +20,8 @@ static void emitfln(char *fmt, ...) {
 }
 
 // register
+static char *argfreg64[] = {"%xmm0", "%xmm1", "%xmm2", "%xmm3",
+                            "%xmm4", "%xmm5", "%xmm6", "%xmm7"};
 static char *argreg64[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 static char *argreg32[] = {"%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"};
 static char *argreg16[] = {"%di", "%si", "%dx", "%cx", "%r8w", "%r9w"};
@@ -37,6 +39,12 @@ static char *freg(int idx) {
     if (idx < 0 || sizeof(freg64) / sizeof(*freg64) <= idx)
         error("freg: registor out of range: %d", idx);
     return freg64[idx];
+}
+
+static char *argfreg(int idx) {
+    if (idx < 0 || sizeof(argfreg64) / sizeof(*argfreg64) <= idx)
+        error("freg: registor out of range: %d", idx);
+    return argfreg64[idx];
 }
 
 static char *argreg(int sz, int idx) {
@@ -438,11 +446,7 @@ static void gen_funcall(Node *node) {
 static void gen_addr(Node *node) {
     if (node->kind == ND_VAR) {
         if (node->var->is_local) {
-            if (node->var->offset < 0) {
-                emitfln("\tlea %d(%%rbp), %s", -node->var->offset, reg_push());
-                return;
-            }
-            emitfln("\tlea -%d(%%rbp), %s", node->var->offset, reg_push());
+            emitfln("\tlea %d(%%rbp), %s", -node->var->offset, reg_push());
             return;
         }
         if (!opt_fpic) {
@@ -1043,29 +1047,16 @@ static void emit_text(Program *prog) {
         }
 
         for (Var *v = fn->params; v; v = v->next) {
-            if (is_flonum(v->ty)) {
-                if (memfp) {
-                    // load memarg
-                    v->offset = -(16 + 8 * (--memfp + memgp));
-                    continue;
-                }
-                // load from register
+            if (v->reg) {
+                // load SSE from register
                 if (v->ty->kind == TY_FLOAT) {
-                    emitfln("\tmovss %%xmm%d, -%d(%%rbp)", --fp, v->offset);
+                    emitfln("\tmovss %s, -%d(%%rbp)", v->reg, v->offset);
+                } else if (v->ty->kind == TY_DOUBLE) {
+                    emitfln("\tmovsd %s, -%d(%%rbp)", v->reg, v->offset);
                 } else {
-                    assert(v->ty->kind == TY_DOUBLE);
-                    emitfln("\tmovsd %%xmm%d, -%d(%%rbp)", --fp, v->offset);
+                    emitfln("\tmov %s, -%d(%%rbp)", v->reg, v->offset);
                 }
-                continue;
             }
-            // INTEGER type
-            if (memgp) {
-                v->offset = -(16 + 8 * (--memgp + memfp));
-                continue;
-            }
-            emitfln("\tmov %s, -%d(%%rbp)", argreg(size_of(v->ty), --gp),
-                    v->offset);
-            continue;
         }
         for (Node *n = fn->node; n; n = n->next) {
             gen_stmt(n);
@@ -1092,21 +1083,63 @@ static void emit_text(Program *prog) {
     }
 }
 
+void calc_lvar_offset(Function *fn) {
+    // push arguments to the stack
+    int gp = 0, fp = 0;
+    int memgp = 0, memfp = 0; // on-memory arguments
+    for (Var *v = fn->params; v; v = v->next) {
+        if (is_flonum(v->ty)) {
+            if (fp < 8)
+                fp++;
+            else
+                memfp++;
+        } else {
+            if (gp < 6)
+                gp++;
+            else
+                memgp++;
+        }
+    }
+
+    for (Var *v = fn->params; v; v = v->next) {
+        if (is_flonum(v->ty)) {
+            if (memfp) {
+                // load memarg
+                v->offset = -(16 + 8 * (--memfp + memgp));
+                continue;
+            }
+            v->reg = argfreg(--fp);
+            continue;
+        }
+        // INTEGER type
+        if (memgp) {
+            // load memarg
+            v->offset = -(16 + 8 * (--memgp + memfp));
+            continue;
+        }
+        v->reg = argreg(size_of(v->ty), --gp);
+        continue;
+    }
+
+    int offset = fn->is_variadic ? 128 : 32;
+
+    for (Var *v = fn->locals; v; v = v->next) {
+        if (v->offset != 0)
+            continue;
+        offset = align_to(offset, v->align);
+        offset += v->ty->size;
+        v->offset = offset;
+    }
+    fn->stacksize = align_to(offset, 16);
+}
+
 void codegen(Program *prog) {
     char **paths = get_input_files();
     for (int i = 0; paths[i]; i++)
         emitfln("\t.file %d \"%s\"", i + 1, paths[i]);
 
     for (Function *fn = prog->fns; fn; fn = fn->next) {
-        // calle-saved registers take 32 bytes
-        // and variable-argument save area takes 8 * 6 * 2 = 96 bytes.
-        int offset = fn->is_variadic ? 128 : 32;
-        for (Var *v = fn->locals; v; v = v->next) {
-            offset = align_to(offset, v->align);
-            offset += v->ty->size;
-            v->offset = offset;
-        }
-        fn->stacksize = align_to(offset, 16);
+        calc_lvar_offset(fn);
     }
     emit_bss(prog);
     emit_data(prog);

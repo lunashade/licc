@@ -110,6 +110,7 @@ struct Var {
     char *name;     // name string
     Type *ty;       // type
     int offset;     // offset from rbp
+    char *reg;      // stored register
     int align;      // alignment
     bool is_local;  // local or not
     bool is_static; // file-scope
