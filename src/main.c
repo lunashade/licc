@@ -17,6 +17,14 @@ static void usage(int code) {
                     "<output_path>] [-I<include_dir>] <file>\n");
     exit(code);
 }
+static void define(char *str) {
+    char *eq = strchr(str, '=');
+    if (eq)
+        define_macro(strndup(str, eq - str), eq + 1);
+    else
+        define_macro(str, "");
+}
+
 static void add_include_path(char *path) {
     static int len = 2;
     include_paths = realloc(include_paths, sizeof(char *) * len);
@@ -97,7 +105,10 @@ static void parse_args(int argc, char **argv) {
             add_include_path(argv[i] + 2);
             continue;
         }
-
+        if (!strncmp(argv[i], "-D", 2)) {
+            define(argv[i] + 2);
+            continue;
+        }
         if (argv[i][0] == '-' && argv[i][1] != '\0') {
             error("unknown option: %s", argv[i]);
         }

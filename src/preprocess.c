@@ -145,7 +145,7 @@ static Macro *push_macro(char *name) {
     return m;
 }
 
-static void define_macro(char *name, char *buf) {
+void define_macro(char *name, char *buf) {
     Token *tok = tokenize("(internal)", 1, buf);
     push_macro(name)->body = tok;
 }

@@ -1383,5 +1383,14 @@ of(int),"sizeof(int)");
     assert(0, ({ char buf[200]; sprintf(buf, "%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp("1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1", buf);  }), "({ char buf[200]; sprintf(buf, \"%d %.1f %.1f %.1f %d %d %.1f %d %d %d %d %.1f %d %d %.1f %.1f %.1f %.1f %d\", 1, 1.0, 1.0, 1.0, 1, 1, 1.0, 1, 1, 1, 1, 1.0, 1, 1, 1.0, 1.0, 1.0, 1.0, 1); strcmp(\"1 1.0 1.0 1.0 1 1 1.0 1 1 1 1 1.0 1 1 1.0 1.0 1.0 1.0 1\", buf);  })");
     assert(28, add7(1,2,3,4,5,6,7), "add7(1,2,3,4,5,6,7)");
     assert(66, adddouble11(1,2,3,4,5,6,7,8,9,10,11), "adddouble11(1,2,3,4,5,6,7,8,9,10,11)");
+
+#ifdef ANSWER
+    assert(42, ANSWER, "ANSWER");
+#endif
+#ifdef DMACRO
+    assert(1, 1, "1");
+#else
+    assert(0, 1, "1");
+#endif
     printf("OK\n");
 }

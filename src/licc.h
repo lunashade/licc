@@ -89,6 +89,7 @@ void warn_tok(Token *tok, char *fmt, ...);
 //
 // Preprocessor
 //
+void define_macro(char *name, char *buf);
 void init_macros(void);
 Token *preprocess(Token *);
 

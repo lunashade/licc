@@ -21,15 +21,15 @@ bin/licc-stage3: bin/licc-stage2 bin/include
 	./self.sh $(patsubst bin/licc-%,tmp-%,$@) $$PWD/$< $@
 
 test: bin/licc tests/extern.o
-	$< tests/tests.c -c -o tmp.o
+	$< tests/tests.c -DANSWER=42 -DDMACRO -c -o tmp.o
 	cc -o tmp tmp.o tests/extern.o
 	./tmp
 test-nopic: bin/licc tests/extern.o
-	$< tests/tests.c -c -o tmp.o -fno-pic
+	$< tests/tests.c -DANSWER=42 -DDMACRO -c -o tmp.o -fno-pic
 	cc -static -o tmp tmp.o tests/extern.o
 	./tmp
 test-stage2: bin/licc-stage2 tests/extern.o
-	$< tests/tests.c -c -o tmp.o
+	$< tests/tests.c -DANSWER=42 -DDMACRO -c -o tmp.o
 	cc -o tmp tmp.o tests/extern.o
 	./tmp
 test-stage3: bin/licc-stage3
