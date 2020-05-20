@@ -22,12 +22,22 @@ bin/include: $(INCLUDES)
 bin/licc: $(OBJS) bin/include
 	@mkdir -p $(@D)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
-bin/licc-stage2: bin/licc $(SRCS) src/licc.h self.sh bin/include
+bin/licc-stage2: bin/licc $(SRCS) src/licc.h bin/include
 	@mkdir -p $(@D)
-	./self.sh $(patsubst bin/licc-%,tmp-%,$@) $$PWD/$< $@
+	@mkdir -p $(patsubst bin/licc-%,tmp-%,$@)
+	for src in $(SRCS); do \
+		$< -c $$src -o \
+		"$(patsubst bin/licc-%,tmp-%,$@)/$$(basename $$src .c).o"; \
+	done
+	(cd $(patsubst bin/licc-%,tmp-%,$@); gcc -o ../$@ *.o)
 bin/licc-stage3: bin/licc-stage2 bin/include
 	@mkdir -p $(@D)
-	./self.sh $(patsubst bin/licc-%,tmp-%,$@) $$PWD/$< $@
+	@mkdir -p $(patsubst bin/licc-%,tmp-%,$@)
+	for src in $(SRCS); do \
+		$< -c $$src -o \
+		"$(patsubst bin/licc-%,tmp-%,$@)/$$(basename $$src .c).o"; \
+	done
+	(cd $(patsubst bin/licc-%,tmp-%,$@); gcc -o ../$@ *.o)
 
 bin/release/licc: bin/licc bin/include
 	@mkdir -p $(@D)
