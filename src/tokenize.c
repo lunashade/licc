@@ -16,12 +16,6 @@ static char **input_files;
 
 char **get_input_files(void) { return input_files; }
 
-void error(char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    exit(1);
-}
 static void verror_at(char *filename, char *input, int lineno, char *loc,
                       char *fmt, va_list ap) {
     char *line = loc;
@@ -39,7 +33,7 @@ static void verror_at(char *filename, char *input, int lineno, char *loc,
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
 }
-void error_at(char *loc, char *fmt, ...) {
+static void error_at(char *loc, char *fmt, ...) {
     int lineno = 1;
     for (char *p = current_input; p < loc; p++)
         if (*p == '\n')
