@@ -113,6 +113,11 @@ static void parse_args(int argc, char **argv) {
             define(argv[i] + 2);
             continue;
         }
+        // Ignored option
+        if (!strncmp(argv[i], "-g", 2) || !strncmp(argv[i], "-O", 2) ||
+            !strncmp(argv[i], "-W", 2)) {
+            continue;
+        }
         if (argv[i][0] == '-' && argv[i][1] != '\0') {
             error("unknown option: %s", argv[i]);
         }
