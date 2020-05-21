@@ -709,7 +709,7 @@ static Function *funcdef(Token **rest, Token *tok) {
     fn->is_static = ctx.is_static;
     enter_scope();
     for (Type *t = ty->params; t; t = t->next) {
-        if (!ty->name)
+        if (!t->name)
             error_tok(t->name_pos, "parse: funcdef: expected parameter name");
         new_lvar(get_ident(t->name), t);
     }
