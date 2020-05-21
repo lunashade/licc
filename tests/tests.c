@@ -22,6 +22,14 @@ typedef struct {char a; int b;} Ty1;
 int add_all1(int , ...);
 int add_all3(int , int , int ,...);
 
+_Noreturn void newabort(void)  {
+    exit(0);
+}
+
+inline int addinline(int x, int y) {
+    return x + y;
+}
+
 char *fmt(char *buf, char *fmt, ...) {
     va_list ap;
     __builtin_va_start(ap, fmt);
@@ -1387,10 +1395,14 @@ of(int),"sizeof(int)");
 #ifdef ANSWER
     assert(42, ANSWER, "ANSWER");
 #endif
+#define DMACRO_IS_DEFINED 1
 #ifdef DMACRO
-    assert(1, 1, "1");
+    assert(1, DMACRO_IS_DEFINED, "DMACRO_IS_DEFINED");
 #else
-    assert(0, 1, "1");
+    assert(0, DMACRO_IS_DEFINED, "DMACRO_IS_DEFINED");
 #endif
+#undef DMACRO_IS_DEFINED
+
+    assert(3, addinline(1, 2), "addinline(1, 2)");
     printf("OK\n");
 }

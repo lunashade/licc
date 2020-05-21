@@ -362,10 +362,11 @@ bool is_typename(Token *tok) {
         return find_typedef(tok);
     }
 
-    char *tn[] = {"int",    "char",     "struct",   "union",  "_Bool",
-                  "enum",   "short",    "long",     "void",   "typedef",
-                  "static", "extern",   "_Alignas", "signed", "unsigned",
-                  "const",  "volatile", "float",    "double"};
+    char *tn[] = {"int",      "char",     "struct",   "union",  "_Bool",
+                  "enum",     "short",    "long",     "void",   "typedef",
+                  "static",   "extern",   "_Alignas", "signed", "unsigned",
+                  "const",    "volatile", "float",    "double", "inline",
+                  "_Noreturn"};
     for (int i = 0; i < sizeof(tn) / sizeof(*tn); i++)
         if (equal(tok, tn[i]))
             return true;
@@ -668,6 +669,14 @@ Program *parse(Token *tok) {
             if (!ty->name)
                 error_tok(ty->name_pos,
                           "parse: program: expected variable name");
+            // error of function specifier
+            if (ctx.is_noreturn)
+                error_tok(ty->name_pos,
+                          "parse: '_Noreturn' can only appear in funcdef");
+            if (ctx.is_inline)
+                error_tok(ty->name_pos,
+                          "parse: 'inline' can only appear in funcdef");
+
             Var *var = new_gvar(get_ident(ty->name), ty, ctx.is_static,
                                 !ctx.is_extern);
             if (ctx.align)
@@ -707,6 +716,9 @@ static Function *funcdef(Token **rest, Token *tok) {
     Function *fn = calloc(1, sizeof(Function));
     fn->name = get_ident(ty->name);
     fn->is_static = ctx.is_static;
+    fn->is_inline = ctx.is_inline;
+    fn->is_noreturn = ctx.is_noreturn;
+
     enter_scope();
     for (Type *t = ty->params; t; t = t->next) {
         if (!t->name)
@@ -764,6 +776,14 @@ static Node *declaration(Token **rest, Token *tok) {
         if (ty->kind == TY_VOID) {
             error_tok(tok, "parse: variable declared void");
         }
+        // error of function specifier
+        if (ctx.is_noreturn)
+            error_tok(ty->name_pos,
+                      "parse: '_Noreturn' can only appear in funcdef");
+        if (ctx.is_inline)
+            error_tok(ty->name_pos,
+                      "parse: 'inline' can only appear in funcdef");
+
         if (ctx.type_def) {
             push_scope(get_ident(ty->name))->type_def = ty;
             // tok = tok->next;
@@ -865,6 +885,20 @@ static Type *decl_specifier(Token **rest, Token *tok, DeclContext *ctx) {
             if (ctx->is_extern + ctx->is_static + ctx->type_def > 1) {
                 error_tok(tok, "parse: decl-specifier: cannot use multiple "
                                "storage class specifier");
+            }
+            tok = tok->next;
+            continue;
+        }
+        // function-specifier
+        if (equal(tok, "_Noreturn") || equal(tok, "inline")) {
+            if (!ctx)
+                error_tok(tok, "parse: decl-specifier: function-specifier "
+                               "not allowed in this context");
+            if (equal(tok, "inline")) {
+                ctx->is_inline = true;
+            }
+            if (equal(tok, "_Noreturn")) {
+                ctx->is_noreturn = true;
             }
             tok = tok->next;
             continue;

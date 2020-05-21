@@ -1,11 +1,12 @@
 #include "licc.h"
 
 static char *KEYWORDS[] = {
-    "return",   "if",      "else",  "for",     "while",  "sizeof",   "int",
-    "char",     "struct",  "union", "short",   "long",   "void",     "signed",
-    "unsigned", "typedef", "_Bool", "static",  "enum",   "goto",     "break",
-    "continue", "switch",  "case",  "default", "extern", "_Alignof", "_Alignas",
-    "volatile", "const",   "float", "double"};
+    "return",  "if",     "else",      "for",      "while",    "sizeof",
+    "int",     "char",   "struct",    "union",    "short",    "long",
+    "void",    "signed", "unsigned",  "typedef",  "_Bool",    "static",
+    "enum",    "goto",   "break",     "continue", "switch",   "case",
+    "default", "extern", "_Alignof",  "_Alignas", "volatile", "const",
+    "float",   "double", "_Noreturn", "inline"};
 static char *MULTIPUNCT[] = { // must be length descending order
     "...", "<<=", ">>=", "<=", "==", ">=", "!=", "->", "+=", "-=", "*=", "/=",
     "%=",  "&=",  "|=",  "^=", "++", "--", "&&", "||", "<<", ">>", "##"};

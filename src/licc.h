@@ -98,10 +98,15 @@ Token *preprocess(Token *);
 
 typedef struct DeclContext DeclContext;
 struct DeclContext {
+    // storage-class specifier
     bool type_def;
     bool is_extern;
     bool is_static;
+    // alignment specifier
     int align;
+    // function specifier
+    bool is_inline;
+    bool is_noreturn;
 };
 
 typedef struct Var Var;
@@ -243,6 +248,8 @@ struct Function {
     int stacksize; // local variable stack size
 
     bool is_static;   // file scope
+    bool is_inline;   // inline
+    bool is_noreturn; // _Noreturn
     bool is_variadic; // variadic
 };
 
