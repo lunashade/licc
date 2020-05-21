@@ -1,9 +1,14 @@
 #include "licc.h"
 
-bool opt_E = false;
+bool opt_M;
+bool opt_MP;
+bool opt_E;
 bool opt_S;
 bool opt_c;
 bool opt_fpic = true;
+char *opt_MT;
+char *opt_MF;
+
 char **include_paths;
 char *input_dir;
 FILE *tempfile;
@@ -113,6 +118,30 @@ static void parse_args(int argc, char **argv) {
             define(argv[i] + 2);
             continue;
         }
+        if (!strcmp(argv[i], "-M")) {
+            opt_M = opt_E = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-MD")) {
+            opt_M = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-MP")) {
+            opt_MP = true;
+            continue;
+        }
+        if (!strcmp(argv[i], "-MT")) {
+            opt_MT = argv[++i];
+            continue;
+        }
+        if (!strcmp(argv[i], "-MF")) {
+            opt_MF = argv[++i];
+            continue;
+        }
+        if (!strncmp(argv[i], "-MF", 3)) {
+            opt_MF = argv[i] + 3;
+            continue;
+        }
         // Ignored option
         if (!strncmp(argv[i], "-g", 2) || !strncmp(argv[i], "-O", 2) ||
             !strncmp(argv[i], "-W", 2)) {
@@ -127,6 +156,31 @@ static void parse_args(int argc, char **argv) {
         error("no input file");
     if (!output_path)
         output_path = get_output_filename();
+}
+
+static void print_dependencies(void) {
+    FILE *out;
+    if (opt_MF) {
+        out = fopen(opt_MF, "w");
+        if (!out)
+            error("-MF: cannot open %s: %s", opt_MF, strerror(errno));
+    } else {
+        out = stdout;
+    }
+
+    char **paths = get_input_files();
+    fprintf(out, "%s:", opt_MT ? opt_MT : paths[0]);
+    for (int i = 1; paths[i]; i++) {
+        fprintf(out, "\\\n  %s", paths[i]);
+    }
+    fprintf(out, "\n\n");
+
+    if (opt_MP)
+        for (int i = 1; paths[i]; i++)
+            fprintf(out, "%s:\n\n", paths[i]);
+
+    if (out != stdout)
+        fclose(out);
 }
 
 static void copy_file(FILE *in, FILE *out) {
@@ -163,6 +217,12 @@ int main(int argc, char **argv) {
     if (!tok)
         error("%s: %s", input_path, strerror(errno));
     tok = preprocess(tok);
+
+    // if -M or -MD are given, print dependency info for make command.
+    if (opt_M)
+        print_dependencies();
+
+    // if -E is given, print out preprocessed C code as a result.
     if (opt_E) {
         print_tokens(tok);
         exit(0);
