@@ -935,22 +935,6 @@ static void gen_stmt(Node *node) {
     error_tok(node->tok, "codegen: gen_stmt: invalid statement");
 }
 
-static void emit_string_literal(char *contents, int len) {
-    emitf("\t.ascii \"");
-    for (int i = 0; i < len; i++) {
-        char c = contents[i];
-        if (iscntrl(c) || c == '\"' || c == '\\') {
-            char d1 = c / 64;
-            char d2 = (c % 64) / 8;
-            char d3 = (c % 8);
-            emitf("\\%d%d%d", d1, d2, d3);
-        } else {
-            emitf("%c", c);
-        }
-    }
-    emitf("\"\n");
-}
-
 static void emit_bss(Program *prog) {
     emitfln(".bss");
     for (Var *gv = prog->globals; gv; gv = gv->next) {
@@ -988,10 +972,7 @@ static void emit_data(Program *prog) {
         if (!gv->is_static)
             emitfln(".globl %s", gv->name);
         emitfln("%s:", gv->name);
-        if (gv->ascii)
-            emit_string_literal(gv->contents, size_of(gv->ty));
-        else
-            emit_init_data(gv);
+        emit_init_data(gv);
     }
 }
 
@@ -1029,23 +1010,7 @@ static void emit_text(Program *prog) {
             emitfln("\tmovsd %%xmm4, -48(%%rbp)");
             emitfln("\tmovsd %%xmm5, -40(%%rbp)");
         }
-        // push arguments to the stack
-        int gp = 0, fp = 0;
-        int memgp = 0, memfp = 0; // on-memory arguments
-        for (Var *v = fn->params; v; v = v->next) {
-            if (is_flonum(v->ty)) {
-                if (fp < 8)
-                    fp++;
-                else
-                    memfp++;
-            } else {
-                if (gp < 6)
-                    gp++;
-                else
-                    memgp++;
-            }
-        }
-
+        // load arguments on stack
         for (Var *v = fn->params; v; v = v->next) {
             if (v->reg) {
                 // load SSE from register
